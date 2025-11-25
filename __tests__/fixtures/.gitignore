@@ -1,0 +1,11 @@
+# Exclude test audio files from Git
+*.wav
+*.mp3
+*.aiff
+*.m4a
+*.ogg
+*.flac
+
+# Keep the README
+!README.md
+

@@ -4,9 +4,11 @@
 /node_modules
 /.pnp
 .pnp.js
+.yarn/install-state.gz
 
 # testing
 /coverage
+*.log
 
 # next.js
 /.next/
@@ -14,6 +16,7 @@
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store
@@ -27,6 +30,9 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env.development.local
+.env.test.local
+.env.production.local
 
 # vercel
 .vercel
@@ -34,3 +40,106 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/
+/temp/
+
+# FFmpeg processed files (local testing)
+/public/uploads/
+/public/processed/
+*.wav
+*.mp4
+*.webm
+*.avi
+*.mkv
+*.flv
+*.mov
+
+# Exclude large media files from git
+*.mp3
+*.ogg
+*.m4a
+*.aac
+
+# FFmpeg core files (too large, regenerate from npm)
+/public/ffmpeg/
+
+# AI Model files (too large, downloaded via setup script)
+/public/models/
+/public/transformers.min.js
+
+# Performance monitoring logs
+/logs/
+performance-*.json
+
+# Lock files (choose one based on package manager)
+# Uncomment the one you don't use:
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Storybook
+.storybook-out/
+storybook-static/
+
+# Turbo
+.turbo
+
+# Sentry
+.sentryclirc
+
+# Local Netlify folder
+.netlify
+
+# PWA files
+**/public/sw.js
+**/public/workbox-*.js
+**/public/worker-*.js
+**/public/sw.js.map
+**/public/workbox-*.js.map
+**/public/worker-*.js.map
+
+# ESLint cache
+.eslintcache
+
+# Prettier cache
+.prettiercache
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# Bundle analyzer
+.next/analyze/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+/.vs

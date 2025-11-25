@@ -1,0 +1,50 @@
+{
+  "name": "video-audio-process-poc-nextjs",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "npm run validate-models && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "setup-ffmpeg": "node scripts/setup-ffmpeg.js",
+    "setup-models": "node scripts/setup-models.js",
+    "validate-models": "node scripts/validate-models.js",
+    "postinstall": "npm run setup-ffmpeg && npm run setup-models",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:unit": "jest --testPathIgnorePatterns=integration",
+    "test:integration": "jest --testPathPattern=integration",
+    "test:integration:whisper": "jest __tests__/integration/whisper-transcription.test.js",
+    "test:setup": "jest __tests__/setup-ffmpeg.test.js __tests__/setup-models.test.js",
+    "test:integrity": "jest __tests__/project-integrity.test.js",
+    "test:models": "jest __tests__/unit/whisper-models.test.js"
+  },
+  "dependencies": {
+    "@ffmpeg/core": "^0.12.6",
+    "@ffmpeg/ffmpeg": "^0.12.10",
+    "@ffmpeg/util": "^0.12.1",
+    "@xenova/transformers": "^2.17.2",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.454.0",
+    "next": "^14.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.5.0",
+    "wavesurfer.js": "^7.8.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.17.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.22",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^16.0.4",
+    "jest": "^30.2.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.6.0"
+  }
+}
