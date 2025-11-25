@@ -10,6 +10,8 @@
     "setup-ffmpeg": "node scripts/setup-ffmpeg.js",
     "setup-models": "node scripts/setup-models.js",
     "validate-models": "node scripts/validate-models.js",
+    "clear-cache": "node scripts/clear-model-cache.js",
+    "reset-models": "npm run clear-cache && npm run setup-models",
     "postinstall": "npm run setup-ffmpeg && npm run setup-models",
     "test": "jest",
     "test:watch": "jest --watch",

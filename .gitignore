@@ -143,3 +143,16 @@ storybook-static/
 # Optional stylelint cache
 .stylelintcache
 /.vs
+
+# Backup files from refactoring
+app/page-old.tsx
+app/page-new.tsx
+app/page-refactored.tsx
+app/page-dashboard.tsx
+app/page-sequential.tsx
+
+# Development documentation and commit messages
+REFACTORING_GUIDE.md
+REFACTORING_SUMMARY.md
+COMMIT_MESSAGE.txt
+__tests__/unit/WHISPER_MODELS_TEST_README.md

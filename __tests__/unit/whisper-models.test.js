@@ -132,9 +132,41 @@ describe('Whisper Model Files Validation', () => {
     });
 
     describe('ONNX model files', () => {
+      const onnxDirPath = path.join(modelPath, 'onnx');
+
+      test('onnx folder exists', () => {
+        expect(fs.existsSync(onnxDirPath)).toBe(true);
+      });
+
+      test('onnx is a DIRECTORY, not a file (regression test)', () => {
+        // This catches the bug where the cache-clearing script
+        // incorrectly reported onnx as "0 bytes empty file"
+        const stats = fs.statSync(onnxDirPath);
+        expect(stats.isDirectory()).toBe(true);
+        expect(stats.isFile()).toBe(false);
+      });
+
+      test('onnx directory is not empty', () => {
+        const files = fs.readdirSync(onnxDirPath);
+        expect(files.length).toBeGreaterThan(0);
+        
+        // Should contain at least the 2 required ONNX files
+        expect(files.length).toBeGreaterThanOrEqual(2);
+      });
+
+      test('onnx directory contains required model files', () => {
+        const files = fs.readdirSync(onnxDirPath);
+        
+        expect(files).toContain('decoder_model_merged_quantized.onnx');
+        expect(files).toContain('encoder_model_quantized.onnx');
+      });
+
       test('decoder model is present and large enough', () => {
         const decoderPath = path.join(modelPath, 'onnx', 'decoder_model_merged_quantized.onnx');
         const stats = fs.statSync(decoderPath);
+        
+        // Verify it's a file, not a directory
+        expect(stats.isFile()).toBe(true);
         
         // Decoder (quantized): ~29MB for tiny, ~51MB for base, ~149MB for small
         const minSize = EXPECTED_SIZES[modelName]['onnx/decoder_model_merged_quantized.onnx'];
@@ -144,6 +176,9 @@ describe('Whisper Model Files Validation', () => {
       test('encoder model is present and large enough', () => {
         const encoderPath = path.join(modelPath, 'onnx', 'encoder_model_quantized.onnx');
         const stats = fs.statSync(encoderPath);
+        
+        // Verify it's a file, not a directory
+        expect(stats.isFile()).toBe(true);
         
         // Encoder (quantized): ~9MB for tiny, ~22MB for base, ~88MB for small
         const minSize = EXPECTED_SIZES[modelName]['onnx/encoder_model_quantized.onnx'];
