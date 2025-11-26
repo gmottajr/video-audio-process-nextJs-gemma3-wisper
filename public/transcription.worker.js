@@ -22,13 +22,22 @@ console.log('[Worker] Model path:', env.localModelPath);
 // State
 let transcriber = null;
 let isModelLoaded = false;
+let currentModelName = null; // Track which model is currently loaded
 
 /**
  * Initialize the Whisper model from local files
  */
 async function loadModel(modelName = 'Xenova/whisper-base') {
   try {
-    console.log('[Worker] Loading Whisper model from local storage:', modelName);
+    console.log('\n🔵 ====== MODEL LOADING START ======');
+    console.log('[Worker] Model:', modelName);
+    console.log('[Worker] Timestamp:', new Date().toISOString());
+    console.log('[Worker] Environment Config:');
+    console.log('  - allowLocalModels:', env.allowLocalModels);
+    console.log('  - allowRemoteModels:', env.allowRemoteModels);
+    console.log('  - localModelPath:', env.localModelPath);
+    console.log('  - useBrowserCache:', env.useBrowserCache);
+    console.log('=====================================\n');
     
     self.postMessage({
       status: 'loading',
@@ -36,34 +45,103 @@ async function loadModel(modelName = 'Xenova/whisper-base') {
       progress: 0,
     });
 
+    // Track files being loaded
+    const filesTracking = new Map();
+
     // Create transcription pipeline
     // The library will now look for files in: /models/Xenova/whisper-tiny/
     transcriber = await pipeline('automatic-speech-recognition', modelName, {
       quantized: true, // Use quantized model
       progress_callback: (progress) => {
-        // Report loading progress
-        console.log('[Worker] Progress:', progress);
+        // Enhanced logging with cache detection
+        const { status, file, loaded, total } = progress;
         
-        if (progress.status === 'progress' && progress.total > 0) {
-          const percentage = Math.round((progress.loaded / progress.total) * 100);
-          self.postMessage({
-            status: 'loading',
-            message: `Loading model files... ${percentage}%`,
-            progress: percentage,
+        // Initialize tracking for this file
+        if (file && !filesTracking.has(file)) {
+          filesTracking.set(file, { 
+            startTime: Date.now(),
+            status: status,
+            loaded: 0,
+            total: total || 0
           });
-        } else if (progress.status === 'ready') {
+        }
+        
+        // Update tracking
+        if (file && filesTracking.has(file)) {
+          const tracking = filesTracking.get(file);
+          tracking.status = status;
+          tracking.loaded = loaded || 0;
+          tracking.total = total || 0;
+        }
+
+        // Detailed status-specific logging
+        if (status === 'initiate') {
+          console.log(`\n📂 [INITIATE] ${file || 'unknown'}`);
+          console.log(`   └─ Starting to load file...`);
+        } 
+        else if (status === 'download') {
+          console.log(`\n⬇️  [DOWNLOAD] ${file || 'unknown'}`);
+          console.log(`   └─ Fetching from server (not in cache)`);
+          console.log(`   └─ URL: /models/${modelName}/${file}`);
+          
+          // Check if progress provides response info
+          if (progress.response) {
+            console.log(`   └─ Response Status: ${progress.response.status || 'unknown'}`);
+            console.log(`   └─ Content-Type: ${progress.response.headers?.get('content-type') || 'unknown'}`);
+            console.log(`   └─ Content-Length: ${progress.response.headers?.get('content-length') || 'unknown'}`);
+          }
+        } 
+        else if (status === 'progress') {
+          const tracking = filesTracking.get(file);
+          const elapsed = Date.now() - tracking.startTime;
+          const percentage = total > 0 ? Math.round((loaded / total) * 100) : 0;
+          const sizeMB = (loaded / (1024 * 1024)).toFixed(2);
+          const totalMB = (total / (1024 * 1024)).toFixed(2);
+          const speed = elapsed > 0 ? ((loaded / 1024) / (elapsed / 1000)).toFixed(2) : '0';
+          
+          console.log(`📊 [PROGRESS] ${file || 'unknown'}: ${percentage}% (${sizeMB}/${totalMB} MB) @ ${speed} KB/s`);
+          
+          if (progress.status === 'progress' && total > 0) {
+            self.postMessage({
+              status: 'loading',
+              message: `Loading ${file}... ${percentage}%`,
+              progress: percentage,
+            });
+          }
+        } 
+        else if (status === 'done') {
+          const tracking = filesTracking.get(file);
+          const elapsed = Date.now() - tracking.startTime;
+          const sizeMB = (tracking.loaded / (1024 * 1024)).toFixed(2);
+          
+          console.log(`\n✅ [DONE] ${file || 'unknown'}`);
+          console.log(`   └─ Size: ${sizeMB} MB`);
+          console.log(`   └─ Time: ${elapsed}ms`);
+          console.log(`   └─ Source: ${elapsed < 100 ? '🚀 CACHE (fast load)' : '🌐 NETWORK (fresh download)'}`);
+        } 
+        else if (status === 'ready') {
+          console.log('\n🎉 [READY] Model initialization complete!');
           self.postMessage({
             status: 'loading',
             message: 'Model files loaded, initializing...',
             progress: 90,
           });
         }
+        else {
+          // Log any other status we haven't handled
+          console.log(`[Worker] Progress [${status}]:`, progress);
+        }
       },
     });
 
     isModelLoaded = true;
+    currentModelName = modelName; // Track the loaded model
     
-    console.log('[Worker] Model loaded successfully from local storage');
+    console.log('\n🎉 ====== MODEL LOADING SUCCESS ======');
+    console.log('[Worker] Model:', modelName);
+    console.log('[Worker] Status: READY');
+    console.log('[Worker] All files loaded successfully');
+    console.log('======================================\n');
     
     self.postMessage({
       status: 'ready',
@@ -71,7 +149,24 @@ async function loadModel(modelName = 'Xenova/whisper-base') {
     });
 
   } catch (error) {
-    console.error('[Worker] Model loading failed:', error);
+    console.error('\n❌ ====== MODEL LOADING FAILED ======');
+    console.error('[Worker] Model:', modelName);
+    console.error('[Worker] Error Type:', error.constructor.name);
+    console.error('[Worker] Error Message:', error.message);
+    console.error('[Worker] Error Stack:', error.stack);
+    console.error('\n🔍 Possible Causes:');
+    console.error('   1. Corrupted browser cache (IndexedDB/Cache Storage)');
+    console.error('   2. Missing model files on server');
+    console.error('   3. Network request blocked/failed');
+    console.error('   4. Invalid model file format');
+    console.error('\n💡 Troubleshooting Steps:');
+    console.error('   1. Clear browser storage (DevTools → Application → Clear site data)');
+    console.error('   2. Hard refresh (Ctrl+Shift+R)');
+    console.error('   3. Check: http://localhost:3000/models/' + modelName.split('/')[1] + '/config.json');
+    console.error('   4. Run: npm run validate-models');
+    console.error('   5. Run: npm run reset-models');
+    console.error('======================================\n');
+    
     self.postMessage({
       status: 'error',
       message: `Failed to load model: ${error.message}. Make sure you ran 'npm run setup-models'.`,
@@ -97,7 +192,7 @@ async function transcribe(audioData) {
     const transcriptionStartTime = performance.now();
     
     console.log('🎯 Transcription Configuration:');
-    console.log('   • Model:', 'Xenova/whisper-base');
+    console.log('   • Model:', currentModelName || 'unknown');
     console.log('   • Chunk Length: 30 seconds');
     console.log('   • Stride (overlap): 5 seconds');
     

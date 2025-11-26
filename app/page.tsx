@@ -49,7 +49,7 @@ export default function Home() {
     isActive: stateMachine.state === "PROCESSING" || processor.isFFmpegLoading,
   });
 
-  // Auto-load FFmpeg on mount
+  // Auto-load FFmpeg on mount (only once)
   useEffect(() => {
     const initFFmpeg = async () => {
       try {
@@ -62,7 +62,8 @@ export default function Home() {
     };
 
     initFFmpeg();
-  }, [processor.ffmpeg, stateMachine]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run once on mount
 
   // Sync transcription result to state machine
   useEffect(() => {
@@ -190,7 +191,7 @@ export default function Home() {
       {stateMachine.state === "PROCESSING" && !processor.isTranscribing && (
         <ProcessingVisualizer
           progress={processor.status.progress}
-          speed={processor.status.speed}
+          speed={typeof processor.status.speed === 'number' ? processor.status.speed : null}
           phase={processor.status.phase}
           formatName={
             stateMachine.currentAction === "transcribe"

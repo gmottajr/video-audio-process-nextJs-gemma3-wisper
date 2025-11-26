@@ -142,16 +142,14 @@ export function useMediaProcessor() {
 
               // Transcribe
               console.log("[MediaProcessor] Running AI transcription...");
-              await transcriber.transcribe(audioBlob);
+              const transcriptionResult = await transcriber.transcribe(audioBlob);
 
-              // Result will be available in transcriber.result
-              if (!transcriber.result) {
-                throw new Error("Transcription completed but no result returned");
-              }
+              console.log("[MediaProcessor] ✅ Transcription result received:", 
+                transcriptionResult?.text?.length || 0, "characters");
 
               processResult = {
                 type: "transcription",
-                transcription: transcriber.result,
+                transcription: transcriptionResult,
               };
               break;
             }

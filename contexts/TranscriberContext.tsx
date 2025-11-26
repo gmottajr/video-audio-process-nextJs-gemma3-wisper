@@ -29,7 +29,7 @@ interface TranscriberContextType {
 
   // Actions
   loadModel: (modelName?: string) => Promise<void>;
-  transcribe: (audioBlob: Blob) => Promise<void>;
+  transcribe: (audioBlob: Blob) => Promise<TranscriptionResult>;
   clearResult: () => void;
 }
 
@@ -185,13 +185,24 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
       return Promise.resolve();
     }
 
-    console.log('[TranscriberContext] 📥 Loading model:', modelName);
+    console.log('\n🔵 ====== TRANSCRIBER CONTEXT: LOAD MODEL ======');
+    console.log('[TranscriberContext] 📥 Model requested:', modelName);
+    console.log('[TranscriberContext] Current model:', currentModel || 'none');
+    console.log('[TranscriberContext] Worker ready:', !!workerRef.current);
+    console.log('[TranscriberContext] Timestamp:', new Date().toISOString());
     
     // Mark current model as being switched
     if (currentModel && currentModel !== modelName) {
-      console.log('[TranscriberContext] 🔄 Switching from', currentModel, 'to', modelName);
+      console.log('[TranscriberContext] 🔄 SWITCHING MODELS');
+      console.log('   └─ From:', currentModel);
+      console.log('   └─ To:', modelName);
       setIsModelLoaded(false); // Reset loaded state when switching
+    } else if (!currentModel) {
+      console.log('[TranscriberContext] 🆕 FIRST MODEL LOAD');
+    } else {
+      console.log('[TranscriberContext] ℹ️  Model already set (re-loading)');
     }
+    console.log('================================================\n');
     
     setCurrentModel(modelName);
     
@@ -204,16 +215,25 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
     // Create a promise that resolves when the model is loaded
     return new Promise((resolve, reject) => {
       const handleMessage = (event: MessageEvent) => {
-        const { status, message } = event.data;
+        const { status, message, progress } = event.data;
+        
+        console.log(`[TranscriberContext] 📨 Worker message: [${status}] ${message || '(no message)'} ${progress ? `(${progress}%)` : ''}`);
         
         if (status === 'ready') {
           workerRef.current?.removeEventListener('message', handleMessage);
-          console.log('[TranscriberContext] ✅ Model loaded successfully!');
+          console.log('\n✅ ====== MODEL LOAD SUCCESS ======');
+          console.log('[TranscriberContext] Model:', modelName);
+          console.log('[TranscriberContext] Worker reported ready');
+          console.log('===================================\n');
           resolve();
         } else if (status === 'error') {
           workerRef.current?.removeEventListener('message', handleMessage);
           setIsModelLoading(false);
-          console.error('[TranscriberContext] ❌ Model loading failed:', message);
+          console.error('\n❌ ====== MODEL LOAD ERROR ======');
+          console.error('[TranscriberContext] Model:', modelName);
+          console.error('[TranscriberContext] Error:', message);
+          console.error('[TranscriberContext] This error came from the worker');
+          console.error('==================================\n');
           reject(new Error(message || 'Failed to load model'));
         }
       };
@@ -221,6 +241,7 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
       workerRef.current?.addEventListener('message', handleMessage);
       
       // Send load message
+      console.log('[TranscriberContext] 📤 Sending LOAD command to worker...');
       workerRef.current?.postMessage({
         type: 'load',
         data: { model: modelName },
@@ -238,7 +259,7 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
   /**
    * Transcribe audio
    */
-  const transcribe = useCallback((audioBlob: Blob): Promise<void> => {
+  const transcribe = useCallback((audioBlob: Blob): Promise<TranscriptionResult> => {
     if (!workerRef.current) {
       throw new Error('Worker not initialized');
     }
@@ -300,7 +321,7 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
         
         // Set up one-time listener for completion
         const handleComplete = (event: MessageEvent) => {
-          const { status, message: errorMsg } = event.data;
+          const { status, message: errorMsg, result: workerResult } = event.data;
           
           if (status === 'complete') {
             workerRef.current?.removeEventListener('message', handleComplete);
@@ -313,8 +334,14 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
             // DON'T reset states here - let them persist so UI can show "complete" state
             // States will be reset when starting a new transcription or during clearResult()
             console.log('[TranscriberContext] ✅ Transcription complete - keeping states for UI');
+            console.log('[TranscriberContext] 📦 Result:', workerResult ? 'present' : 'missing');
             
-            resolve();
+            // Resolve with the result from the worker
+            if (workerResult) {
+              resolve(workerResult);
+            } else {
+              reject(new Error('Transcription completed but no result data returned from worker'));
+            }
           } else if (status === 'error') {
             workerRef.current?.removeEventListener('message', handleComplete);
             clearTimeout(timeout);
