@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 import { useFFmpeg } from "./useFFmpeg";
 import { useAudioConverter } from "./useAudioConverter";
 import { useVideoConverter } from "./useVideoConverter";
 import { useTranscriberContext } from "@/contexts/TranscriberContext";
+import { BlobURLManager } from "@/lib/BlobURLManager";
 import type { ActionType } from "@/components/ActionSelector";
 import { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
 
@@ -51,14 +52,38 @@ export function useMediaProcessor() {
   const [result, setResult] = useState<ProcessingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Blob URL tracking for cleanup
-  const blobUrlRefs = useRef<string[]>([]);
+  // Blob URL Manager (proper memory management)
+  const blobManager = useRef(new BlobURLManager()).current;
 
   // Service hooks
   const ffmpeg = useFFmpeg();
   const audioConverter = useAudioConverter();
   const videoConverter = useVideoConverter();
   const transcriber = useTranscriberContext();
+
+  /**
+   * Auto-cleanup expired blobs every minute
+   */
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const revokedCount = blobManager.revokeExpired();
+      if (revokedCount > 0) {
+        console.log('[MediaProcessor] Auto-cleanup revoked', revokedCount, 'expired blob URLs');
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [blobManager]);
+
+  /**
+   * Cleanup on unmount
+   */
+  useEffect(() => {
+    return () => {
+      console.log('[MediaProcessor] Component unmounting, cleaning up blobs');
+      blobManager.revokeAll();
+    };
+  }, [blobManager]);
 
   /**
    * Process media file based on action type
@@ -95,8 +120,7 @@ export function useMediaProcessor() {
             case "extract": {
               console.log("[MediaProcessor] Extracting audio to", formatId);
               const blob = await ffmpeg.extractAudio(file);
-              const url = URL.createObjectURL(blob);
-              blobUrlRefs.current.push(url);
+              const url = blobManager.create(blob, `audio_extract_${Date.now()}`);
               processResult = { type: "audio", blobUrl: url };
               break;
             }
@@ -104,8 +128,7 @@ export function useMediaProcessor() {
             case "convert_audio": {
               console.log("[MediaProcessor] Converting audio to", formatId);
               const blob = await audioConverter.convertAudio(file, formatId);
-              const url = URL.createObjectURL(blob);
-              blobUrlRefs.current.push(url);
+              const url = blobManager.create(blob, `audio_convert_${formatId}_${Date.now()}`);
               processResult = { type: "audio", blobUrl: url };
               break;
             }
@@ -115,8 +138,7 @@ export function useMediaProcessor() {
               const blob = await videoConverter.convertVideo(file, formatId, {
                 resolutionId: options?.resolutionId,
               });
-              const url = URL.createObjectURL(blob);
-              blobUrlRefs.current.push(url);
+              const url = blobManager.create(blob, `video_convert_${formatId}_${Date.now()}`);
               processResult = { type: "video", blobUrl: url };
               break;
             }
@@ -196,8 +218,8 @@ export function useMediaProcessor() {
    */
   const reset = useCallback(async () => {
     // Revoke all blob URLs
-    blobUrlRefs.current.forEach((url) => URL.revokeObjectURL(url));
-    blobUrlRefs.current = [];
+    console.log('[MediaProcessor] Resetting - revoking all blob URLs');
+    blobManager.revokeAll();
 
     // Reset FFmpeg
     await ffmpeg.reset();
@@ -210,15 +232,22 @@ export function useMediaProcessor() {
     setStatus({ phase: "initializing", progress: 0 });
     setResult(null);
     setError(null);
-  }, [ffmpeg, transcriber]);
+  }, [ffmpeg, transcriber, blobManager]);
 
   /**
-   * Cleanup on unmount
+   * Cleanup (manual cleanup if needed)
    */
   const cleanup = useCallback(() => {
-    blobUrlRefs.current.forEach((url) => URL.revokeObjectURL(url));
-    blobUrlRefs.current = [];
-  }, []);
+    console.log('[MediaProcessor] Manual cleanup requested');
+    blobManager.revokeAll();
+  }, [blobManager]);
+
+  /**
+   * Get blob statistics for debugging/monitoring
+   */
+  const getBlobStats = useCallback(() => {
+    return blobManager.getStats();
+  }, [blobManager]);
 
   return {
     // State
@@ -239,6 +268,10 @@ export function useMediaProcessor() {
     currentModel: transcriber.currentModel,
     transcriptionProgress: transcriber.progress,
     transcriptionMessage: transcriber.loadingMessage,
+    
+    // Blob management (pass-through)
+    getBlobStats,
+    activeBlobs: blobManager.getActiveCount(),
     
     // Actions
     processFile,

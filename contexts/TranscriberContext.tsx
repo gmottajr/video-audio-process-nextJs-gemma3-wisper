@@ -1,6 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from "react";
+import { WorkerManager } from "@/lib/WorkerManager";
+import { withRetry, MODEL_LOAD_RETRY, isCacheError } from "@/lib/retry";
 
 /**
  * Transcription Result
@@ -50,15 +52,15 @@ export function useTranscriberContext() {
 }
 
 /**
- * Transcriber Provider
+ * Transcriber Provider (Refactored with WorkerManager)
  * 
- * ✅ Lives at the APP LEVEL - never unmounts
- * ✅ Loads model ONCE on startup
- * ✅ Worker persists for the entire session
- * ✅ No more React Strict Mode issues!
+ * ✅ Uses WorkerManager for proper request/response handling
+ * ✅ Eliminates race conditions
+ * ✅ Proper cleanup and error handling
+ * ✅ Retry logic with exponential backoff
  */
 export function TranscriberProvider({ children }: { children: React.ReactNode }) {
-  const workerRef = useRef<Worker | null>(null);
+  const workerManagerRef = useRef<WorkerManager | null>(null);
   const [isModelLoading, setIsModelLoading] = useState(false);
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -69,199 +71,155 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
   const [currentModel, setCurrentModel] = useState<string | null>(null);
   
   /**
-   * Initialize the Web Worker ONCE
+   * Initialize WorkerManager ONCE on mount
    */
   useEffect(() => {
-    console.log('[TranscriberContext] 🚀 Initializing worker for the entire session...');
+    console.log('[TranscriberContext] 🚀 Initializing WorkerManager...');
     
-    // Create worker as ES module (type: 'module')
-    const worker = new Worker('/transcription.worker.js', { type: 'module' });
-    workerRef.current = worker;
-
-    // Set up message handler
-    worker.onmessage = (event) => {
-      const { status, message, progress: prog, result: res } = event.data;
-
-      console.log('[TranscriberContext] Worker message:', status, message);
-
-      switch (status) {
-        case 'loading':
+    try {
+      workerManagerRef.current = new WorkerManager('/transcription.worker.js');
+      console.log('[TranscriberContext] ✅ WorkerManager initialized');
+      
+      // Auto-load default model
+      const autoLoad = async () => {
+        try {
+          const defaultModel = 'Xenova/whisper-base';
+          console.log('[TranscriberContext] 📥 Auto-loading default model:', defaultModel);
+          setCurrentModel(defaultModel);
           setIsModelLoading(true);
-          setLoadingMessage(message || 'Loading model...');
-          setProgress(prog || 0);
-          break;
-
-        case 'ready':
-          setIsModelLoading(false);
-          setIsModelLoaded(true);
-          setLoadingMessage('Model ready');
-          setProgress(100);
-          // Extract model name from the message if available
-          if (message && message.includes('Model:')) {
-            const modelMatch = message.match(/Model: ([\w\/-]+)/);
-            if (modelMatch) {
-              setCurrentModel(modelMatch[1]);
+          setLoadingMessage('Loading AI model...');
+          
+          await workerManagerRef.current!.sendRequest('load', { model: defaultModel }, {
+            timeoutMs: 300000, // 5 minutes
+            onProgress: (prog, msg) => {
+              setProgress(prog);
+              setLoadingMessage(msg || 'Loading model...');
             }
-          }
-          console.log('[TranscriberContext] ✅ Model is ready');
-          break;
-
-        case 'transcribing':
-          setIsTranscribing(true);
-          setLoadingMessage(message || 'Transcribing...');
-          setProgress(prog || 0);
-          break;
-
-        case 'complete':
-          // Don't set isTranscribing(false) here - keep it true so UI can show completion state
-          // It will be reset when clearResult() is called or new transcription starts
-          setProgress(100);
-          setResult(res);
-          setLoadingMessage('Complete');
-          console.log('[TranscriberContext] ✅ Transcription complete - result set');
-          break;
-
-        case 'error':
+          });
+          
+          setIsModelLoaded(true);
           setIsModelLoading(false);
-          setIsTranscribing(false);
-          setError(message || 'Unknown error');
-          console.error('[TranscriberContext] ❌ Error:', message);
-          break;
-
-        default:
-          console.warn('[TranscriberContext] Unknown status:', status);
-      }
-    };
-
-    worker.onerror = (err) => {
-      console.error('[TranscriberContext] ❌ Worker error:', err);
-      setError('Worker crashed: ' + err.message);
-      setIsModelLoading(false);
-      setIsTranscribing(false);
-    };
-
-    console.log('[TranscriberContext] ✅ Worker initialized successfully');
-
-    // Auto-load default model after worker is ready
-    setTimeout(() => {
-      const defaultModel = 'Xenova/whisper-base';
-      console.log('[TranscriberContext] 🚀 Auto-loading default Whisper model:', defaultModel);
-      setIsModelLoading(true);
-      setLoadingMessage('Initializing model...');
-      setProgress(0);
-      worker.postMessage({
-        type: 'load',
-        data: { model: defaultModel },
-      });
-    }, 100); // Small delay to let worker settle
+          setProgress(100);
+          console.log('[TranscriberContext] ✅ Default model loaded');
+        } catch (error) {
+          console.error('[TranscriberContext] ❌ Auto-load failed:', error);
+          setIsModelLoading(false);
+          setError(error instanceof Error ? error.message : 'Failed to load model');
+        }
+      };
+      
+      // Small delay to let worker initialize
+      setTimeout(autoLoad, 100);
+    } catch (error) {
+      console.error('[TranscriberContext] ❌ Failed to initialize WorkerManager:', error);
+      setError('Failed to initialize transcription worker');
+    }
 
     // Cleanup on unmount
     return () => {
-      console.log('[TranscriberContext] 🧹 Cleaning up worker (React Strict Mode or unmount)');
-      if (workerRef.current) {
-        workerRef.current.postMessage({ type: 'terminate' });
-        workerRef.current.terminate();
-        workerRef.current = null; // Clear the ref
-      }
+      console.log('[TranscriberContext] 🧹 Cleaning up WorkerManager');
+      workerManagerRef.current?.dispose();
+      workerManagerRef.current = null;
     };
-  }, []); // Empty dependencies - recreates on each mount (Strict Mode = 2x, production = 1x)
+  }, []); // Empty deps - only run once
 
   /**
-   * Load the AI model
+   * Load a Whisper model with retry logic
    */
   const loadModel = useCallback(async (modelName = 'Xenova/whisper-base'): Promise<void> => {
-    if (!workerRef.current) {
-      throw new Error('Worker not initialized');
+    if (!workerManagerRef.current) {
+      throw new Error('WorkerManager not initialized');
     }
 
-    // Allow reloading if switching models
+    // Skip if already loaded
     if (isModelLoaded && currentModel === modelName) {
-      console.log('[TranscriberContext] Same model already loaded, skipping');
-      return Promise.resolve();
-    }
-
-    if (isModelLoading) {
-      console.log('[TranscriberContext] Model already loading, skipping duplicate call');
-      return Promise.resolve();
+      console.log('[TranscriberContext] ℹ️ Model already loaded:', modelName);
+      return;
     }
 
     console.log('\n🔵 ====== TRANSCRIBER CONTEXT: LOAD MODEL ======');
     console.log('[TranscriberContext] 📥 Model requested:', modelName);
     console.log('[TranscriberContext] Current model:', currentModel || 'none');
-    console.log('[TranscriberContext] Worker ready:', !!workerRef.current);
-    console.log('[TranscriberContext] Timestamp:', new Date().toISOString());
     
-    // Mark current model as being switched
+    // Mark model change
     if (currentModel && currentModel !== modelName) {
       console.log('[TranscriberContext] 🔄 SWITCHING MODELS');
       console.log('   └─ From:', currentModel);
       console.log('   └─ To:', modelName);
-      setIsModelLoaded(false); // Reset loaded state when switching
-    } else if (!currentModel) {
-      console.log('[TranscriberContext] 🆕 FIRST MODEL LOAD');
-    } else {
-      console.log('[TranscriberContext] ℹ️  Model already set (re-loading)');
+      setIsModelLoaded(false);
     }
     console.log('================================================\n');
     
     setCurrentModel(modelName);
-    
     setIsModelLoading(true);
     setLoadingMessage('Initializing model...');
     setProgress(0);
     setError(null);
     setResult(null);
     
-    // Create a promise that resolves when the model is loaded
-    return new Promise((resolve, reject) => {
-      const handleMessage = (event: MessageEvent) => {
-        const { status, message, progress } = event.data;
-        
-        console.log(`[TranscriberContext] 📨 Worker message: [${status}] ${message || '(no message)'} ${progress ? `(${progress}%)` : ''}`);
-        
-        if (status === 'ready') {
-          workerRef.current?.removeEventListener('message', handleMessage);
-          console.log('\n✅ ====== MODEL LOAD SUCCESS ======');
-          console.log('[TranscriberContext] Model:', modelName);
-          console.log('[TranscriberContext] Worker reported ready');
-          console.log('===================================\n');
-          resolve();
-        } else if (status === 'error') {
-          workerRef.current?.removeEventListener('message', handleMessage);
-          setIsModelLoading(false);
-          console.error('\n❌ ====== MODEL LOAD ERROR ======');
-          console.error('[TranscriberContext] Model:', modelName);
-          console.error('[TranscriberContext] Error:', message);
-          console.error('[TranscriberContext] This error came from the worker');
-          console.error('==================================\n');
-          reject(new Error(message || 'Failed to load model'));
+    try {
+      // Use retry logic for model loading
+      await withRetry(
+        async () => {
+          await workerManagerRef.current!.sendRequest('load', { model: modelName }, {
+            timeoutMs: 300000, // 5 minutes
+            onProgress: (prog, msg) => {
+              setProgress(prog);
+              setLoadingMessage(msg || 'Loading model...');
+            }
+          });
+        },
+        {
+          ...MODEL_LOAD_RETRY,
+          onRetry: (attempt, error, nextDelay) => {
+            console.warn(
+              `[TranscriberContext] ⚠️ Load attempt ${attempt} failed: ${error.message}. ` +
+              `Retrying in ${nextDelay}ms...`
+            );
+            
+            if (isCacheError(error)) {
+              setError(
+                `Model loading failed (attempt ${attempt}/3). ` +
+                `If this persists, try clearing your browser cache.`
+              );
+            } else {
+              setError(`Retrying... (attempt ${attempt}/3)`);
+            }
+          }
         }
-      };
+      );
       
-      workerRef.current?.addEventListener('message', handleMessage);
+      setIsModelLoaded(true);
+      setProgress(100);
+      setLoadingMessage('Model ready');
+      setError(null);
       
-      // Send load message
-      console.log('[TranscriberContext] 📤 Sending LOAD command to worker...');
-      workerRef.current?.postMessage({
-        type: 'load',
-        data: { model: modelName },
-      });
+      console.log('\n✅ ====== MODEL LOAD SUCCESS ======');
+      console.log('[TranscriberContext] Model:', modelName);
+      console.log('===================================\n');
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       
-      // Set a timeout in case the worker never responds
-      setTimeout(() => {
-        workerRef.current?.removeEventListener('message', handleMessage);
-        setIsModelLoading(false);
-        reject(new Error('Model loading timed out after 60 seconds'));
-      }, 60000);
-    });
-  }, [isModelLoaded, isModelLoading, currentModel]);
+      console.error('\n❌ ====== MODEL LOAD ERROR ======');
+      console.error('[TranscriberContext] Model:', modelName);
+      console.error('[TranscriberContext] Error:', errorMsg);
+      console.error('==================================\n');
+      
+      setIsModelLoading(false);
+      setIsModelLoaded(false);
+      setError(errorMsg);
+      throw error;
+    } finally {
+      setIsModelLoading(false);
+    }
+  }, [isModelLoaded, currentModel]);
 
   /**
-   * Transcribe audio
+   * Transcribe audio with proper cleanup
    */
-  const transcribe = useCallback((audioBlob: Blob): Promise<TranscriptionResult> => {
-    if (!workerRef.current) {
-      throw new Error('Worker not initialized');
+  const transcribe = useCallback(async (audioBlob: Blob): Promise<TranscriptionResult> => {
+    if (!workerManagerRef.current) {
+      throw new Error('WorkerManager not initialized');
     }
 
     if (!isModelLoaded) {
@@ -279,151 +237,95 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
     console.log('   • Size:', (audioBlob.size / 1024 / 1024).toFixed(2), 'MB');
     console.log('   • Type:', audioBlob.type || 'application/octet-stream');
     
+    setIsTranscribing(true);
     setError(null);
     setResult(null);
     setProgress(0);
+    setLoadingMessage('Preparing audio...');
 
-    // Create a promise that resolves when transcription completes
-    return new Promise(async (resolve, reject) => {
-      try {
-        // 🔥 DECODE AUDIO IN MAIN THREAD (AudioContext not available in workers!)
-        console.log('\n📡 STEP 1: Audio Decoding (Main Thread)');
-        console.log('-'.repeat(80));
-        const decodeStartTime = performance.now();
-        
-        const arrayBuffer = await audioBlob.arrayBuffer();
-        console.log('✓ WAV file loaded:', (arrayBuffer.byteLength / 1024 / 1024).toFixed(2), 'MB');
-        
-        // Create AudioContext in main thread
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-          sampleRate: 16000
-        });
-        console.log('✓ AudioContext created (16kHz)');
-        
-        // Decode the WAV file to AudioBuffer
-        console.log('⏳ Decoding WAV to AudioBuffer...');
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        const decodeTime = performance.now() - decodeStartTime;
-        
-        console.log('✅ Audio Decoded Successfully!');
-        console.log('   • Channels:', audioBuffer.numberOfChannels, '(mono)');
-        console.log('   • Sample Rate:', audioBuffer.sampleRate, 'Hz');
-        console.log('   • Duration:', audioBuffer.duration.toFixed(2), 'seconds');
-        console.log('   • Decode Time:', decodeTime.toFixed(0), 'ms');
-        
-        // Extract mono channel as Float32Array
-        const audioSamples = audioBuffer.getChannelData(0);
-        console.log('\n📦 Audio Data Prepared:');
-        console.log('   • Type:', audioSamples.constructor.name);
-        console.log('   • Samples:', audioSamples.length.toLocaleString());
-        console.log('   • Size:', (audioSamples.length * 4 / 1024 / 1024).toFixed(2), 'MB');
-        console.log('   • Range:', `[${audioSamples[0].toFixed(4)} ... ${audioSamples[audioSamples.length-1].toFixed(4)}]`);
-        
-        // Set up one-time listener for completion
-        const handleComplete = (event: MessageEvent) => {
-          const { status, message: errorMsg, result: workerResult } = event.data;
-          
-          if (status === 'complete') {
-            workerRef.current?.removeEventListener('message', handleComplete);
-            clearTimeout(timeout);
-            console.log('\n' + '='.repeat(80));
-            console.log('✅ TRANSCRIPTION COMPLETED SUCCESSFULLY');
-            console.log('='.repeat(80) + '\n');
-            audioContext.close(); // Clean up
-            
-            // DON'T reset states here - let them persist so UI can show "complete" state
-            // States will be reset when starting a new transcription or during clearResult()
-            console.log('[TranscriberContext] ✅ Transcription complete - keeping states for UI');
-            console.log('[TranscriberContext] 📦 Result:', workerResult ? 'present' : 'missing');
-            
-            // Resolve with the result from the worker
-            if (workerResult) {
-              resolve(workerResult);
-            } else {
-              reject(new Error('Transcription completed but no result data returned from worker'));
-            }
-          } else if (status === 'error') {
-            workerRef.current?.removeEventListener('message', handleComplete);
-            clearTimeout(timeout);
-            console.log('\n' + '='.repeat(80));
-            console.log('❌ TRANSCRIPTION FAILED');
-            console.log('='.repeat(80));
-            console.error('Error:', errorMsg);
-            console.log('');
-            audioContext.close(); // Clean up
-            
-            // Keep error state visible - will be reset on clearResult() or new transcription
-            console.log('[TranscriberContext] ❌ Transcription error - keeping states for error UI');
-            
-            reject(new Error(errorMsg || 'Transcription failed'));
+    try {
+      // 🔥 DECODE AUDIO IN MAIN THREAD (AudioContext not available in workers!)
+      console.log('\n📡 STEP 1: Audio Decoding (Main Thread)');
+      console.log('-'.repeat(80));
+      const decodeStartTime = performance.now();
+      
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      console.log('✓ WAV file loaded:', (arrayBuffer.byteLength / 1024 / 1024).toFixed(2), 'MB');
+      
+      // Create AudioContext in main thread
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+        sampleRate: 16000
+      });
+      console.log('✓ AudioContext created (16kHz)');
+      
+      // Decode the WAV file to AudioBuffer
+      console.log('⏳ Decoding WAV to AudioBuffer...');
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      const decodeTime = performance.now() - decodeStartTime;
+      
+      console.log('✅ Audio Decoded Successfully!');
+      console.log('   • Channels:', audioBuffer.numberOfChannels, '(mono)');
+      console.log('   • Sample Rate:', audioBuffer.sampleRate, 'Hz');
+      console.log('   • Duration:', audioBuffer.duration.toFixed(2), 'seconds');
+      console.log('   • Decode Time:', decodeTime.toFixed(0), 'ms');
+      
+      // Extract mono channel as Float32Array
+      const audioSamples = audioBuffer.getChannelData(0);
+      console.log('\n📦 Audio Data Prepared:');
+      console.log('   • Type:', audioSamples.constructor.name);
+      console.log('   • Samples:', audioSamples.length.toLocaleString());
+      console.log('   • Size:', (audioSamples.length * 4 / 1024 / 1024).toFixed(2), 'MB');
+      
+      setLoadingMessage('Transcribing...');
+      
+      // Send to worker using WorkerManager
+      console.log('\n🚀 STEP 2: Sending to AI Worker');
+      console.log('-'.repeat(80));
+      
+      const transcriptionResult = await workerManagerRef.current.sendRequest<TranscriptionResult>(
+        'transcribe',
+        { audio: audioSamples },
+        {
+          timeoutMs: Math.max(600000, audioBuffer.duration * 3000 + 120000), // Dynamic timeout
+          onProgress: (prog, msg) => {
+            setProgress(prog);
+            setLoadingMessage(msg || 'Transcribing...');
           }
-        };
-        
-        // Set up timeout (dynamic based on audio length)
-        const audioDuration = audioSamples.length / 16000; // seconds
-        const timeoutMs = Math.max(
-          600000, // Minimum 10 minutes
-          (audioDuration * 3000) + 120000 // 3x duration + 2 minutes
-        );
-        const timeoutMinutes = Math.ceil(timeoutMs / 60000);
-        
-        console.log('⏱️  Timeout Configuration:');
-        console.log('   • Audio Duration:', audioDuration.toFixed(1), 'seconds');
-        console.log('   • Timeout Set:', timeoutMinutes, 'minutes');
-        console.log('');
-        
-        const timeout = setTimeout(() => {
-          workerRef.current?.removeEventListener('message', handleComplete);
-          audioContext.close(); // Clean up
-          
-          // Keep timeout error visible - will be reset on clearResult() or new transcription
-          console.log('[TranscriberContext] ⏱️ Transcription timeout - keeping states for error UI');
-          
-          console.error('❌ Transcription timed out after', timeoutMinutes, 'minutes');
-          reject(new Error(`Transcription timed out after ${timeoutMinutes} minutes`));
-        }, timeoutMs);
-        
-        workerRef.current?.addEventListener('message', handleComplete);
-        
-        // Send Float32Array directly to worker
-        console.log('\n🚀 STEP 2: Sending to AI Worker');
-        console.log('-'.repeat(80));
-        console.log('📤 Transferring audio data to worker...');
-        console.log('   • Using transferable objects (zero-copy)');
-        console.log('   • Worker will receive ownership of the buffer');
-        
-        const transferStartTime = performance.now();
-        workerRef.current?.postMessage({
-          type: 'transcribe',
-          data: { audio: audioSamples }, // Send Float32Array directly
-        }, [audioSamples.buffer]); // Transfer ownership for performance
-        
-        console.log('✓ Data transferred in', (performance.now() - transferStartTime).toFixed(0), 'ms');
-        console.log('⏳ Waiting for worker to process...\n');
-        
-      } catch (error: any) {
-        console.error('[TranscriberContext] ❌ Audio decoding error:', error);
-        
-        // Reset transcription states after decoding error
-        console.log('[TranscriberContext] 🧹 Resetting transcription states after decoding error...');
-        setIsTranscribing(false);
-        setProgress(0);
-        setLoadingMessage('');
-        
-        reject(new Error(`Audio decoding failed: ${error.message}`));
-      }
-    });
+        }
+      );
+      
+      // Close audio context
+      audioContext.close();
+      
+      // Set result
+      setResult(transcriptionResult);
+      setProgress(100);
+      setLoadingMessage('Complete');
+      
+      console.log('\n' + '='.repeat(80));
+      console.log('✅ TRANSCRIPTION COMPLETED SUCCESSFULLY');
+      console.log('='.repeat(80) + '\n');
+      
+      return transcriptionResult;
+    } catch (error: any) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[TranscriberContext] ❌ Transcription failed:', errorMsg);
+      
+      setError(errorMsg);
+      throw error;
+    } finally {
+      setIsTranscribing(false);
+    }
   }, [isModelLoaded, isTranscribing]);
 
   /**
    * Clear result and reset transcription state
    */
   const clearResult = useCallback(() => {
-    console.log('[TranscriberContext] Clearing result and resetting transcription state...');
+    console.log('[TranscriberContext] Clearing result...');
     setResult(null);
     setError(null);
     setProgress(0);
-    setIsTranscribing(false);
     setLoadingMessage('');
   }, []);
 
@@ -450,4 +352,3 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
     </TranscriberContext.Provider>
   );
 }
-

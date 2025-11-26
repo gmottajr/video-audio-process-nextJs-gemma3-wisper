@@ -27,10 +27,11 @@ let currentModelName = null; // Track which model is currently loaded
 /**
  * Initialize the Whisper model from local files
  */
-async function loadModel(modelName = 'Xenova/whisper-base') {
+async function loadModel(modelName = 'Xenova/whisper-base', requestId = null) {
   try {
     console.log('\n🔵 ====== MODEL LOADING START ======');
     console.log('[Worker] Model:', modelName);
+    console.log('[Worker] Request ID:', requestId || 'none');
     console.log('[Worker] Timestamp:', new Date().toISOString());
     console.log('[Worker] Environment Config:');
     console.log('  - allowLocalModels:', env.allowLocalModels);
@@ -40,6 +41,7 @@ async function loadModel(modelName = 'Xenova/whisper-base') {
     console.log('=====================================\n');
     
     self.postMessage({
+      requestId,
       status: 'loading',
       message: 'Loading AI model from local storage...',
       progress: 0,
@@ -103,6 +105,7 @@ async function loadModel(modelName = 'Xenova/whisper-base') {
           
           if (progress.status === 'progress' && total > 0) {
             self.postMessage({
+              requestId,
               status: 'loading',
               message: `Loading ${file}... ${percentage}%`,
               progress: percentage,
@@ -122,6 +125,7 @@ async function loadModel(modelName = 'Xenova/whisper-base') {
         else if (status === 'ready') {
           console.log('\n🎉 [READY] Model initialization complete!');
           self.postMessage({
+            requestId,
             status: 'loading',
             message: 'Model files loaded, initializing...',
             progress: 90,
@@ -144,6 +148,7 @@ async function loadModel(modelName = 'Xenova/whisper-base') {
     console.log('======================================\n');
     
     self.postMessage({
+      requestId,
       status: 'ready',
       message: `AI model loaded and ready - Model: ${modelName}`,
     });
@@ -168,6 +173,7 @@ async function loadModel(modelName = 'Xenova/whisper-base') {
     console.error('======================================\n');
     
     self.postMessage({
+      requestId,
       status: 'error',
       message: `Failed to load model: ${error.message}. Make sure you ran 'npm run setup-models'.`,
     });
@@ -177,7 +183,7 @@ async function loadModel(modelName = 'Xenova/whisper-base') {
 /**
  * Transcribe audio (expects Float32Array of audio samples)
  */
-async function transcribe(audioData) {
+async function transcribe(audioData, requestId = null) {
   try {
     // 🔥 CRITICAL: Check BOTH flags to ensure model is actually ready
     if (!isModelLoaded || !transcriber) {
@@ -193,6 +199,7 @@ async function transcribe(audioData) {
     
     console.log('🎯 Transcription Configuration:');
     console.log('   • Model:', currentModelName || 'unknown');
+    console.log('   • Request ID:', requestId || 'none');
     console.log('   • Chunk Length: 30 seconds');
     console.log('   • Stride (overlap): 5 seconds');
     
@@ -206,6 +213,7 @@ async function transcribe(audioData) {
     }
     
     self.postMessage({
+      requestId,
       status: 'transcribing',
       message: 'Transcribing audio...',
       progress: 0,
@@ -249,6 +257,7 @@ async function transcribe(audioData) {
           console.log(`   ⏳ Processing... ${elapsed}s elapsed (estimated ${estimatedProgress}%)`);
           
           self.postMessage({
+            requestId,
             status: 'transcribing',
             message: `Processing... ${Math.floor(elapsed / 60)}min ${elapsed % 60}s elapsed`,
             progress: estimatedProgress,
@@ -277,6 +286,7 @@ async function transcribe(audioData) {
     }
     
     self.postMessage({
+      requestId,
       status: 'complete',
       message: 'Transcription complete',
       result: {
@@ -294,6 +304,7 @@ async function transcribe(audioData) {
     console.error('-'.repeat(80) + '\n');
     
     self.postMessage({
+      requestId,
       status: 'error',
       message: `Transcription failed: ${error.message}`,
     });
@@ -301,15 +312,23 @@ async function transcribe(audioData) {
 }
 
 /**
- * Message handler
+ * Message handler - Request/Response Pattern
  */
 self.addEventListener('message', async (event) => {
-  const { type, data } = event.data;
+  const { requestId, type, data } = event.data;
+
+  // Validate requestId
+  if (!requestId) {
+    console.error('[Worker] ❌ Received message without requestId');
+    return;
+  }
+
+  console.log(`[Worker] 📥 Processing request ${requestId}: ${type}`);
 
   try {
     switch (type) {
       case 'load':
-        await loadModel(data?.model || 'Xenova/whisper-base');
+        await loadModel(data?.model || 'Xenova/whisper-base', requestId);
         break;
 
       case 'transcribe':
@@ -323,6 +342,7 @@ self.addEventListener('message', async (event) => {
           console.error('-'.repeat(80) + '\n');
           
           self.postMessage({
+            requestId,
             status: 'error',
             message: 'Model is not loaded yet. Please wait for model loading to complete before transcribing.',
           });
@@ -372,7 +392,7 @@ self.addEventListener('message', async (event) => {
         // Transcribe the Float32Array
         console.log('🤖 STEP 3: AI Transcription');
         console.log('-'.repeat(80));
-        await transcribe(audioSamples);
+        await transcribe(audioSamples, requestId);
         break;
 
       case 'terminate':
@@ -382,10 +402,16 @@ self.addEventListener('message', async (event) => {
 
       default:
         console.warn('[Worker] Unknown message type:', type);
+        self.postMessage({
+          requestId,
+          status: 'error',
+          message: `Unknown message type: ${type}`,
+        });
     }
   } catch (error) {
-    console.error('[Worker] Error handling message:', error);
+    console.error(`[Worker] ❌ Request ${requestId} failed:`, error);
     self.postMessage({
+      requestId,
       status: 'error',
       message: error.message,
     });
