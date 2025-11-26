@@ -4,8 +4,10 @@ module.exports = {
   testMatch: [
     '**/__tests__/**/*.test.js',
     '**/__tests__/**/*.test.ts',
+    '**/__tests__/**/*.test.tsx',
     '**/?(*.)+(spec|test).js',
-    '**/?(*.)+(spec|test).ts'
+    '**/?(*.)+(spec|test).ts',
+    '**/?(*.)+(spec|test).tsx'
   ],
   collectCoverageFrom: [
     'scripts/**/*.js',
@@ -16,6 +18,13 @@ module.exports = {
   verbose: true,
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+  },
+  globals: {
+    'ts-jest': {
+      tsconfig: {
+        jsx: 'react',
+      },
+    },
   },
 };
 
