@@ -10,6 +10,9 @@ import { IdleStateView } from "@/components/states/IdleStateView";
 import { InspectStateView } from "@/components/states/InspectStateView";
 import { DoneStateView } from "@/components/states/DoneStateView";
 import { ErrorStateView } from "@/components/states/ErrorStateView";
+import { FontSelector } from "@/components/FontSelector";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { PageHeader } from "@/components/PageHeader";
 import { useAppStateMachine } from "@/hooks/useAppStateMachine";
 import { useMediaProcessor } from "@/hooks/useMediaProcessor";
 import { useResourceMonitor, useHardwareCapability } from "@/hooks/useResourceMonitor";
@@ -84,12 +87,13 @@ export default function Home() {
     }
   }, [processor.error, stateMachine]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount only (not on processor state changes)
   useEffect(() => {
     return () => {
       processor.cleanup();
     };
-  }, [processor]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only cleanup when component unmounts
 
   /**
    * Handle action start
@@ -97,12 +101,14 @@ export default function Home() {
   const handleAction = async (
     action: ActionType,
     formatId: string,
-    options?: { resolutionId?: string }
+    options?: { resolutionId?: string; normalizeAudio?: boolean }
   ) => {
-    if (!stateMachine.selectedFile || !processor.isFFmpegLoaded) return;
+    if (!stateMachine.selectedFile || !processor.isFFmpegLoaded) {
+      return;
+    }
 
     // Start processing in state machine
-    stateMachine.startProcessing(action, formatId);
+    stateMachine.startProcessing(action, formatId, { normalizeAudio: options?.normalizeAudio });
 
     try {
       // Run processing
@@ -114,6 +120,7 @@ export default function Home() {
           resolutionId: options?.resolutionId,
           modelKey: selectedModelKey,
           testMode: TEST_MODE,
+          normalizeAudio: options?.normalizeAudio,
         }
       );
 
@@ -124,6 +131,7 @@ export default function Home() {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
+      console.error("[App] Processing failed:", errorMessage);
       stateMachine.failProcessing(`Processing failed: ${errorMessage}`);
     }
   };
@@ -167,6 +175,9 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 text-zinc-100">
+      {/* Font Selector - Fixed Position */}
+      <FontSelector />
+      
       {/* Model Loading Screen (initial load) */}
       {!processor.isModelLoaded && (
         <div className="fixed inset-0 z-50">
@@ -204,44 +215,30 @@ export default function Home() {
             await processor.cancel();
             stateMachine.cancelProcessing();
           }}
+          onNavigate={handleReset}
         />
       )}
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        {/* Header */}
-        <header className="mb-8 text-center">
-          <div className="inline-flex items-center gap-3 mb-4">
-            <div className="p-3 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg">
-              <Zap className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-5xl font-black bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-500 bg-clip-text text-transparent">
-              Audio Processor
-            </h1>
-          </div>
+        {/* Breadcrumbs */}
+        <Breadcrumbs 
+          currentState={stateMachine.state} 
+          onNavigate={handleReset}
+        />
 
-          <div className="flex items-center justify-center gap-4 mb-4 flex-wrap">
-            <span className="px-4 py-1.5 bg-cyan-950/50 border border-cyan-500/50 rounded-full text-xs font-bold text-cyan-400 uppercase tracking-wider">
-              Guided Workflow
+        {/* Hardware Capability Badge */}
+        <div className="flex justify-center mb-6">
+          <span className="px-4 py-1.5 bg-gradient-to-r from-green-950/50 to-emerald-950/50 border border-green-500/50 rounded-full text-xs font-bold text-green-400 uppercase tracking-wider flex items-center gap-2">
+            <Cpu className="w-3 h-3" />
+            <span suppressHydrationWarning>
+              {hardwareCapability.tier === "high"
+                ? `🚀 High Performance Mode (${hardwareCapability.deviceMemoryGB}GB+ RAM)`
+                : hardwareCapability.tier === "medium"
+                ? "⚡ Standard Performance Mode"
+                : "Standard Mode"}
             </span>
-            <span className="px-4 py-1.5 bg-blue-950/50 border border-blue-500/50 rounded-full text-xs font-bold text-blue-400 uppercase tracking-wider">
-              Step-by-Step
-            </span>
-            <span className="px-4 py-1.5 bg-gradient-to-r from-green-950/50 to-emerald-950/50 border border-green-500/50 rounded-full text-xs font-bold text-green-400 uppercase tracking-wider flex items-center gap-2">
-              <Cpu className="w-3 h-3" />
-              <span suppressHydrationWarning>
-                {hardwareCapability.tier === "high"
-                  ? `🚀 High Performance Mode (${hardwareCapability.deviceMemoryGB}GB+ RAM)`
-                  : hardwareCapability.tier === "medium"
-                  ? "⚡ Standard Performance Mode"
-                  : "Standard Mode"}
-              </span>
-            </span>
-          </div>
-
-          <p className="text-zinc-400 max-w-2xl mx-auto">
-            Follow the guided workflow to extract or convert your audio files with ease.
-          </p>
-        </header>
+          </span>
+        </div>
 
         {/* STATE VIEWS */}
         {stateMachine.state === "IDLE" && (

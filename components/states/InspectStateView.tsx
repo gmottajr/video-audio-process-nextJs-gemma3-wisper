@@ -3,6 +3,7 @@
 import { MetadataDisplay } from "@/components/MetadataDisplay";
 import { ActionSelector, type ActionType } from "@/components/ActionSelector";
 import ModelSelector, { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
+import { PageHeader } from "@/components/PageHeader";
 
 interface InspectStateViewProps {
   file: File;
@@ -45,11 +46,18 @@ export function InspectStateView({
 }: InspectStateViewProps) {
   return (
     <div className="animate-in fade-in duration-500">
+      {/* Main Title & Subtitle */}
+      <PageHeader 
+        subtitle="Configure Processing"
+        description="Review your file details and choose your desired output format and options."
+        icon="⚙️"
+      />
+
       <div className="mb-6 text-center">
         <div className="inline-flex items-center justify-center w-16 h-16 bg-cyan-600 rounded-full mb-4">
           <span className="text-3xl font-bold text-white">2</span>
         </div>
-        <h2 className="text-2xl font-bold mb-2">Review & Configure</h2>
+        <h3 className="text-xl font-bold mb-2">Review & Configure</h3>
         <p className="text-zinc-400">
           Check your file details and choose the output format
         </p>

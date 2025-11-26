@@ -38,6 +38,7 @@ export function useAppStateMachine() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFormatId, setSelectedFormatId] = useState<string | null>(null);
   const [currentAction, setCurrentAction] = useState<ActionType | null>(null);
+  const [normalizeAudio, setNormalizeAudio] = useState(false); // NEW: Audio normalization flag
   const [result, setResult] = useState<ProcessingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +53,7 @@ export function useAppStateMachine() {
       setSelectedFile(null);
       setSelectedFormatId(null);
       setCurrentAction(null);
+      setNormalizeAudio(false); // Reset normalization flag
       setResult(null);
       setError(null);
       return;
@@ -75,32 +77,29 @@ export function useAppStateMachine() {
    * Transition: INSPECT → PROCESSING
    * User initiates processing action
    */
-  const startProcessing = useCallback((action: ActionType, formatId: string) => {
-    if (state !== "INSPECT") {
-      console.warn("[StateMachine] Cannot start processing from state:", state);
-      return;
-    }
-
+  const startProcessing = useCallback((action: ActionType, formatId: string, options?: { normalizeAudio?: boolean }) => {
+    console.log("[StateMachine] Starting processing, transitioning to PROCESSING");
     setCurrentAction(action);
     setSelectedFormatId(formatId);
+    setNormalizeAudio(options?.normalizeAudio || false); // Store normalization flag
     setResult(null);
     setError(null);
     setState("PROCESSING");
-  }, [state]);
+  }, []);
 
   /**
    * Transition: PROCESSING → DONE
    * Processing completed successfully
    */
   const completeProcessing = useCallback((processingResult: ProcessingResult) => {
-    if (state !== "PROCESSING") {
-      console.warn("[StateMachine] Cannot complete from state:", state);
-      return;
-    }
-
+    // Note: We don't check state here because React state updates are asynchronous.
+    // startProcessing() may have just been called, setting state to PROCESSING,
+    // but this callback may execute before React flushes that state update.
+    // Since we control the call sequence, we trust the caller.
+    
     setResult(processingResult);
     setState("DONE");
-  }, [state]);
+  }, []);
 
   /**
    * Transition: PROCESSING → ERROR
@@ -116,13 +115,10 @@ export function useAppStateMachine() {
    * User cancels processing
    */
   const cancelProcessing = useCallback(() => {
-    if (state !== "PROCESSING") {
-      console.warn("[StateMachine] Cannot cancel from state:", state);
-      return;
-    }
-
+    // Note: State check removed due to async state updates
+    console.log("[StateMachine] Cancelling processing, returning to INSPECT");
     setState("INSPECT");
-  }, [state]);
+  }, []);
 
   /**
    * Transition: * → IDLE
@@ -133,6 +129,7 @@ export function useAppStateMachine() {
     setSelectedFile(null);
     setSelectedFormatId(null);
     setCurrentAction(null);
+    setNormalizeAudio(false); // Reset normalization flag
     setResult(null);
     setError(null);
   }, []);
@@ -142,14 +139,10 @@ export function useAppStateMachine() {
    * Retry after error
    */
   const retry = useCallback(() => {
-    if (state !== "ERROR" || !selectedFile) {
-      console.warn("[StateMachine] Cannot retry from state:", state);
-      return;
-    }
-
+    console.log("[StateMachine] Retrying, returning to INSPECT");
     setError(null);
     setState("INSPECT");
-  }, [state, selectedFile]);
+  }, []);
 
   /**
    * Get state context (for debugging)
@@ -171,6 +164,7 @@ export function useAppStateMachine() {
     selectedFile,
     selectedFormatId,
     currentAction,
+    normalizeAudio, // NEW: Expose normalization flag
     result,
     error,
     

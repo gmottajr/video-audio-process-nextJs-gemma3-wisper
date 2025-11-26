@@ -52,6 +52,7 @@ export function useAudioConverter() {
    * @param file Input audio/video file
    * @param targetFormatId Target format ID (e.g., 'mp3', 'wav')
    * @param timeoutMs Optional timeout in milliseconds
+   * @param options Optional conversion options (normalize, etc.)
    * @returns Promise<Blob> Converted audio blob
    * @throws ConversionError if conversion fails
    */
@@ -59,7 +60,8 @@ export function useAudioConverter() {
     async (
       file: File,
       targetFormatId: string,
-      timeoutMs?: number
+      timeoutMs?: number,
+      options?: { normalizeAudio?: boolean }
     ): Promise<Blob> => {
       // Ensure FFmpeg is loaded
       if (!isLoaded) {
@@ -106,25 +108,26 @@ export function useAudioConverter() {
           "-i",
           file.name,
           "-vn", // No video (audio only)
-          ...formatConfig.ffmpegArgs, // Format-specific arguments
-          outputFileName,
         ];
 
-        console.log(
-          `[useAudioConverter] Converting to ${formatConfig.name} (${targetFormatId})`
-        );
-        console.log(`[useAudioConverter] Command: ffmpeg ${command.join(" ")}`);
+        // Add normalization filter if requested
+        if (options?.normalizeAudio) {
+          command.push(
+            "-af",
+            "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=summary"
+          );
+        }
+
+        // Add format-specific arguments
+        command.push(...formatConfig.ffmpegArgs, outputFileName);
 
         // Use custom timeout or calculate based on file size
-        const effectiveTimeout = timeoutMs || calculateAudioTimeout(file);
-        console.log(`[useAudioConverter] Using timeout: ${effectiveTimeout / 1000}s`);
+        // Add extra time if normalizing (roughly 10% overhead)
+        const baseTimeout = timeoutMs || calculateAudioTimeout(file);
+        const effectiveTimeout = options?.normalizeAudio ? baseTimeout * 1.1 : baseTimeout;
 
         // Delegate to FFmpeg engine (Dependency Inversion)
         const blob = await transcode(file, command, effectiveTimeout);
-
-        console.log(
-          `[useAudioConverter] Conversion complete: ${blob.size} bytes`
-        );
 
         return blob;
       } catch (error) {

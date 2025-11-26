@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 
 interface ErrorStateViewProps {
   error: string;
@@ -20,15 +21,23 @@ export function ErrorStateView({
   canRetry,
 }: ErrorStateViewProps) {
   return (
-    <div className="max-w-2xl mx-auto animate-in fade-in duration-500">
-      <div className="bg-red-950/30 border-2 border-red-500/50 rounded-lg p-8 text-center">
-        <div className="w-16 h-16 bg-red-950/50 border border-red-500/30 rounded-full flex items-center justify-center mx-auto mb-4">
-          <AlertCircle className="w-8 h-8 text-red-400" />
-        </div>
-        <h2 className="text-2xl font-bold text-red-400 mb-4">
-          Something Went Wrong
-        </h2>
-        <p className="text-zinc-300 mb-6">{error}</p>
+    <div className="max-w-4xl mx-auto animate-in fade-in duration-500">
+      {/* Main Title & Subtitle */}
+      <PageHeader 
+        subtitle="Error Occurred"
+        description="An error occurred during processing. You can try again or start over."
+        icon="⚠️"
+      />
+
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-red-950/30 border-2 border-red-500/50 rounded-lg p-8 text-center">
+          <div className="w-16 h-16 bg-red-950/50 border border-red-500/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-red-400" />
+          </div>
+          <h3 className="text-xl font-bold text-red-400 mb-4">
+            Something Went Wrong
+          </h3>
+          <p className="text-zinc-300 mb-6">{error}</p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           {canRetry && (
@@ -45,6 +54,7 @@ export function ErrorStateView({
           >
             Start Over
           </button>
+        </div>
         </div>
       </div>
     </div>

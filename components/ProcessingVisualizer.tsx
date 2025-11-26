@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Loader2, X, Zap } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { PageHeader } from "@/components/PageHeader";
 
 /**
  * Processing Visualizer Component
@@ -12,6 +14,7 @@ import { cn } from "@/utils/cn";
  * - Pulsing animation based on processing speed
  * - Phase indicators
  * - Cancellation button
+ * - Breadcrumbs and page header for navigation context
  */
 
 export type ProcessingPhase = "initializing" | "processing" | "finalizing";
@@ -22,6 +25,7 @@ interface ProcessingVisualizerProps {
   phase: ProcessingPhase;
   formatName?: string; // e.g., "MP3", "WAV"
   onCancel?: () => void;
+  onNavigate?: () => void; // For breadcrumbs navigation
   className?: string;
 }
 
@@ -31,6 +35,7 @@ export function ProcessingVisualizer({
   phase,
   formatName,
   onCancel,
+  onNavigate,
   className,
 }: ProcessingVisualizerProps) {
   const [pulseSpeed, setPulseSpeed] = useState(1);
@@ -62,11 +67,25 @@ export function ProcessingVisualizer({
   return (
     <div
       className={cn(
-        "fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center",
+        "fixed inset-0 bg-black/90 backdrop-blur-sm z-50",
         className
       )}
     >
-      <div className="max-w-md w-full mx-4">
+      {/* Breadcrumbs and Header at the top */}
+      <div className="container mx-auto px-4 pt-8 max-w-6xl">
+        <Breadcrumbs 
+          currentState="PROCESSING" 
+          onNavigate={onNavigate || (() => {})}
+        />
+        <PageHeader 
+          mainTitle="Neural Groove Spectrum Divergent"
+          subtitle="Processing Your File"
+        />
+      </div>
+
+      {/* Processing visualizer centered */}
+      <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
+        <div className="max-w-md w-full mx-4">
         {/* Main Card */}
         <div className="bg-zinc-900 border-2 border-blue-500/50 rounded-xl p-8 shadow-2xl">
           {/* Circular Progress */}
@@ -182,6 +201,7 @@ export function ProcessingVisualizer({
             animation: `pulse ${2 / pulseSpeed}s cubic-bezier(0.4, 0, 0.6, 1) infinite`,
           }}
         />
+      </div>
       </div>
     </div>
   );

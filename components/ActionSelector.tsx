@@ -26,7 +26,7 @@ export type ActionType = "extract" | "convert_audio" | "convert_video" | "transc
 
 interface ActionSelectorProps {
   file: File;
-  onAction: (action: ActionType, formatId: string, options?: { resolutionId?: string }) => void;
+  onAction: (action: ActionType, formatId: string, options?: { resolutionId?: string; normalizeAudio?: boolean }) => void;
   disabled: boolean;
   isModelLoading?: boolean;
   isModelLoaded?: boolean;
@@ -53,6 +53,7 @@ export function ActionSelector({
   );
   const [selectedVideoFormat, setSelectedVideoFormat] = useState<string>("mp4");
   const [selectedResolution, setSelectedResolution] = useState<string>("original");
+  const [normalizeAudio, setNormalizeAudio] = useState(false); // NEW: Audio normalization option
 
   // Derived state
   const selectedAudioConfig = getFormatById(selectedAudioFormat);
@@ -75,7 +76,7 @@ export function ActionSelector({
 
     if (fileType === "video") {
       if (videoMode === "extract") {
-        onAction("extract", selectedAudioFormat);
+        onAction("extract", selectedAudioFormat, { normalizeAudio }); // Pass normalization flag
       } else if (videoMode === "transcribe") {
         onAction("transcribe", "");
       } else {
@@ -84,7 +85,7 @@ export function ActionSelector({
         });
       }
     } else {
-      onAction("convert_audio", selectedAudioFormat);
+      onAction("convert_audio", selectedAudioFormat, { normalizeAudio }); // Pass for audio files too
     }
   };
 
@@ -231,6 +232,53 @@ export function ActionSelector({
         />
       )}
 
+      {/* NEW: Audio Normalization Option (for extract and convert_audio) */}
+      {(videoMode === "extract" || fileType === "audio") && (
+        <div className="mt-4 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
+          <label className="flex items-start cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={normalizeAudio}
+              onChange={(e) => setNormalizeAudio(e.target.checked)}
+              disabled={disabled}
+              className="mt-0.5 w-4 h-4 text-blue-600 border-zinc-600 rounded focus:ring-blue-500 focus:ring-offset-zinc-900"
+            />
+            <div className="ml-3 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-zinc-100 group-hover:text-blue-400 transition-colors">
+                  🎵 Normalize audio levels
+                </span>
+                <span className="text-xs text-blue-400 bg-blue-500/20 px-2 py-0.5 rounded-full font-medium">
+                  +5-10s
+                </span>
+              </div>
+              <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
+                Standardize audio volume to a consistent level. Recommended for quiet 
+                or inconsistent audio to improve transcription quality.
+              </p>
+            </div>
+          </label>
+
+          {/* Info tooltip */}
+          {normalizeAudio && (
+            <div className="mt-3 text-xs text-zinc-300 bg-zinc-800/50 p-3 rounded border border-blue-500/20 animate-in fade-in duration-200">
+              <div className="flex items-start gap-2">
+                <span className="text-blue-400 font-bold">ℹ️</span>
+                <div>
+                  <strong className="text-zinc-100">What is normalization?</strong>
+                  <p className="mt-1 text-zinc-400">
+                    Audio normalization adjusts volume levels to a consistent standard using
+                    the EBU R128 loudnorm filter (optimized for speech). This helps AI transcription
+                    models process audio more accurately, especially for recordings with varying
+                    volume or quiet speech.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Main Action Button */}
       <ProgressButton
         onClick={handleStart}
@@ -241,7 +289,7 @@ export function ActionSelector({
         icon={videoMode === "transcribe" ? "brain" : "play"}
         size="large"
       >
-        {fileType === "video" && videoMode === "extract" && "Extract Audio"}
+        {fileType === "video" && videoMode === "extract" && (normalizeAudio ? "🎵 Extract & Normalize Audio" : "Extract Audio")}
         {fileType === "video" &&
           videoMode === "convert" &&
           `Convert to ${selectedVideoConfig?.name}`}
@@ -252,7 +300,7 @@ export function ActionSelector({
             : isModelLoaded
             ? "Start AI Transcription"
             : "Waiting for Model...")}
-        {fileType === "audio" && `Convert to ${selectedAudioConfig?.name}`}
+        {fileType === "audio" && (normalizeAudio ? `🎵 Normalize & Convert to ${selectedAudioConfig?.name}` : `Convert to ${selectedAudioConfig?.name}`)}
       </ProgressButton>
 
       {/* Hint text */}

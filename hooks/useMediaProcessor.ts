@@ -22,6 +22,11 @@ export interface ProcessingResult {
       timestamp: [number, number | null];
     }>;
   };
+  metadata?: {
+    normalized?: boolean; // NEW: Flag indicating if audio was normalized
+    format?: string;
+    size?: number;
+  };
 }
 
 /**
@@ -97,6 +102,7 @@ export function useMediaProcessor() {
         resolutionId?: string;
         modelKey?: ModelKey;
         testMode?: boolean;
+        normalizeAudio?: boolean; // NEW: Audio normalization option
       }
     ): Promise<ProcessingResult> => {
       setIsProcessing(true);
@@ -118,18 +124,53 @@ export function useMediaProcessor() {
         try {
           switch (action) {
             case "extract": {
-              console.log("[MediaProcessor] Extracting audio to", formatId);
               const blob = await ffmpeg.extractAudio(file);
-              const url = blobManager.create(blob, `audio_extract_${Date.now()}`);
-              processResult = { type: "audio", blobUrl: url };
+              
+              // Apply normalization if requested
+              let finalBlob = blob;
+              if (options?.normalizeAudio) {
+                setStatus({ phase: "processing", progress: 50, speed: "normalizing..." });
+                finalBlob = await audioConverter.convertAudio(
+                  new File([blob], "extracted.wav", { type: "audio/wav" }),
+                  formatId || "wav",
+                  undefined,
+                  { normalizeAudio: true }
+                );
+              }
+              
+              const url = blobManager.create(finalBlob, `audio_extract_${Date.now()}`);
+              
+              processResult = {
+                type: "audio",
+                blobUrl: url,
+                metadata: {
+                  normalized: options?.normalizeAudio || false,
+                  format: formatId || "wav",
+                  size: finalBlob.size,
+                },
+              };
               break;
             }
 
             case "convert_audio": {
-              console.log("[MediaProcessor] Converting audio to", formatId);
-              const blob = await audioConverter.convertAudio(file, formatId);
+              const blob = await audioConverter.convertAudio(
+                file,
+                formatId,
+                undefined,
+                { normalizeAudio: options?.normalizeAudio }
+              );
+              
               const url = blobManager.create(blob, `audio_convert_${formatId}_${Date.now()}`);
-              processResult = { type: "audio", blobUrl: url };
+              
+              processResult = {
+                type: "audio",
+                blobUrl: url,
+                metadata: {
+                  normalized: options?.normalizeAudio || false,
+                  format: formatId,
+                  size: blob.size,
+                },
+              };
               break;
             }
 
@@ -238,7 +279,6 @@ export function useMediaProcessor() {
    * Cleanup (manual cleanup if needed)
    */
   const cleanup = useCallback(() => {
-    console.log('[MediaProcessor] Manual cleanup requested');
     blobManager.revokeAll();
   }, [blobManager]);
 

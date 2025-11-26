@@ -8,6 +8,7 @@ import { getFormatById } from "@/utils/audioFormats";
 import { getVideoFormatById } from "@/utils/videoFormats";
 import { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
 import type { ProcessingResult } from "@/hooks/useMediaProcessor";
+import { PageHeader } from "@/components/PageHeader";
 
 interface DoneStateViewProps {
   result: ProcessingResult;
@@ -45,20 +46,29 @@ export function DoneStateView({
 
   return (
     <div className="animate-in fade-in duration-500">
-      <div className="mb-6 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-full mb-4">
-          <span className="text-3xl">✓</span>
-        </div>
-        <h2 className="text-2xl font-bold mb-2 text-green-400">
-          Processing Complete!
-        </h2>
-        <p className="text-zinc-400">
-          {result.type === "audio"
+      {/* Main Title & Subtitle */}
+      <PageHeader 
+        subtitle="Processing Complete"
+        description={
+          result.type === "audio"
             ? "Your audio file is ready. Listen to the preview or download it."
             : result.type === "video"
             ? "Your video file is ready. Preview it or download it."
-            : "Your transcription is ready. View the text or download it."}
-        </p>
+            : "Your transcription is ready. View the text or download it."
+        }
+        icon="✓"
+      />
+
+      <div className="mb-6 text-center">
+        {/* NEW: Show normalization status badge */}
+        {result.metadata?.normalized && (
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-950/50 border border-blue-500/30 rounded-full text-sm animate-in fade-in duration-300 shadow-lg shadow-blue-500/10">
+            <span className="text-blue-400 font-bold">🎵</span>
+            <span className="text-blue-300 font-medium">
+              Audio normalized for optimal quality
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Output Preview */}
@@ -117,6 +127,41 @@ export function DoneStateView({
           Process Another
         </button>
       </div>
+
+      {/* File Details (for audio/video results) */}
+      {result.metadata && (result.type === "audio" || result.type === "video") && (
+        <div className="mt-6 max-w-2xl mx-auto bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-zinc-300 mb-3">File Details</h3>
+          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+            {result.metadata.format && (
+              <div>
+                <dt className="text-zinc-500">Format</dt>
+                <dd className="font-medium text-zinc-200 uppercase">{result.metadata.format}</dd>
+              </div>
+            )}
+            {result.metadata.size && (
+              <div>
+                <dt className="text-zinc-500">Size</dt>
+                <dd className="font-medium text-zinc-200">
+                  {(result.metadata.size / 1024 / 1024).toFixed(2)} MB
+                </dd>
+              </div>
+            )}
+            {result.metadata.normalized !== undefined && (
+              <div>
+                <dt className="text-zinc-500">Normalized</dt>
+                <dd className="font-medium">
+                  {result.metadata.normalized ? (
+                    <span className="text-green-400">✓ Yes</span>
+                  ) : (
+                    <span className="text-zinc-400">✗ No</span>
+                  )}
+                </dd>
+              </div>
+            )}
+          </dl>
+        </div>
+      )}
 
       {/* System Resources (collapsed) */}
       <details className="mt-6 max-w-2xl mx-auto">
