@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranscriberContext } from "@/contexts/TranscriberContext";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { X } from "lucide-react";
 
 /**
@@ -21,8 +22,18 @@ export default function TranscriptionProgressScreen() {
   const elapsedTime = elapsedMatch ? elapsedMatch[1] : '';
 
   return (
-    <div className="fixed inset-0 z-50 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-      <div className="max-w-md w-full mx-4">
+    <div className="fixed inset-0 z-50 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex flex-col">
+      {/* Breadcrumbs at top */}
+      <div className="container mx-auto px-4 pt-6 pb-4">
+        <Breadcrumbs 
+          currentState="PROCESSING" 
+          onNavigate={() => {}}
+        />
+      </div>
+
+      {/* Main content centered */}
+      <div className="flex-1 flex items-center justify-center">
+        <div className="max-w-md w-full mx-4">
         {/* Icon */}
         <div className="text-center mb-8">
           <div className="inline-block p-6 bg-white/10 rounded-full backdrop-blur-sm mb-4">
@@ -121,6 +132,7 @@ export default function TranscriptionProgressScreen() {
             Processing locally in your browser • No data sent to servers
           </p>
         </div>
+      </div>
       </div>
     </div>
   );

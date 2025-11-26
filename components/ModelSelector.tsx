@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Brain, Zap, CheckCircle2 } from "lucide-react";
+import { Brain, Zap, CheckCircle2, AlertTriangle } from "lucide-react";
+import { getResourceWarning, formatFileSize } from "@/utils/resourceEstimation";
 
 /**
  * Whisper Model Information
@@ -50,6 +51,7 @@ interface ModelSelectorProps {
   isLoading: boolean;
   onModelSelect: (model: ModelKey) => void;
   disabled?: boolean;
+  file?: File | null; // NEW: For resource estimation
 }
 
 /**
@@ -62,7 +64,12 @@ export default function ModelSelector({
   isLoading,
   onModelSelect,
   disabled = false,
+  file = null,
 }: ModelSelectorProps) {
+  // Get resource warning if file is provided
+  const resourceWarning = file ? getResourceWarning(file, selectedModel) : null;
+  const showWarning = resourceWarning && (resourceWarning.level === "heavy" || resourceWarning.level === "extreme" || resourceWarning.level === "dangerous");
+
   return (
     <div className="w-full">
       <div className="mb-4">
@@ -71,11 +78,59 @@ export default function ModelSelector({
           <h3 className="text-lg font-semibold text-gray-800">
             AI Transcription Model
           </h3>
+          {file && (
+            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+              File: {formatFileSize(file.size)}
+            </span>
+          )}
         </div>
         <p className="text-sm text-gray-600">
           Choose your model based on speed vs. accuracy needs
         </p>
       </div>
+
+      {/* Resource Warning Banner */}
+      {showWarning && resourceWarning && (
+        <div className={`mb-4 p-4 rounded-lg border-2 ${
+          resourceWarning.level === "dangerous" ? "bg-red-950/50 border-red-500/50" :
+          resourceWarning.level === "extreme" ? "bg-orange-950/50 border-orange-500/50" :
+          "bg-yellow-950/50 border-yellow-500/50"
+        }`}>
+          <div className="flex items-start gap-3">
+            <span className="text-2xl shrink-0">{resourceWarning.icon}</span>
+            <div className="flex-1">
+              <h4 className={`font-bold text-sm mb-1 ${
+                resourceWarning.level === "dangerous" ? "text-red-300" :
+                resourceWarning.level === "extreme" ? "text-orange-300" :
+                "text-yellow-300"
+              }`}>
+                {resourceWarning.message}
+              </h4>
+              <p className="text-xs text-zinc-300 mb-2">
+                {resourceWarning.recommendation}
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-zinc-800/50 rounded px-2 py-1">
+                  <span className="text-zinc-400">RAM: </span>
+                  <span className="text-zinc-200 font-semibold">{resourceWarning.estimatedRAM}GB+</span>
+                </div>
+                {resourceWarning.requiresHighEndCPU && (
+                  <div className="bg-zinc-800/50 rounded px-2 py-1">
+                    <span className="text-zinc-400">CPU: </span>
+                    <span className="text-zinc-200 font-semibold">High-end</span>
+                  </div>
+                )}
+                {resourceWarning.requiresGPU && (
+                  <div className="bg-zinc-800/50 rounded px-2 py-1 col-span-2">
+                    <span className="text-zinc-400">GPU: </span>
+                    <span className="text-zinc-200 font-semibold">Dedicated GPU Recommended</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {(Object.keys(WHISPER_MODELS) as ModelKey[]).map((modelKey) => {

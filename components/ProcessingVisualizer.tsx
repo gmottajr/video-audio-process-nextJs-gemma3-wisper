@@ -78,7 +78,6 @@ export function ProcessingVisualizer({
           onNavigate={onNavigate || (() => {})}
         />
         <PageHeader 
-          mainTitle="Neural Groove Spectrum Divergent"
           subtitle="Processing Your File"
         />
       </div>

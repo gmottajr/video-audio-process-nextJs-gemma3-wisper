@@ -177,6 +177,103 @@ export default function Home() {
     processor.transcriber.loadModel(WHISPER_MODELS[modelKey].id);
   };
 
+  /**
+   * Handle transcribe from done state (NEW)
+   * Transcribe an already processed audio file with optional enhancements
+   */
+  const handleTranscribeFromDone = async (
+    compressionType: CompressionType, 
+    normalizeAudio: boolean,
+    modelKey: ModelKey
+  ) => {
+    // Validate audio result exists
+    if (!stateMachine.result || stateMachine.result.type !== "audio") {
+      console.error("[App] Cannot transcribe: no audio result available");
+      stateMachine.failProcessing("No audio file available. Please extract or convert audio first.");
+      return;
+    }
+
+    // Validate blob URL exists
+    if (!stateMachine.result.blobUrl) {
+      console.error("[App] Cannot transcribe: blob URL missing");
+      stateMachine.failProcessing("Audio file no longer available. Please re-process the file.");
+      return;
+    }
+
+    // Validate model is ready
+    if (!processor.isModelLoaded && !processor.isModelLoading) {
+      console.error("[App] Cannot transcribe: AI model not loaded");
+      stateMachine.failProcessing("AI model not loaded. Please wait for the model to initialize.");
+      return;
+    }
+
+    console.log("[App] Transcribing from done state with enhancements:", { compressionType, normalizeAudio });
+
+    // Transition to processing
+    stateMachine.startProcessing("transcribe", "", { compressionType, normalizeAudio });
+
+    try {
+      // Fetch the audio blob from the URL with error handling
+      console.log("[App] Fetching audio blob from:", stateMachine.result.blobUrl);
+      
+      const response = await fetch(stateMachine.result.blobUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load audio file (HTTP ${response.status})`);
+      }
+
+      const audioBlob = await response.blob();
+      
+      // Validate blob
+      if (!audioBlob || audioBlob.size === 0) {
+        throw new Error("Audio file is empty or corrupted");
+      }
+
+      console.log("[App] Audio blob loaded successfully:", audioBlob.size, "bytes");
+
+      const audioFile = new File(
+        [audioBlob],
+        stateMachine.selectedFile?.name || "audio.wav",
+        { type: audioBlob.type || "audio/wav" }
+      );
+
+      // Process transcription with optional enhancements
+      // Use the modelKey selected in DoneStateView (not the global selectedModelKey)
+      const result = await processor.processFile(
+        audioFile,
+        "transcribe",
+        "",
+        {
+          modelKey: modelKey, // Use the model selected in DoneStateView
+          testMode: TEST_MODE,
+          normalizeAudio,
+          compressionType,
+        }
+      );
+
+      // Result handled by useEffect
+      console.log("[App] Transcription from done state completed successfully");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("[App] Transcription from done failed:", errorMessage);
+      
+      // Provide user-friendly error message
+      let userMessage = "Transcription failed. ";
+      
+      if (errorMessage.includes("Failed to load")) {
+        userMessage += "The audio file is no longer available. Please re-process the file.";
+      } else if (errorMessage.includes("empty or corrupted")) {
+        userMessage += "The audio file appears to be corrupted. Please re-process the file.";
+      } else if (errorMessage.includes("model")) {
+        userMessage += "AI model error. Please try again or select a different model.";
+      } else {
+        userMessage += errorMessage;
+      }
+      
+      stateMachine.failProcessing(userMessage);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 text-zinc-100">
       {/* Font Selector - Fixed Position */}
@@ -284,6 +381,11 @@ export default function Home() {
               memoryUsageMB={memoryUsageMB}
               onDownload={handleDownload}
               onReset={handleReset}
+              isModelLoaded={processor.isModelLoaded}
+              isModelLoading={processor.isModelLoading}
+              modelLoadingProgress={processor.transcriptionProgress}
+              onModelSelect={handleModelSelect}
+              onTranscribe={handleTranscribeFromDone}
             />
           )}
 

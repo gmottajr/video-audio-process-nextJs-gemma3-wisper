@@ -71,7 +71,7 @@ export function MetadataDisplay({ metrics, file, className }: MetadataDisplayPro
           label="File Name"
           value={file?.name || "—"}
           icon={<Film className="w-4 h-4" />}
-          fullWidth={file && file.name.length > 30}
+          fullWidth={!!(file && file.name.length > 30)}
         />
 
         {/* File Size */}

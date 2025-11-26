@@ -71,6 +71,7 @@ export function InspectStateView({
           isLoading={isModelLoading}
           onModelSelect={onModelSelect}
           disabled={isTranscribing}
+          file={file}
         />
       </div>
 
@@ -95,6 +96,7 @@ export function InspectStateView({
             isModelLoading={isModelLoading}
             isModelLoaded={isModelLoaded}
             modelLoadingProgress={modelLoadingProgress}
+            selectedModelKey={selectedModelKey}
           />
         </div>
       </div>
