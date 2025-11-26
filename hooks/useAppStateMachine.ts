@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { detectFileType } from "@/utils/audioFormats";
-import type { ActionType } from "@/components/ActionSelector";
+import type { ActionType, CompressionType } from "@/components/ActionSelector";
 import type { ProcessingResult } from "./useMediaProcessor";
 
 /**
@@ -39,6 +39,7 @@ export function useAppStateMachine() {
   const [selectedFormatId, setSelectedFormatId] = useState<string | null>(null);
   const [currentAction, setCurrentAction] = useState<ActionType | null>(null);
   const [normalizeAudio, setNormalizeAudio] = useState(false); // NEW: Audio normalization flag
+  const [compressionType, setCompressionType] = useState<CompressionType>("none"); // NEW: Audio compression type
   const [result, setResult] = useState<ProcessingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,6 +55,7 @@ export function useAppStateMachine() {
       setSelectedFormatId(null);
       setCurrentAction(null);
       setNormalizeAudio(false); // Reset normalization flag
+      setCompressionType("none"); // Reset compression type
       setResult(null);
       setError(null);
       return;
@@ -69,6 +71,8 @@ export function useAppStateMachine() {
 
     // Transition to INSPECT
     setSelectedFile(file);
+    setNormalizeAudio(false); // Reset normalization flag on file change
+    setCompressionType("none"); // Reset compression type on file change
     setError(null);
     setState("INSPECT");
   }, []);
@@ -77,11 +81,12 @@ export function useAppStateMachine() {
    * Transition: INSPECT → PROCESSING
    * User initiates processing action
    */
-  const startProcessing = useCallback((action: ActionType, formatId: string, options?: { normalizeAudio?: boolean }) => {
+  const startProcessing = useCallback((action: ActionType, formatId: string, options?: { normalizeAudio?: boolean; compressionType?: CompressionType }) => {
     console.log("[StateMachine] Starting processing, transitioning to PROCESSING");
     setCurrentAction(action);
     setSelectedFormatId(formatId);
     setNormalizeAudio(options?.normalizeAudio || false); // Store normalization flag
+    setCompressionType(options?.compressionType || "none"); // Store compression type
     setResult(null);
     setError(null);
     setState("PROCESSING");
@@ -130,6 +135,7 @@ export function useAppStateMachine() {
     setSelectedFormatId(null);
     setCurrentAction(null);
     setNormalizeAudio(false); // Reset normalization flag
+    setCompressionType("none"); // Reset compression type
     setResult(null);
     setError(null);
   }, []);
@@ -165,6 +171,7 @@ export function useAppStateMachine() {
     selectedFormatId,
     currentAction,
     normalizeAudio, // NEW: Expose normalization flag
+    compressionType, // NEW: Expose compression type
     result,
     error,
     

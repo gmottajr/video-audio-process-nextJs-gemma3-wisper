@@ -23,10 +23,11 @@ import { ResolutionSelector } from "./ResolutionSelector";
 import { FormatDetailsCard } from "./FormatDetailsCard";
 
 export type ActionType = "extract" | "convert_audio" | "convert_video" | "transcribe";
+export type CompressionType = "none" | "speech" | "studio" | "both";
 
 interface ActionSelectorProps {
   file: File;
-  onAction: (action: ActionType, formatId: string, options?: { resolutionId?: string; normalizeAudio?: boolean }) => void;
+  onAction: (action: ActionType, formatId: string, options?: { resolutionId?: string; normalizeAudio?: boolean; compressionType?: CompressionType }) => void;
   disabled: boolean;
   isModelLoading?: boolean;
   isModelLoaded?: boolean;
@@ -54,6 +55,7 @@ export function ActionSelector({
   const [selectedVideoFormat, setSelectedVideoFormat] = useState<string>("mp4");
   const [selectedResolution, setSelectedResolution] = useState<string>("original");
   const [normalizeAudio, setNormalizeAudio] = useState(false); // NEW: Audio normalization option
+  const [compressionType, setCompressionType] = useState<CompressionType>("none"); // NEW: Audio compression option
 
   // Derived state
   const selectedAudioConfig = getFormatById(selectedAudioFormat);
@@ -63,7 +65,75 @@ export function ActionSelector({
     videoMode === "convert" &&
     selectedResolution === "original" &&
     canRemux(file, selectedVideoFormat);
+  
+  // Smart recommendations based on filename
+  const filename = file.name.toLowerCase();
+  const isMeetingContent = /meeting|interview|call|conversation|conference/i.test(filename);
+  const isPodcastContent = /podcast|broadcast|episode|show/i.test(filename);
+  const hasMultipleEnhancements = normalizeAudio || compressionType !== "none";
+  const hasFullCompression = compressionType === "both";
+  
+  // Get smart recommendation
+  const getSmartRecommendation = (): string | null => {
+    if (isMeetingContent && compressionType !== "speech") {
+      return "💡 Tip: Speech compression recommended for multi-speaker content";
+    }
+    if (isPodcastContent && compressionType !== "studio") {
+      return "💡 Tip: Studio compression recommended for professional broadcasting";
+    }
+    if (normalizeAudio && compressionType !== "none") {
+      return "✨ Full audio enhancement active - optimal for transcription";
+    }
+    return null;
+  };
 
+  // Get dynamic button text based on selected enhancements
+  const getButtonText = (): string => {
+    const hasCompression = compressionType !== "none";
+    const hasNormalization = normalizeAudio;
+    const formatName = selectedAudioConfig?.name || "";
+    
+    if (fileType === "video" && videoMode === "extract") {
+      if (hasCompression && hasNormalization) {
+        return "🎵 Extract & Process Audio (Full Enhancement)";
+      }
+      if (compressionType === "speech") {
+        return "🎙️ Extract & Compress Audio (Speech)";
+      }
+      if (compressionType === "studio") {
+        return "🎚️ Extract & Compress Audio (Studio)";
+      }
+      if (compressionType === "both") {
+        return "🎛️ Extract & Enhance Audio (Full)";
+      }
+      if (hasNormalization) {
+        return "🎵 Extract & Normalize Audio";
+      }
+      return "Extract Audio";
+    }
+    
+    if (fileType === "audio") {
+      if (hasCompression && hasNormalization) {
+        return `🎵 Normalize & Convert to ${formatName}`;
+      }
+      if (compressionType === "speech") {
+        return `🎙️ Compress & Convert to ${formatName}`;
+      }
+      if (compressionType === "studio") {
+        return `🎚️ Compress & Convert to ${formatName}`;
+      }
+      if (compressionType === "both") {
+        return `🎛️ Enhance & Convert to ${formatName}`;
+      }
+      if (hasNormalization) {
+        return `🎵 Normalize & Convert to ${formatName}`;
+      }
+      return `Convert to ${formatName}`;
+    }
+    
+    return "Start Processing";
+  };
+  
   // Handlers
   const handleStart = () => {
     if (disabled) return;
@@ -76,16 +146,16 @@ export function ActionSelector({
 
     if (fileType === "video") {
       if (videoMode === "extract") {
-        onAction("extract", selectedAudioFormat, { normalizeAudio }); // Pass normalization flag
+        onAction("extract", selectedAudioFormat, { normalizeAudio, compressionType }); // Pass normalization and compression
       } else if (videoMode === "transcribe") {
-        onAction("transcribe", "");
+        onAction("transcribe", "", { normalizeAudio, compressionType }); // Pass enhancements for transcription
       } else {
         onAction("convert_video", selectedVideoFormat, {
           resolutionId: selectedResolution,
         });
       }
     } else {
-      onAction("convert_audio", selectedAudioFormat, { normalizeAudio }); // Pass for audio files too
+      onAction("convert_audio", selectedAudioFormat, { normalizeAudio, compressionType }); // Pass for audio files too
     }
   };
 
@@ -98,7 +168,7 @@ export function ActionSelector({
       return;
     }
     
-    onAction("transcribe", "");
+    onAction("transcribe", "", { normalizeAudio, compressionType }); // Pass enhancements for transcription
   };
 
   // Badge generator for format selector
@@ -232,50 +302,239 @@ export function ActionSelector({
         />
       )}
 
-      {/* NEW: Audio Normalization Option (for extract and convert_audio) */}
-      {(videoMode === "extract" || fileType === "audio") && (
-        <div className="mt-4 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
+      {/* Audio Compression Selector (for extract and convert_audio only - NOT transcribe) */}
+      {(videoMode === "extract" || fileType === "audio") && videoMode !== "transcribe" && (
+        <div className="mt-4 bg-gradient-to-br from-purple-950/30 to-indigo-950/30 border border-purple-500/30 rounded-lg p-5">
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-base font-bold text-zinc-100">
+                🎚️ Audio Compression
+              </span>
+              <span className="text-xs text-purple-300 bg-purple-500/20 px-2.5 py-1 rounded-full font-bold">
+                Professional
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              Choose compression type based on your content
+            </p>
+          </div>
+
+          <div className="space-y-2.5">
+            {/* No Compression */}
+            <label className="flex items-start cursor-pointer group p-3 rounded-lg border border-zinc-700/50 hover:border-zinc-600 hover:bg-zinc-800/30 transition-all">
+              <input
+                type="radio"
+                name="compression"
+                value="none"
+                checked={compressionType === "none"}
+                onChange={(e) => setCompressionType(e.target.value as CompressionType)}
+                disabled={disabled}
+                className="mt-1 w-4 h-4 text-zinc-600 border-zinc-600 focus:ring-zinc-500 focus:ring-offset-zinc-900"
+              />
+              <div className="ml-3 flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-semibold text-zinc-100">⭕ No Compression</span>
+                  <span className="text-xs text-zinc-500 bg-zinc-700/50 px-2 py-0.5 rounded-full">
+                    default
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Keep natural dynamics • Use for high-quality recordings
+                </p>
+              </div>
+            </label>
+
+            {/* Speech Compression */}
+            <label className="flex items-start cursor-pointer group p-3 rounded-lg border border-green-700/50 hover:border-green-600 hover:bg-green-950/20 transition-all">
+              <input
+                type="radio"
+                name="compression"
+                value="speech"
+                checked={compressionType === "speech"}
+                onChange={(e) => setCompressionType(e.target.value as CompressionType)}
+                disabled={disabled}
+                className="mt-1 w-4 h-4 text-green-600 border-zinc-600 focus:ring-green-500 focus:ring-offset-zinc-900"
+              />
+              <div className="ml-3 flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-semibold text-zinc-100">🎙️ Speech Compression</span>
+                  <span className="text-xs text-green-300 bg-green-500/20 px-2 py-0.5 rounded-full font-medium">
+                    +15% time
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-300 font-medium mb-1">
+                  Best for: Meetings, interviews, conversations
+                </p>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Effect: Balances different speaker volumes
+                </p>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Technical: Dynamic frame-based normalization (dynaudnorm)
+                </p>
+              </div>
+            </label>
+
+            {/* Studio Compression */}
+            <label className="flex items-start cursor-pointer group p-3 rounded-lg border border-blue-700/50 hover:border-blue-600 hover:bg-blue-950/20 transition-all">
+              <input
+                type="radio"
+                name="compression"
+                value="studio"
+                checked={compressionType === "studio"}
+                onChange={(e) => setCompressionType(e.target.value as CompressionType)}
+                disabled={disabled}
+                className="mt-1 w-4 h-4 text-blue-600 border-zinc-600 focus:ring-blue-500 focus:ring-offset-zinc-900"
+              />
+              <div className="ml-3 flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-semibold text-zinc-100">🎚️ Studio Compression</span>
+                  <span className="text-xs text-blue-300 bg-blue-500/20 px-2 py-0.5 rounded-full font-medium">
+                    +12% time
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-300 font-medium mb-1">
+                  Best for: Podcasts, broadcasts, professional content
+                </p>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Effect: Professional smooth compression
+                </p>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Technical: Traditional threshold/ratio compression (acompressor)
+                </p>
+              </div>
+            </label>
+
+            {/* Both Compressions */}
+            <label className="flex items-start cursor-pointer group p-3 rounded-lg border border-orange-700/50 hover:border-orange-600 hover:bg-orange-950/20 transition-all">
+              <input
+                type="radio"
+                name="compression"
+                value="both"
+                checked={compressionType === "both"}
+                onChange={(e) => setCompressionType(e.target.value as CompressionType)}
+                disabled={disabled}
+                className="mt-1 w-4 h-4 text-orange-600 border-zinc-600 focus:ring-orange-500 focus:ring-offset-zinc-900"
+              />
+              <div className="ml-3 flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-semibold text-zinc-100">🎛️ Both (Experimental)</span>
+                  <span className="text-xs text-orange-300 bg-orange-500/20 px-2 py-0.5 rounded-full font-medium">
+                    +25% time
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-300 font-medium mb-1">
+                  Best for: Maximum dynamic range control
+                </p>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Effect: Speech balancing + studio smoothing
+                </p>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Technical: Sequential compression (may be overkill)
+                </p>
+                <p className="text-xs text-orange-400 mt-1.5 flex items-center gap-1">
+                  <span>⚠️</span>
+                  <span>May over-compress, test with your content</span>
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {/* Smart Recommendation */}
+          {getSmartRecommendation() && (
+            <div className="mt-4 text-xs bg-gradient-to-r from-cyan-950/50 to-blue-950/50 border border-cyan-500/30 p-3 rounded-lg animate-in fade-in duration-300">
+              <p className="text-cyan-200 font-medium">
+                {getSmartRecommendation()}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Compact Audio Enhancement for Transcribe Mode */}
+      {videoMode === "transcribe" && (
+        <div className="mt-4 bg-gradient-to-br from-indigo-950/30 to-purple-950/30 border border-indigo-500/30 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-sm font-bold text-zinc-100">
+              🎵 Audio Enhancement (Optional)
+            </span>
+            <span className="text-xs text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full">
+              Improves accuracy
+            </span>
+          </div>
+          
+          <div className="space-y-2">
+            {/* Compact Compression Selector */}
+            <div>
+              <label className="text-xs font-medium text-zinc-300 mb-1.5 block">
+                Compression Type:
+              </label>
+              <select
+                value={compressionType}
+                onChange={(e) => setCompressionType(e.target.value as CompressionType)}
+                disabled={disabled}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                <option value="none">⭕ No Compression (default)</option>
+                <option value="speech">🎙️ Speech - Meetings, Interviews (+15%)</option>
+                <option value="studio">🎚️ Studio - Podcasts, Broadcasts (+12%)</option>
+                <option value="both">🎛️ Both - Maximum Enhancement (+25%)</option>
+              </select>
+            </div>
+            
+            {/* Normalization Checkbox */}
+            <label className="flex items-center cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={normalizeAudio}
+                onChange={(e) => setNormalizeAudio(e.target.checked)}
+                disabled={disabled}
+                className="w-4 h-4 rounded border-zinc-600 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-zinc-900"
+              />
+              <span className="ml-2 text-sm text-zinc-100 group-hover:text-indigo-300 transition-colors">
+                🎵 Normalize Audio (EBU R128)
+              </span>
+            </label>
+          </div>
+
+          {/* Smart Recommendation */}
+          {getSmartRecommendation() && (
+            <div className="mt-3 bg-blue-500/10 border border-blue-500/30 rounded-md p-2.5">
+              <p className="text-xs text-blue-300 leading-relaxed">
+                {getSmartRecommendation()}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Audio Normalization Option (for extract and convert_audio only - NOT transcribe) */}
+      {(videoMode === "extract" || fileType === "audio") && videoMode !== "transcribe" && (
+        <div className="mt-4 bg-gradient-to-br from-blue-950/30 to-cyan-950/30 border border-blue-500/30 rounded-lg p-4">
           <label className="flex items-start cursor-pointer group">
             <input
               type="checkbox"
               checked={normalizeAudio}
               onChange={(e) => setNormalizeAudio(e.target.checked)}
               disabled={disabled}
-              className="mt-0.5 w-4 h-4 text-blue-600 border-zinc-600 rounded focus:ring-blue-500 focus:ring-offset-zinc-900"
+              className="mt-1 w-5 h-5 text-blue-600 border-zinc-600 rounded focus:ring-blue-500 focus:ring-offset-zinc-900"
             />
             <div className="ml-3 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-zinc-100 group-hover:text-blue-400 transition-colors">
-                  🎵 Normalize audio levels
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm font-bold text-zinc-100 group-hover:text-blue-300 transition-colors">
+                  🎵 Normalize Audio Levels
                 </span>
-                <span className="text-xs text-blue-400 bg-blue-500/20 px-2 py-0.5 rounded-full font-medium">
-                  +5-10s
+                <span className="text-xs text-blue-300 bg-blue-500/20 px-2 py-0.5 rounded-full font-medium">
+                  +10% time
                 </span>
               </div>
-              <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
-                Standardize audio volume to a consistent level. Recommended for quiet 
-                or inconsistent audio to improve transcription quality.
+              <p className="text-xs text-zinc-300 leading-relaxed">
+                Standardize volume to consistent level using EBU R128 loudnorm filter
+              </p>
+              <p className="text-xs text-zinc-400 mt-1">
+                Recommended for quiet or inconsistent audio to improve transcription quality
               </p>
             </div>
           </label>
-
-          {/* Info tooltip */}
-          {normalizeAudio && (
-            <div className="mt-3 text-xs text-zinc-300 bg-zinc-800/50 p-3 rounded border border-blue-500/20 animate-in fade-in duration-200">
-              <div className="flex items-start gap-2">
-                <span className="text-blue-400 font-bold">ℹ️</span>
-                <div>
-                  <strong className="text-zinc-100">What is normalization?</strong>
-                  <p className="mt-1 text-zinc-400">
-                    Audio normalization adjusts volume levels to a consistent standard using
-                    the EBU R128 loudnorm filter (optimized for speech). This helps AI transcription
-                    models process audio more accurately, especially for recordings with varying
-                    volume or quiet speech.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -289,7 +548,7 @@ export function ActionSelector({
         icon={videoMode === "transcribe" ? "brain" : "play"}
         size="large"
       >
-        {fileType === "video" && videoMode === "extract" && (normalizeAudio ? "🎵 Extract & Normalize Audio" : "Extract Audio")}
+        {fileType === "video" && videoMode === "extract" && getButtonText()}
         {fileType === "video" &&
           videoMode === "convert" &&
           `Convert to ${selectedVideoConfig?.name}`}
@@ -298,9 +557,19 @@ export function ActionSelector({
           (isModelLoading
             ? `Loading AI Model... ${Math.round(modelLoadingProgress)}%`
             : isModelLoaded
-            ? "Start AI Transcription"
+            ? hasMultipleEnhancements
+              ? compressionType !== "none" && normalizeAudio
+                ? "🎵 Transcribe (Enhanced Audio)"
+                : compressionType === "speech"
+                ? "🎙️ Transcribe (Speech Compressed)"
+                : compressionType === "studio"
+                ? "🎚️ Transcribe (Studio Compressed)"
+                : compressionType === "both"
+                ? "🎛️ Transcribe (Full Enhancement)"
+                : "🎵 Transcribe (Normalized Audio)"
+              : "Start AI Transcription"
             : "Waiting for Model...")}
-        {fileType === "audio" && (normalizeAudio ? `🎵 Normalize & Convert to ${selectedAudioConfig?.name}` : `Convert to ${selectedAudioConfig?.name}`)}
+        {fileType === "audio" && getButtonText()}
       </ProgressButton>
 
       {/* Hint text */}
@@ -311,7 +580,9 @@ export function ActionSelector({
                 modelLoadingProgress
               )}%`
             : isModelLoaded
-            ? "🤖 AI model ready • Word-level timestamps • Export as TXT/JSON/SRT"
+            ? hasMultipleEnhancements
+              ? "🤖 AI model ready • Audio will be enhanced before transcription • Better accuracy"
+              : "🤖 AI model ready • Word-level timestamps • Export as TXT/JSON/SRT"
             : "⏳ Waiting for AI model to start loading..."
           : willRemux
           ? "⚡ This will be instant (remux only, no re-encoding)"
@@ -333,14 +604,26 @@ export function ActionSelector({
             {isModelLoading
               ? `Loading AI Model... ${Math.round(modelLoadingProgress)}%`
               : isModelLoaded
-              ? "Transcribe Audio to Text"
+              ? hasMultipleEnhancements
+                ? compressionType !== "none" && normalizeAudio
+                  ? "🎵 Transcribe with Enhanced Audio"
+                  : compressionType === "speech"
+                  ? "🎙️ Transcribe with Speech Compression"
+                  : compressionType === "studio"
+                  ? "🎚️ Transcribe with Studio Compression"
+                  : compressionType === "both"
+                  ? "🎛️ Transcribe with Full Enhancement"
+                  : "🎵 Transcribe with Normalized Audio"
+                : "Transcribe Audio to Text"
               : "Waiting for Model..."}
           </ProgressButton>
           <p className="mt-2 text-xs text-center text-zinc-500">
             {isModelLoading
               ? `Loading model... ${Math.round(modelLoadingProgress)}%`
               : isModelLoaded
-              ? "First run: ~40MB model download • Word-level timestamps • Export as TXT/JSON/SRT"
+              ? hasMultipleEnhancements
+                ? "🎵 Audio will be enhanced before transcription for better accuracy"
+                : "First run: ~40MB model download • Word-level timestamps • Export as TXT/JSON/SRT"
               : "⏳ Waiting for AI model to start loading..."}
           </p>
         </div>

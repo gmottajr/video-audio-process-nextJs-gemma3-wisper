@@ -3,6 +3,7 @@
 import { useCallback, useRef } from "react";
 import { useFFmpeg } from "./useFFmpeg";
 import { getFormatById, isFormatSupported, type AudioFormatConfig } from "@/utils/audioFormats";
+import type { CompressionType } from "@/components/ActionSelector";
 
 /**
  * Audio Converter Hook
@@ -25,14 +26,31 @@ export interface ConversionError extends Error {
  * Audio conversion is much faster than video re-encoding
  * 
  * @param file Input file
+ * @param compressionType Compression type (adds overhead)
+ * @param normalizeAudio Whether normalization is enabled (adds overhead)
  * @returns Timeout in milliseconds
  */
-function calculateAudioTimeout(file: File): number {
+function calculateAudioTimeout(file: File, compressionType: CompressionType = "none", normalizeAudio: boolean = false): number {
   const fileSizeMB = file.size / (1024 * 1024);
   
   // Audio conversion is relatively fast
   // Rough estimate: 5-10 seconds per 100MB
-  const baseTime = fileSizeMB * 10000; // 10s per MB
+  let baseTime = fileSizeMB * 10000; // 10s per MB
+  
+  // Add overhead for compression
+  if (compressionType === "speech") {
+    baseTime *= 1.15; // +15% for speech compression
+  } else if (compressionType === "studio") {
+    baseTime *= 1.12; // +12% for studio compression
+  } else if (compressionType === "both") {
+    baseTime *= 1.25; // +25% for both compressions
+  }
+  
+  // Add overhead for normalization
+  if (normalizeAudio) {
+    baseTime *= 1.1; // +10% for normalization
+  }
+  
   const minTimeout = 60000; // Minimum 1 minute
   const maxTimeout = 600000; // Maximum 10 minutes
   
@@ -52,7 +70,7 @@ export function useAudioConverter() {
    * @param file Input audio/video file
    * @param targetFormatId Target format ID (e.g., 'mp3', 'wav')
    * @param timeoutMs Optional timeout in milliseconds
-   * @param options Optional conversion options (normalize, etc.)
+   * @param options Optional conversion options (normalize, compression, etc.)
    * @returns Promise<Blob> Converted audio blob
    * @throws ConversionError if conversion fails
    */
@@ -61,7 +79,7 @@ export function useAudioConverter() {
       file: File,
       targetFormatId: string,
       timeoutMs?: number,
-      options?: { normalizeAudio?: boolean }
+      options?: { normalizeAudio?: boolean; compressionType?: CompressionType }
     ): Promise<Blob> => {
       // Ensure FFmpeg is loaded
       if (!isLoaded) {
@@ -110,21 +128,41 @@ export function useAudioConverter() {
           "-vn", // No video (audio only)
         ];
 
-        // Add normalization filter if requested
+        // Build audio filter chain
+        const filters: string[] = [];
+        const compressionType = options?.compressionType || "none";
+
+        // Add compression filter(s) FIRST (order matters: compress → normalize)
+        if (compressionType === "speech") {
+          filters.push("dynaudnorm=f=200:g=15:p=0.9:m=15:s=15");
+          console.log("[useAudioConverter] Applying speech compression (dynaudnorm)");
+        } else if (compressionType === "studio") {
+          filters.push("acompressor=threshold=-20dB:ratio=4:attack=20:release=250");
+          console.log("[useAudioConverter] Applying studio compression (acompressor)");
+        } else if (compressionType === "both") {
+          filters.push("dynaudnorm=f=200:g=15:p=0.9:m=15:s=15");
+          filters.push("acompressor=threshold=-20dB:ratio=4:attack=20:release=250");
+          console.log("[useAudioConverter] Applying both compressions (speech + studio)");
+        }
+
+        // Add normalization filter AFTER compression (if requested)
         if (options?.normalizeAudio) {
-          command.push(
-            "-af",
-            "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=summary"
-          );
+          filters.push("loudnorm=I=-16:TP=-1.5:LRA=11:print_format=summary");
+          console.log("[useAudioConverter] Applying normalization (loudnorm)");
+        }
+
+        // Apply filter chain if any filters were added
+        if (filters.length > 0) {
+          command.push("-af", filters.join(","));
         }
 
         // Add format-specific arguments
         command.push(...formatConfig.ffmpegArgs, outputFileName);
 
-        // Use custom timeout or calculate based on file size
-        // Add extra time if normalizing (roughly 10% overhead)
-        const baseTimeout = timeoutMs || calculateAudioTimeout(file);
-        const effectiveTimeout = options?.normalizeAudio ? baseTimeout * 1.1 : baseTimeout;
+        // Use custom timeout or calculate based on file size and options
+        const effectiveTimeout = timeoutMs || calculateAudioTimeout(file, compressionType, options?.normalizeAudio);
+
+        console.log(`[useAudioConverter] Timeout: ${effectiveTimeout}ms (compression: ${compressionType}, normalize: ${options?.normalizeAudio})`);
 
         // Delegate to FFmpeg engine (Dependency Inversion)
         const blob = await transcode(file, command, effectiveTimeout);

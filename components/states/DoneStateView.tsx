@@ -59,13 +59,46 @@ export function DoneStateView({
         icon="✓"
       />
 
-      <div className="mb-6 text-center">
-        {/* NEW: Show normalization status badge */}
+      <div className="mb-6 flex flex-wrap justify-center gap-3">
+        {/* Show compression status badges */}
+        {result.metadata?.compressionType && result.metadata.compressionType !== "none" && (
+          <>
+            {result.metadata.compressionType === "speech" && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-950/50 to-emerald-950/50 border border-green-500/40 rounded-full text-sm animate-in fade-in duration-300 shadow-lg shadow-green-500/10">
+                <span className="text-green-400 font-bold text-base">🎙️</span>
+                <span className="text-green-200 font-semibold">
+                  Speech Compressed
+                </span>
+              </div>
+            )}
+            {result.metadata.compressionType === "studio" && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-950/50 to-cyan-950/50 border border-blue-500/40 rounded-full text-sm animate-in fade-in duration-300 shadow-lg shadow-blue-500/10">
+                <span className="text-blue-400 font-bold text-base">🎚️</span>
+                <span className="text-blue-200 font-semibold">
+                  Studio Compressed
+                </span>
+              </div>
+            )}
+            {result.metadata.compressionType === "both" && (
+              <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-950/50 via-pink-950/50 to-orange-950/50 border-2 border-purple-500/40 rounded-full text-sm animate-in fade-in duration-300 shadow-xl shadow-purple-500/20">
+                <span className="text-orange-400 font-bold text-base">✨</span>
+                <span className="text-purple-200 font-bold">
+                  Full Enhancement
+                </span>
+                <span className="text-xs text-purple-300 bg-purple-500/30 px-2 py-0.5 rounded-full">
+                  Speech + Studio
+                </span>
+              </div>
+            )}
+          </>
+        )}
+        
+        {/* Show normalization status badge */}
         {result.metadata?.normalized && (
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-950/50 border border-blue-500/30 rounded-full text-sm animate-in fade-in duration-300 shadow-lg shadow-blue-500/10">
-            <span className="text-blue-400 font-bold">🎵</span>
-            <span className="text-blue-300 font-medium">
-              Audio normalized for optimal quality
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-950/50 to-blue-950/50 border border-cyan-500/40 rounded-full text-sm animate-in fade-in duration-300 shadow-lg shadow-cyan-500/10">
+            <span className="text-cyan-400 font-bold text-base">🎵</span>
+            <span className="text-cyan-200 font-semibold">
+              Normalized
             </span>
           </div>
         )}
@@ -132,7 +165,7 @@ export function DoneStateView({
       {result.metadata && (result.type === "audio" || result.type === "video") && (
         <div className="mt-6 max-w-2xl mx-auto bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-zinc-300 mb-3">File Details</h3>
-          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
             {result.metadata.format && (
               <div>
                 <dt className="text-zinc-500">Format</dt>
@@ -144,6 +177,22 @@ export function DoneStateView({
                 <dt className="text-zinc-500">Size</dt>
                 <dd className="font-medium text-zinc-200">
                   {(result.metadata.size / 1024 / 1024).toFixed(2)} MB
+                </dd>
+              </div>
+            )}
+            {result.metadata.compressionType && (
+              <div>
+                <dt className="text-zinc-500">Compression</dt>
+                <dd className="font-medium">
+                  {result.metadata.compressionType === "none" ? (
+                    <span className="text-zinc-400">None</span>
+                  ) : result.metadata.compressionType === "speech" ? (
+                    <span className="text-green-400">🎙️ Speech</span>
+                  ) : result.metadata.compressionType === "studio" ? (
+                    <span className="text-blue-400">🎚️ Studio</span>
+                  ) : (
+                    <span className="text-purple-400">✨ Full</span>
+                  )}
                 </dd>
               </div>
             )}

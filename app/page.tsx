@@ -19,7 +19,7 @@ import { useResourceMonitor, useHardwareCapability } from "@/hooks/useResourceMo
 import { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
 import { getFormatById } from "@/utils/audioFormats";
 import { getVideoFormatById } from "@/utils/videoFormats";
-import type { ActionType } from "@/components/ActionSelector";
+import type { ActionType, CompressionType } from "@/components/ActionSelector";
 
 // 🧪 TEST MODE: Set to true to only process first 30 seconds of audio
 const TEST_MODE = false;
@@ -101,14 +101,17 @@ export default function Home() {
   const handleAction = async (
     action: ActionType,
     formatId: string,
-    options?: { resolutionId?: string; normalizeAudio?: boolean }
+    options?: { resolutionId?: string; normalizeAudio?: boolean; compressionType?: CompressionType }
   ) => {
     if (!stateMachine.selectedFile || !processor.isFFmpegLoaded) {
       return;
     }
 
     // Start processing in state machine
-    stateMachine.startProcessing(action, formatId, { normalizeAudio: options?.normalizeAudio });
+    stateMachine.startProcessing(action, formatId, { 
+      normalizeAudio: options?.normalizeAudio,
+      compressionType: options?.compressionType 
+    });
 
     try {
       // Run processing
@@ -121,6 +124,7 @@ export default function Home() {
           modelKey: selectedModelKey,
           testMode: TEST_MODE,
           normalizeAudio: options?.normalizeAudio,
+          compressionType: options?.compressionType,
         }
       );
 
