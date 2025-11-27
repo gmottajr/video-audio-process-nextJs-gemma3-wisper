@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { WaveformViewer } from "@/components/WaveformViewer";
+import { WaveformViewer, WaveformSelection } from "@/components/WaveformViewer";
 import { TranscriptionViewer } from "@/components/TranscriptionViewer";
 import { ResourceMonitor } from "@/components/ResourceMonitor";
 import { StatisticsModal } from "@/components/StatisticsModal";
@@ -59,6 +59,10 @@ export function DoneStateView({
 }: DoneStateViewProps) {
   // Statistics modal state
   const [showStats, setShowStats] = useState(false);
+  
+  // Waveform selection state
+  const [waveformSelection, setWaveformSelection] = useState<WaveformSelection | null>(null);
+  
   const format =
     result.type === "audio"
       ? getFormatById(formatId || "")
@@ -129,7 +133,11 @@ export function DoneStateView({
       {/* Output Preview */}
       <div className="mb-6">
         {result.type === "audio" && result.blobUrl ? (
-          <WaveformViewer audioUrl={result.blobUrl} />
+          <WaveformViewer 
+            audioUrl={result.blobUrl}
+            selectable={true}
+            onSelectionChange={setWaveformSelection}
+          />
         ) : result.type === "video" && result.blobUrl ? (
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
             <div className="mb-4">

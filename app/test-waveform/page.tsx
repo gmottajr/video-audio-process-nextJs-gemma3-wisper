@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { FileUploader } from "@/components/FileUploader";
-import { WaveformViewer } from "@/components/WaveformViewer";
+import { WaveformViewer, WaveformSelection } from "@/components/WaveformViewer";
+import { AudioPreview } from "@/components/AudioPreview";
 import { useFFmpeg } from "@/hooks/useFFmpeg";
 import { CheckCircle, Loader2, AlertCircle } from "lucide-react";
 
@@ -10,6 +11,8 @@ export default function TestWaveformPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("No file loaded");
+  const [selection, setSelection] = useState<WaveformSelection | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
 
   // FFmpeg hook
   const {
@@ -153,9 +156,41 @@ export default function TestWaveformPage() {
 
         {/* Waveform Viewer */}
         <div className="mb-6">
-          <h2 className="text-xl font-semibold mb-4">Waveform Visualization</h2>
-          <WaveformViewer audioUrl={audioUrl} />
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Waveform Visualization</h2>
+            {audioUrl && (
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectionMode}
+                  onChange={(e) => {
+                    setSelectionMode(e.target.checked);
+                    if (!e.target.checked) setSelection(null);
+                  }}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm text-zinc-300">Enable Selection Mode</span>
+              </label>
+            )}
+          </div>
+          <WaveformViewer 
+            audioUrl={audioUrl}
+            selectable={selectionMode}
+            onSelectionChange={setSelection}
+          />
         </div>
+
+        {/* Audio Preview */}
+        {selection && audioUrl && (
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold mb-4">Preview Selection</h2>
+            <AudioPreview
+              audioUrl={audioUrl}
+              selection={selection}
+              onPlaybackComplete={() => console.log('Preview complete!')}
+            />
+          </div>
+        )}
 
         {/* Implementation Notes */}
         <div className="bg-green-950/30 border border-green-800 rounded-lg p-6">
@@ -173,6 +208,9 @@ export default function TestWaveformPage() {
                 <li>✅ Download button</li>
                 <li>✅ Loading state</li>
                 <li>✅ Empty state</li>
+                <li>✨ <strong>Regions Plugin</strong> - Segment selection</li>
+                <li>✨ <strong>Drag & Resize</strong> - Interactive regions</li>
+                <li>✨ <strong>Audio Preview</strong> - Play selections</li>
               </ul>
             </div>
             <div>
@@ -203,6 +241,14 @@ export default function TestWaveformPage() {
                 <li>Click on waveform to seek</li>
                 <li>Use zoom slider to zoom in/out</li>
                 <li>Download button to save WAV file</li>
+              </ul>
+            </li>
+            <li>Enable "Selection Mode" checkbox and create regions:
+              <ul className="ml-6 mt-1 text-xs text-zinc-400 list-disc list-inside">
+                <li>Click & drag to create a selection region</li>
+                <li>Drag handles (edges) to resize region</li>
+                <li>Drag middle to move region</li>
+                <li>Preview selection with AudioPreview player</li>
               </ul>
             </li>
             <li>Click "Reset" to free memory and start over</li>

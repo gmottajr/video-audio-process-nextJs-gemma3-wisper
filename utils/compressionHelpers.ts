@@ -331,3 +331,4 @@ export function hasAnyEnhancement(
   return compressionType !== "none" || normalized;
 }
 
+

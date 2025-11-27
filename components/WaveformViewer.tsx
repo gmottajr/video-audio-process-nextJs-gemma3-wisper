@@ -2,23 +2,42 @@
 
 import { useEffect, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
+import RegionsPlugin from "wavesurfer.js/dist/plugins/regions.js";
 import { Play, Pause, Download, Loader2 } from "lucide-react";
 import { cn } from "@/utils/cn";
+
+export interface WaveformSelection {
+  startTime: number;      // seconds
+  endTime: number;        // seconds
+  startPercent: number;   // 0-1
+  endPercent: number;     // 0-1
+}
 
 interface WaveformViewerProps {
   audioUrl: string | null;
   className?: string;
+  selectable?: boolean;
+  onSelectionChange?: (selection: WaveformSelection | null) => void;
 }
 
-export function WaveformViewer({ audioUrl, className }: WaveformViewerProps) {
+export function WaveformViewer({ 
+  audioUrl, 
+  className, 
+  selectable = false,
+  onSelectionChange 
+}: WaveformViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
+  const regionsPluginRef = useRef<RegionsPlugin | null>(null);
+  const activeRegionRef = useRef<any>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [zoom, setZoom] = useState(1);
+  const [selection, setSelection] = useState<WaveformSelection | null>(null);
+  const playbackCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Format time in MM:SS
   const formatTime = (seconds: number): string => {
@@ -28,7 +47,7 @@ export function WaveformViewer({ audioUrl, className }: WaveformViewerProps) {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Initialize WaveSurfer
+  // Initialize WaveSurfer with Regions plugin
   useEffect(() => {
     if (!audioUrl || !containerRef.current) {
       return;
@@ -45,8 +64,14 @@ export function WaveformViewer({ audioUrl, className }: WaveformViewerProps) {
     setIsReady(false);
     setCurrentTime(0);
     setDuration(0);
+    setSelection(null);
+    activeRegionRef.current = null;
 
-    // Create new WaveSurfer instance
+    // Initialize Regions plugin
+    const regionsPlugin = RegionsPlugin.create();
+    regionsPluginRef.current = regionsPlugin;
+
+    // Create new WaveSurfer instance with Regions plugin
     const wavesurfer = WaveSurfer.create({
       container: containerRef.current,
       height: 128,
@@ -58,15 +83,17 @@ export function WaveformViewer({ audioUrl, className }: WaveformViewerProps) {
       cursorWidth: 2,
       normalize: true,
       responsive: true,
+      plugins: [regionsPlugin],
     });
 
     wavesurferRef.current = wavesurfer;
 
-    // Event listeners
+    // Event listeners for waveform
     wavesurfer.on("ready", () => {
       setIsReady(true);
-      setDuration(wavesurfer.getDuration());
-      console.log("[WaveformViewer] Waveform ready");
+      const dur = wavesurfer.getDuration();
+      setDuration(dur);
+      console.log("[WaveformViewer] Waveform ready, duration:", dur);
     });
 
     wavesurfer.on("audioprocess", (time) => {
@@ -75,6 +102,13 @@ export function WaveformViewer({ audioUrl, className }: WaveformViewerProps) {
 
     wavesurfer.on("finish", () => {
       setIsPlaying(false);
+      
+      // Clear playback monitor
+      if (playbackCheckIntervalRef.current) {
+        clearInterval(playbackCheckIntervalRef.current);
+        playbackCheckIntervalRef.current = null;
+      }
+      
       console.log("[WaveformViewer] Playback finished");
     });
 
@@ -82,29 +116,140 @@ export function WaveformViewer({ audioUrl, className }: WaveformViewerProps) {
       setCurrentTime(time);
     });
 
+    // Region event listeners
+    if (selectable) {
+      // When a new region is created
+      regionsPlugin.on('region-created', (region) => {
+        console.log('[WaveformViewer] Region created:', region);
+        
+        // Remove previous region (only allow one selection at a time)
+        if (activeRegionRef.current && activeRegionRef.current !== region) {
+          activeRegionRef.current.remove();
+        }
+        
+        activeRegionRef.current = region;
+        updateSelectionFromRegion(region);
+      });
+
+      // When a region is updated (dragged, resized)
+      regionsPlugin.on('region-updated', (region) => {
+        console.log('[WaveformViewer] Region updated:', region);
+        updateSelectionFromRegion(region);
+      });
+
+      // When a region is removed
+      regionsPlugin.on('region-removed', (region) => {
+        console.log('[WaveformViewer] Region removed');
+        if (region === activeRegionRef.current) {
+          activeRegionRef.current = null;
+          setSelection(null);
+          if (onSelectionChange) {
+            onSelectionChange(null);
+          }
+        }
+      });
+
+      // Enable region creation on click+drag
+      regionsPlugin.enableDragSelection({
+        color: 'rgba(59, 130, 246, 0.3)', // Semi-transparent blue
+      });
+    }
+
     // Load audio
     wavesurfer.load(audioUrl);
 
     // Cleanup function - CRITICAL for memory management
     return () => {
+      // Clear playback monitor
+      if (playbackCheckIntervalRef.current) {
+        clearInterval(playbackCheckIntervalRef.current);
+        playbackCheckIntervalRef.current = null;
+      }
+      
       if (wavesurferRef.current) {
         wavesurferRef.current.destroy();
         wavesurferRef.current = null;
+        regionsPluginRef.current = null;
+        activeRegionRef.current = null;
         console.log("[WaveformViewer] WaveSurfer instance destroyed");
       }
     };
-  }, [audioUrl]);
+  }, [audioUrl, selectable]);
 
-  // Handle play/pause
+  // Helper function to convert region to selection format
+  const updateSelectionFromRegion = (region: any) => {
+    if (!duration) return;
+
+    const startTime = region.start;
+    const endTime = region.end;
+    const startPercent = startTime / duration;
+    const endPercent = endTime / duration;
+
+    const newSelection: WaveformSelection = {
+      startTime,
+      endTime,
+      startPercent,
+      endPercent,
+    };
+
+    setSelection(newSelection);
+    
+    if (onSelectionChange) {
+      onSelectionChange(newSelection);
+    }
+  };
+
+  // Handle play/pause with segment support
   const handlePlayPause = () => {
     if (!wavesurferRef.current) return;
 
     if (isPlaying) {
+      // Pause
       wavesurferRef.current.pause();
       setIsPlaying(false);
+      
+      // Clear playback monitor
+      if (playbackCheckIntervalRef.current) {
+        clearInterval(playbackCheckIntervalRef.current);
+        playbackCheckIntervalRef.current = null;
+      }
     } else {
-      wavesurferRef.current.play();
-      setIsPlaying(true);
+      // Play
+      const ws = wavesurferRef.current;
+      
+      // If there's a selected region, play only that segment
+      if (activeRegionRef.current) {
+        const region = activeRegionRef.current;
+        
+        // Seek to region start
+        ws.seekTo(region.start / duration);
+        
+        // Start playback
+        ws.play();
+        setIsPlaying(true);
+        
+        // Monitor playback and stop at region end
+        playbackCheckIntervalRef.current = setInterval(() => {
+          const currentTime = ws.getCurrentTime();
+          
+          if (currentTime >= region.end) {
+            ws.pause();
+            setIsPlaying(false);
+            
+            // Clear interval
+            if (playbackCheckIntervalRef.current) {
+              clearInterval(playbackCheckIntervalRef.current);
+              playbackCheckIntervalRef.current = null;
+            }
+            
+            console.log('[WaveformViewer] Reached end of selected region, stopped playback');
+          }
+        }, 50); // Check every 50ms for precision
+      } else {
+        // No region selected, play normally
+        ws.play();
+        setIsPlaying(true);
+      }
     }
   };
 
@@ -127,6 +272,13 @@ export function WaveformViewer({ audioUrl, className }: WaveformViewerProps) {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+
+  // Clear selection
+  const handleClearSelection = () => {
+    if (activeRegionRef.current) {
+      activeRegionRef.current.remove();
+    }
   };
 
   // Empty state
@@ -153,21 +305,37 @@ export function WaveformViewer({ audioUrl, className }: WaveformViewerProps) {
             <Play className="w-4 h-4 text-blue-400" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-zinc-100">Waveform Visualizer</h3>
+            <h3 className="text-lg font-semibold text-zinc-100">
+              Waveform Visualizer {selectable && "- Selection Mode"}
+            </h3>
             <p className="text-xs text-zinc-500">
-              {isReady ? "Ready to play" : "Loading waveform..."}
+              {isReady 
+                ? selectable 
+                  ? "Click and drag to select a region" 
+                  : "Ready to play"
+                : "Loading waveform..."}
             </p>
           </div>
         </div>
 
-        <button
-          onClick={handleDownload}
-          disabled={!isReady}
-          className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 disabled:bg-zinc-700 disabled:cursor-not-allowed rounded-lg font-medium transition-colors flex items-center gap-2"
-        >
-          <Download className="w-4 h-4" />
-          Download WAV
-        </button>
+        <div className="flex items-center gap-2">
+          {selection && selectable && (
+            <button
+              onClick={handleClearSelection}
+              className="px-3 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 rounded-lg text-sm font-medium transition-colors"
+            >
+              Clear Selection
+            </button>
+          )}
+          <button
+            onClick={handleDownload}
+            disabled={!isReady}
+            className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 disabled:bg-zinc-700 disabled:cursor-not-allowed rounded-lg font-medium transition-colors flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Download WAV
+          </button>
+        </div>
       </div>
 
       {/* Waveform Container */}
@@ -180,7 +348,37 @@ export function WaveformViewer({ audioUrl, className }: WaveformViewerProps) {
             </div>
           </div>
         )}
+        
         <div ref={containerRef} className="w-full" />
+        
+        {/* Selection Info */}
+        {selection && (
+          <div className="mt-4 bg-blue-900/30 border border-blue-500/30 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-200">
+                  ✨ Selected Region
+                </p>
+                <p className="text-xs text-blue-300/70 mt-1">
+                  {formatTime(selection.startTime)} - {formatTime(selection.endTime)}
+                  {" "}(Duration: {Math.round(selection.endTime - selection.startTime)}s)
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-blue-300/70">
+                  {(selection.startPercent * 100).toFixed(1)}% - {(selection.endPercent * 100).toFixed(1)}%
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Hint when no selection */}
+        {selectable && !selection && isReady && (
+          <div className="mt-3 text-center text-sm text-zinc-500">
+            💡 Click and drag on the waveform to create a selection region
+          </div>
+        )}
       </div>
 
       {/* Bottom Bar - Playback Controls */}
@@ -237,4 +435,3 @@ export function WaveformViewer({ audioUrl, className }: WaveformViewerProps) {
     </div>
   );
 }
-
