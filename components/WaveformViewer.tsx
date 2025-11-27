@@ -178,12 +178,18 @@ export function WaveformViewer({
 
   // Helper function to convert region to selection format
   const updateSelectionFromRegion = (region: any) => {
-    if (!duration) return;
+    // Get duration from wavesurfer if state not set yet
+    const audioDuration = duration || (wavesurferRef.current?.getDuration() || 0);
+    
+    if (!audioDuration) {
+      console.warn('[WaveformViewer] Duration not available yet, cannot update selection');
+      return;
+    }
 
     const startTime = region.start;
     const endTime = region.end;
-    const startPercent = startTime / duration;
-    const endPercent = endTime / duration;
+    const startPercent = startTime / audioDuration;
+    const endPercent = endTime / audioDuration;
 
     const newSelection: WaveformSelection = {
       startTime,
@@ -192,6 +198,7 @@ export function WaveformViewer({
       endPercent,
     };
 
+    console.log('[WaveformViewer] Selection updated:', newSelection);
     setSelection(newSelection);
     
     if (onSelectionChange) {

@@ -6,13 +6,17 @@ import { TranscriptionViewer } from "@/components/TranscriptionViewer";
 import { ResourceMonitor } from "@/components/ResourceMonitor";
 import { StatisticsModal } from "@/components/StatisticsModal";
 import { TranscribeFromDoneForm } from "@/components/TranscribeFromDoneForm";
-import { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
-import { Download, RotateCcw, BarChart3 } from "lucide-react";
+import { ResourceComparison } from "@/components/ResourceComparison";
+import ModelSelector, { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
+import { Download, RotateCcw, BarChart3, Scissors, Sparkles } from "lucide-react";
 import { getFormatById } from "@/utils/audioFormats";
 import { getVideoFormatById } from "@/utils/videoFormats";
 import type { ProcessingResult } from "@/hooks/useMediaProcessor";
 import type { CompressionType } from "@/components/ActionSelector";
 import { PageHeader } from "@/components/PageHeader";
+import { extractAudioSegmentFromUrl } from "@/utils/audioExtraction";
+import { createSegmentMetadata, formatSegmentLabel, estimateSegmentSize } from "@/types/audioSegment";
+import { getResourceRequirements } from "@/utils/resourceEstimation";
 
 interface DoneStateViewProps {
   result: ProcessingResult;
@@ -29,7 +33,7 @@ interface DoneStateViewProps {
   isModelLoading?: boolean;
   modelLoadingProgress?: number;
   onModelSelect?: (modelKey: ModelKey) => void;
-  onTranscribe?: (compressionType: CompressionType, normalizeAudio: boolean, modelKey: ModelKey) => void;
+  onTranscribe?: (compressionType: CompressionType, normalizeAudio: boolean, modelKey: ModelKey, segmentFile?: File) => void;
   // Processing metrics
   processingStartTime?: number | null;
   processingEndTime?: number | null;
@@ -63,12 +67,113 @@ export function DoneStateView({
   // Waveform selection state
   const [waveformSelection, setWaveformSelection] = useState<WaveformSelection | null>(null);
   
+  // Segment transcription state
+  const [isExtractingSegment, setIsExtractingSegment] = useState(false);
+  const [extractionError, setExtractionError] = useState<string | null>(null);
+  const [segmentModelKey, setSegmentModelKey] = useState<ModelKey>(selectedModelKey);
+  const [segmentCompressionType, setSegmentCompressionType] = useState<CompressionType>("none");
+  const [segmentNormalizeAudio, setSegmentNormalizeAudio] = useState(false);
+  
   const format =
     result.type === "audio"
       ? getFormatById(formatId || "")
       : result.type === "video"
       ? getVideoFormatById(formatId || "")
       : null;
+  
+  // Calculate segment resource estimates
+  const getSegmentResources = () => {
+    if (!waveformSelection || !result.blobUrl || !metrics) return null;
+    
+    const segmentDuration = waveformSelection.endTime - waveformSelection.startTime;
+    const totalDuration = metrics.duration || 1;
+    const segmentSize = estimateSegmentSize(file.size, segmentDuration, totalDuration);
+    
+    // Get RAM estimates using getResourceRequirements
+    const fullRAM = getResourceRequirements(file.size, selectedModelKey, "transcribe");
+    const segmentRAM = getResourceRequirements(segmentSize, selectedModelKey, "transcribe");
+    
+    return {
+      fullAudio: {
+        size: file.size,
+        duration: totalDuration,
+        ramEstimate: fullRAM.estimatedRAM,
+        timeEstimate: totalDuration,
+      },
+      segment: {
+        size: segmentSize,
+        duration: segmentDuration,
+        ramEstimate: segmentRAM.estimatedRAM,
+        timeEstimate: segmentDuration,
+      },
+    };
+  };
+  
+  // Handle transcribe segment
+  const handleTranscribeSegment = async () => {
+    if (!waveformSelection || !result.blobUrl || !onTranscribe) {
+      return;
+    }
+    
+    setIsExtractingSegment(true);
+    setExtractionError(null);
+    
+    try {
+      console.log('[DoneStateView] Extracting segment:', {
+        start: waveformSelection.startTime,
+        end: waveformSelection.endTime,
+      });
+      
+      // Extract segment from audio
+      const segmentBlob = await extractAudioSegmentFromUrl(
+        result.blobUrl,
+        waveformSelection.startTime,
+        waveformSelection.endTime
+      );
+      
+      console.log('[DoneStateView] Segment extracted:', {
+        size: segmentBlob.size,
+        type: segmentBlob.type,
+      });
+      
+      // Create metadata
+      const metadata = createSegmentMetadata(
+        file,
+        waveformSelection.startTime,
+        waveformSelection.endTime,
+        metrics?.duration || 0
+      );
+      
+      // Create File object from blob
+      const segmentFile = new File(
+        [segmentBlob],
+        `${file.name.split('.')[0]}_segment_${Math.floor(waveformSelection.startTime)}-${Math.floor(waveformSelection.endTime)}.wav`,
+        { type: 'audio/wav' }
+      );
+      
+      console.log('[DoneStateView] Segment file created:', segmentFile.name);
+      
+      // Store segment metadata in a way that can be passed through
+      // We'll need to enhance the transcription service to accept this
+      (segmentFile as any).segmentMetadata = metadata;
+      
+      // Call transcription with segment file using selected options
+      onTranscribe(segmentCompressionType, segmentNormalizeAudio, segmentModelKey, segmentFile);
+      
+      // Clear selection after starting transcription
+      setWaveformSelection(null);
+      
+    } catch (error) {
+      console.error('[DoneStateView] Segment extraction failed:', error);
+      setExtractionError(
+        error instanceof Error 
+          ? error.message 
+          : 'Failed to extract audio segment'
+      );
+    } finally {
+      setIsExtractingSegment(false);
+    }
+  };
 
   return (
     <div className="animate-in fade-in duration-500">
@@ -133,11 +238,138 @@ export function DoneStateView({
       {/* Output Preview */}
       <div className="mb-6">
         {result.type === "audio" && result.blobUrl ? (
-          <WaveformViewer 
-            audioUrl={result.blobUrl}
-            selectable={true}
-            onSelectionChange={setWaveformSelection}
-          />
+          <>
+            <WaveformViewer 
+              audioUrl={result.blobUrl}
+              selectable={true}
+              onSelectionChange={setWaveformSelection}
+            />
+            
+            {/* Segment Selection Info & Transcribe */}
+            {waveformSelection && (
+              <div className="mt-6 space-y-4">
+                {/* Segment Info Card */}
+                <div className="bg-blue-950/30 border border-blue-500/30 rounded-lg p-5">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-500/20 rounded-lg">
+                        <Scissors className="w-5 h-5 text-blue-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-blue-100">
+                          Segment Selected
+                        </h3>
+                        <p className="text-sm text-blue-300/70 mt-1">
+                          {formatSegmentLabel(createSegmentMetadata(
+                            file,
+                            waveformSelection.startTime,
+                            waveformSelection.endTime,
+                            metrics?.duration || 0
+                          ))}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setWaveformSelection(null)}
+                      className="text-xs text-blue-400 hover:text-blue-300 underline"
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
+                  
+                  {/* Resource Comparison */}
+                  {getSegmentResources() && (
+                    <ResourceComparison
+                      fullAudio={getSegmentResources()!.fullAudio}
+                      segment={getSegmentResources()!.segment}
+                    />
+                  )}
+                  
+                  {/* Model Selection for Segment */}
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-blue-200 mb-2">
+                      Select Whisper Model
+                    </label>
+                    <ModelSelector
+                      selectedModel={segmentModelKey}
+                      currentlyLoadedModel={currentModel}
+                      isLoading={isModelLoading}
+                      onModelSelect={(key) => {
+                        setSegmentModelKey(key);
+                        if (onModelSelect) onModelSelect(key);
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Enhancement Options for Segment */}
+                  <div className="mt-4 space-y-3">
+                    <label className="block text-sm font-medium text-blue-200 mb-2">
+                      Audio Enhancement (Optional)
+                    </label>
+                    
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-3 p-3 bg-zinc-900/50 hover:bg-zinc-900/70 rounded-lg cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={segmentCompressionType === "speech"}
+                          onChange={(e) => setSegmentCompressionType(e.target.checked ? "speech" : "none")}
+                          className="w-4 h-4 rounded"
+                        />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-zinc-200">Speech Compression</span>
+                          <p className="text-xs text-zinc-500">Optimize for voice (meetings, calls)</p>
+                        </div>
+                      </label>
+                      
+                      <label className="flex items-center gap-3 p-3 bg-zinc-900/50 hover:bg-zinc-900/70 rounded-lg cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={segmentNormalizeAudio}
+                          onChange={(e) => setSegmentNormalizeAudio(e.target.checked)}
+                          className="w-4 h-4 rounded"
+                        />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-zinc-200">Normalize Audio</span>
+                          <p className="text-xs text-zinc-500">Balance volume levels</p>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  {/* Transcribe Segment Button */}
+                  <div className="mt-4">
+                    <button
+                      onClick={handleTranscribeSegment}
+                      disabled={isExtractingSegment || !onTranscribe || isModelLoading || !isModelLoaded}
+                      className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-zinc-700 disabled:to-zinc-700 disabled:cursor-not-allowed rounded-lg font-bold text-lg transition-all duration-200 flex items-center justify-center gap-3 shadow-lg"
+                    >
+                      {isExtractingSegment ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Extracting Segment...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-5 h-5" />
+                          Transcribe Selection
+                        </>
+                      )}
+                    </button>
+                    
+                    {extractionError && (
+                      <div className="mt-3 p-3 bg-red-950/50 border border-red-500/30 rounded-lg text-sm text-red-300">
+                        <strong>Error:</strong> {extractionError}
+                      </div>
+                    )}
+                    
+                    <p className="mt-2 text-xs text-center text-blue-300/60">
+                      💡 Only the selected segment will be transcribed, saving time and RAM
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         ) : result.type === "video" && result.blobUrl ? (
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
             <div className="mb-4">
@@ -212,7 +444,8 @@ export function DoneStateView({
       />
 
       {/* Transcribe This Audio Section (for audio results only) */}
-      {result.type === "audio" && onTranscribe && (
+      {/* ONLY show if NO segment is selected */}
+      {result.type === "audio" && onTranscribe && !waveformSelection && (
         <TranscribeFromDoneForm
           result={result}
           file={file}

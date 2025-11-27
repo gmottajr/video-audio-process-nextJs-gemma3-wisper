@@ -14,7 +14,7 @@ import { FontSelector } from "@/components/FontSelector";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { PageHeader } from "@/components/PageHeader";
 import { useAppStateMachine } from "@/hooks/useAppStateMachine";
-import { useMediaProcessor } from "@/hooks/useMediaProcessor";
+import { useMediaProcessor, type ProcessingResult } from "@/hooks/useMediaProcessor";
 import { useResourceMonitor, useHardwareCapability } from "@/hooks/useResourceMonitor";
 import { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
 import { getFormatById } from "@/utils/audioFormats";
@@ -194,29 +194,68 @@ export default function Home() {
   const handleTranscribeFromDone = async (
     compressionType: CompressionType, 
     normalizeAudio: boolean,
-    modelKey: ModelKey
+    modelKey: ModelKey,
+    segmentFile?: File
   ) => {
     console.log("[App] Transcribing from done state with enhancements:", { 
       compressionType, 
       normalizeAudio, 
-      modelKey 
+      modelKey,
+      isSegment: !!segmentFile 
     });
 
     // Transition to processing state
     stateMachine.startProcessing("transcribe", "", { compressionType, normalizeAudio });
 
     try {
-      // Delegate all business logic to TranscriptionService
-      await transcriptionService.transcribeFromResult(
-        stateMachine.result,
-        stateMachine.selectedFile?.name,
-        {
-          modelKey,
-          compressionType,
-          normalizeAudio,
-          testMode: TEST_MODE,
-        }
-      );
+      // If segment file provided, create a temporary result for it
+      if (segmentFile) {
+        console.log("[App] Transcribing SEGMENT file:", segmentFile.name, segmentFile.size);
+        
+        // Create a blob URL for the segment
+        const segmentBlobUrl = URL.createObjectURL(segmentFile);
+        
+        // Create a temporary result object for the segment
+        const segmentResult: ProcessingResult = {
+          type: "audio",
+          blobUrl: segmentBlobUrl,
+          metadata: {
+            format: "wav",
+            size: segmentFile.size,
+            compressionType: "none",
+            normalized: false,
+          }
+        };
+        
+        // Transcribe the segment using the standard flow
+        await transcriptionService.transcribeFromResult(
+          segmentResult,
+          segmentFile.name,
+          {
+            modelKey,
+            compressionType,
+            normalizeAudio,
+            testMode: TEST_MODE,
+          }
+        );
+        
+        // Clean up the temporary blob URL after transcription
+        URL.revokeObjectURL(segmentBlobUrl);
+      } else {
+        console.log("[App] Transcribing FULL audio from result");
+        
+        // Delegate all business logic to TranscriptionService
+        await transcriptionService.transcribeFromResult(
+          stateMachine.result,
+          stateMachine.selectedFile?.name,
+          {
+            modelKey,
+            compressionType,
+            normalizeAudio,
+            testMode: TEST_MODE,
+          }
+        );
+      }
 
       // Success - result will be handled by useEffect watching processor.result
       console.log("[App] Transcription from done state completed successfully");
