@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Zap, Cpu, AlertCircle } from "lucide-react";
 import { AILoadingIndicator } from "@/components/AILoadingIndicator";
 import ModelLoadingScreen from "@/components/ModelLoadingScreen";
@@ -20,6 +20,8 @@ import { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
 import { getFormatById } from "@/utils/audioFormats";
 import { getVideoFormatById } from "@/utils/videoFormats";
 import type { ActionType, CompressionType } from "@/components/ActionSelector";
+import { TranscriptionService } from "@/services/TranscriptionService";
+import { errorHandler } from "@/services/ErrorHandlingService";
 
 // 🧪 TEST MODE: Set to true to only process first 30 seconds of audio
 const TEST_MODE = false;
@@ -40,6 +42,12 @@ export default function Home() {
   
   // Media processor
   const processor = useMediaProcessor();
+  
+  // Service layer (Phase 2 refactoring)
+  const transcriptionService = useMemo(
+    () => new TranscriptionService(processor),
+    [processor]
+  );
   
   // Model selection
   const [selectedModelKey, setSelectedModelKey] = useState<ModelKey>("base");
@@ -178,98 +186,43 @@ export default function Home() {
   };
 
   /**
-   * Handle transcribe from done state (NEW)
+   * Handle transcribe from done state (REFACTORED - Phase 2)
    * Transcribe an already processed audio file with optional enhancements
+   * 
+   * Simplified using TranscriptionService and ErrorHandlingService
    */
   const handleTranscribeFromDone = async (
     compressionType: CompressionType, 
     normalizeAudio: boolean,
     modelKey: ModelKey
   ) => {
-    // Validate audio result exists
-    if (!stateMachine.result || stateMachine.result.type !== "audio") {
-      console.error("[App] Cannot transcribe: no audio result available");
-      stateMachine.failProcessing("No audio file available. Please extract or convert audio first.");
-      return;
-    }
+    console.log("[App] Transcribing from done state with enhancements:", { 
+      compressionType, 
+      normalizeAudio, 
+      modelKey 
+    });
 
-    // Validate blob URL exists
-    if (!stateMachine.result.blobUrl) {
-      console.error("[App] Cannot transcribe: blob URL missing");
-      stateMachine.failProcessing("Audio file no longer available. Please re-process the file.");
-      return;
-    }
-
-    // Validate model is ready
-    if (!processor.isModelLoaded && !processor.isModelLoading) {
-      console.error("[App] Cannot transcribe: AI model not loaded");
-      stateMachine.failProcessing("AI model not loaded. Please wait for the model to initialize.");
-      return;
-    }
-
-    console.log("[App] Transcribing from done state with enhancements:", { compressionType, normalizeAudio });
-
-    // Transition to processing
+    // Transition to processing state
     stateMachine.startProcessing("transcribe", "", { compressionType, normalizeAudio });
 
     try {
-      // Fetch the audio blob from the URL with error handling
-      console.log("[App] Fetching audio blob from:", stateMachine.result.blobUrl);
-      
-      const response = await fetch(stateMachine.result.blobUrl);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to load audio file (HTTP ${response.status})`);
-      }
-
-      const audioBlob = await response.blob();
-      
-      // Validate blob
-      if (!audioBlob || audioBlob.size === 0) {
-        throw new Error("Audio file is empty or corrupted");
-      }
-
-      console.log("[App] Audio blob loaded successfully:", audioBlob.size, "bytes");
-
-      const audioFile = new File(
-        [audioBlob],
-        stateMachine.selectedFile?.name || "audio.wav",
-        { type: audioBlob.type || "audio/wav" }
-      );
-
-      // Process transcription with optional enhancements
-      // Use the modelKey selected in DoneStateView (not the global selectedModelKey)
-      const result = await processor.processFile(
-        audioFile,
-        "transcribe",
-        "",
+      // Delegate all business logic to TranscriptionService
+      await transcriptionService.transcribeFromResult(
+        stateMachine.result,
+        stateMachine.selectedFile?.name,
         {
-          modelKey: modelKey, // Use the model selected in DoneStateView
-          testMode: TEST_MODE,
-          normalizeAudio,
+          modelKey,
           compressionType,
+          normalizeAudio,
+          testMode: TEST_MODE,
         }
       );
 
-      // Result handled by useEffect
+      // Success - result will be handled by useEffect watching processor.result
       console.log("[App] Transcription from done state completed successfully");
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.error("[App] Transcription from done failed:", errorMessage);
-      
-      // Provide user-friendly error message
-      let userMessage = "Transcription failed. ";
-      
-      if (errorMessage.includes("Failed to load")) {
-        userMessage += "The audio file is no longer available. Please re-process the file.";
-      } else if (errorMessage.includes("empty or corrupted")) {
-        userMessage += "The audio file appears to be corrupted. Please re-process the file.";
-      } else if (errorMessage.includes("model")) {
-        userMessage += "AI model error. Please try again or select a different model.";
-      } else {
-        userMessage += errorMessage;
-      }
-      
+      // Delegate error handling to ErrorHandlingService
+      const userMessage = errorHandler.handleError(error, "Transcription from done");
       stateMachine.failProcessing(userMessage);
     }
   };

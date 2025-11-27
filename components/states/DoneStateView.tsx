@@ -12,7 +12,8 @@ import { getVideoFormatById } from "@/utils/videoFormats";
 import type { ProcessingResult } from "@/hooks/useMediaProcessor";
 import type { CompressionType } from "@/components/ActionSelector";
 import { PageHeader } from "@/components/PageHeader";
-import { getResourceWarning, formatFileSize } from "@/utils/resourceEstimation";
+import { formatFileSize } from "@/utils/resourceEstimation";
+import { ResourceWarningCard } from "@/components/ResourceWarningCard";
 
 interface DoneStateViewProps {
   result: ProcessingResult;
@@ -108,12 +109,7 @@ export function DoneStateView({
   };
 
   // Calculate resource requirements for transcription (use local model key for accurate warnings)
-  const resourceWarning = getResourceWarning(file, localModelKey);
-  const showResourceWarning = (
-    resourceWarning.estimatedRAM >= 50 || 
-    resourceWarning.level === "extreme" || 
-    resourceWarning.level === "dangerous"
-  );
+  // Resource warnings handled by ResourceWarningCard component (shows for RAM >= 50GB)
 
   const handleTranscribe = () => {
     if (onTranscribe && (isModelLoaded || isModelLoading)) {
@@ -358,52 +354,13 @@ export function DoneStateView({
             )}
 
             {/* Resource Warning for Transcription */}
-            {showResourceWarning && onTranscribe && (
-                <div className={`mb-4 p-3 rounded-lg border-2 ${
-                  resourceWarning.level === "dangerous" ? "bg-red-950/50 border-red-500/50" :
-                  resourceWarning.level === "extreme" ? "bg-orange-950/50 border-orange-500/50" :
-                  "bg-yellow-950/50 border-yellow-500/50"
-                }`}>
-                  <div className="flex items-start gap-2">
-                    <span className="text-xl shrink-0">{resourceWarning.icon}</span>
-                    <div className="flex-1">
-                      <h4 className={`font-bold text-xs mb-1 ${
-                        resourceWarning.level === "dangerous" ? "text-red-300" :
-                        resourceWarning.level === "extreme" ? "text-orange-300" :
-                        "text-yellow-300"
-                      }`}>
-                        {resourceWarning.message}
-                      </h4>
-                      <p className="text-xs text-zinc-300 mb-2">
-                        {resourceWarning.recommendation}
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                        <div className="bg-zinc-800/50 rounded px-2 py-1">
-                          <span className="text-zinc-400">RAM: </span>
-                          <span className="text-zinc-200 font-semibold">{resourceWarning.estimatedRAM}GB+</span>
-                        </div>
-                        <div className="bg-zinc-800/50 rounded px-2 py-1">
-                          <span className="text-zinc-400">File: </span>
-                          <span className="text-zinc-200 font-semibold">{formatFileSize(file.size)}</span>
-                        </div>
-                        {resourceWarning.requiresGPU && (
-                          <div className="bg-zinc-800/50 rounded px-2 py-1 col-span-2">
-                            <span className="text-zinc-400">💻 GPU Recommended</span>
-                          </div>
-                        )}
-                        {resourceWarning.requiresHighEndCPU && (
-                          <div className="bg-zinc-800/50 rounded px-2 py-1 col-span-2">
-                            <span className="text-zinc-400">⚡ High-End CPU Required (32GB+ RAM)</span>
-                          </div>
-                        )}
-                        <div className="bg-zinc-800/50 rounded px-2 py-1 col-span-2">
-                          <span className="text-zinc-400">⏱️ Est. Time: </span>
-                          <span className="text-zinc-200 font-semibold">~{resourceWarning.estimatedTimeMinutes} minutes</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            {onTranscribe && (
+              <ResourceWarningCard 
+                file={file} 
+                modelKey={selectedModelKey}
+                className="mb-4"
+                minRAMThreshold={50}
+              />
             )}
 
             {/* Transcribe Button */}

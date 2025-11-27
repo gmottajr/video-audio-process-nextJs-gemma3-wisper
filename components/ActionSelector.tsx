@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Zap, AlertTriangle } from "lucide-react";
 import { cn } from "@/utils/cn";
-import { getResourceWarning, formatFileSize } from "@/utils/resourceEstimation";
+import { formatFileSize } from "@/utils/resourceEstimation";
+import { ResourceWarningCard } from "@/components/ResourceWarningCard";
 import type { ModelKey } from "@/components/ModelSelector";
 import {
   SUPPORTED_AUDIO_FORMATS,
@@ -50,14 +51,7 @@ export function ActionSelector({
 }: ActionSelectorProps) {
   const fileType = detectFileType(file);
   
-  // Get resource warning for transcription
-  const resourceWarning = getResourceWarning(file, selectedModelKey);
-  // Only show warnings for high RAM usage (50GB+) or extreme/dangerous situations
-  const showTranscribeWarning = (
-    resourceWarning.estimatedRAM >= 50 || 
-    resourceWarning.level === "extreme" || 
-    resourceWarning.level === "dangerous"
-  );
+  // Resource warnings handled by ResourceWarningCard component (shows for RAM >= 50GB)
 
   // State management
   const [videoMode, setVideoMode] = useState<VideoMode>("extract");
@@ -268,51 +262,12 @@ export function ActionSelector({
           <TranscribeInfoCard />
           
           {/* Resource Warning for Heavy Processing */}
-          {showTranscribeWarning && (
-            <div className={`mt-4 p-4 rounded-lg border-2 ${
-              resourceWarning.level === "dangerous" ? "bg-red-950/50 border-red-500/50" :
-              resourceWarning.level === "extreme" ? "bg-orange-950/50 border-orange-500/50" :
-              "bg-yellow-950/50 border-yellow-500/50"
-            }`}>
-              <div className="flex items-start gap-3">
-                <span className="text-2xl shrink-0">{resourceWarning.icon}</span>
-                <div className="flex-1">
-                  <h4 className={`font-bold text-sm mb-1 ${
-                    resourceWarning.level === "dangerous" ? "text-red-300" :
-                    resourceWarning.level === "extreme" ? "text-orange-300" :
-                    "text-yellow-300"
-                  }`}>
-                    {resourceWarning.message}
-                  </h4>
-                  <p className="text-xs text-zinc-300 mb-2">
-                    {resourceWarning.recommendation}
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-zinc-800/50 rounded px-2 py-1">
-                      <span className="text-zinc-400">File: </span>
-                      <span className="text-zinc-200 font-semibold">{formatFileSize(file.size)}</span>
-                    </div>
-                    <div className="bg-zinc-800/50 rounded px-2 py-1">
-                      <span className="text-zinc-400">RAM: </span>
-                      <span className="text-zinc-200 font-semibold">{resourceWarning.estimatedRAM}GB+</span>
-                    </div>
-                    {resourceWarning.requiresHighEndCPU && (
-                      <div className="bg-zinc-800/50 rounded px-2 py-1">
-                        <span className="text-zinc-400">CPU: </span>
-                        <span className="text-zinc-200 font-semibold">High-end required</span>
-                      </div>
-                    )}
-                    {resourceWarning.requiresGPU && (
-                      <div className="bg-zinc-800/50 rounded px-2 py-1">
-                        <span className="text-zinc-400">GPU: </span>
-                        <span className="text-zinc-200 font-semibold">Dedicated recommended</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          <ResourceWarningCard 
+            file={file} 
+            modelKey={selectedModelKey}
+            className="mt-4"
+            minRAMThreshold={50}
+          />
         </>
       )}
 
@@ -659,50 +614,13 @@ export function ActionSelector({
           <TranscribeInfoCard compact />
           
           {/* Resource Warning for Audio File Transcription */}
-          {fileType === "audio" && showTranscribeWarning && (
-            <div className={`mb-4 p-4 rounded-lg border-2 ${
-              resourceWarning.level === "dangerous" ? "bg-red-950/50 border-red-500/50" :
-              resourceWarning.level === "extreme" ? "bg-orange-950/50 border-orange-500/50" :
-              "bg-yellow-950/50 border-yellow-500/50"
-            }`}>
-              <div className="flex items-start gap-3">
-                <span className="text-2xl shrink-0">{resourceWarning.icon}</span>
-                <div className="flex-1">
-                  <h4 className={`font-bold text-sm mb-1 ${
-                    resourceWarning.level === "dangerous" ? "text-red-300" :
-                    resourceWarning.level === "extreme" ? "text-orange-300" :
-                    "text-yellow-300"
-                  }`}>
-                    {resourceWarning.message}
-                  </h4>
-                  <p className="text-xs text-zinc-300 mb-2">
-                    {resourceWarning.recommendation}
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-zinc-800/50 rounded px-2 py-1">
-                      <span className="text-zinc-400">File: </span>
-                      <span className="text-zinc-200 font-semibold">{formatFileSize(file.size)}</span>
-                    </div>
-                    <div className="bg-zinc-800/50 rounded px-2 py-1">
-                      <span className="text-zinc-400">RAM: </span>
-                      <span className="text-zinc-200 font-semibold">{resourceWarning.estimatedRAM}GB+</span>
-                    </div>
-                    {resourceWarning.requiresHighEndCPU && (
-                      <div className="bg-zinc-800/50 rounded px-2 py-1">
-                        <span className="text-zinc-400">CPU: </span>
-                        <span className="text-zinc-200 font-semibold">High-end required</span>
-                      </div>
-                    )}
-                    {resourceWarning.requiresGPU && (
-                      <div className="bg-zinc-800/50 rounded px-2 py-1">
-                        <span className="text-zinc-400">GPU: </span>
-                        <span className="text-zinc-200 font-semibold">Dedicated recommended</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
+          {fileType === "audio" && (
+            <ResourceWarningCard 
+              file={file} 
+              modelKey={selectedModelKey}
+              className="mb-4"
+              minRAMThreshold={50}
+            />
           )}
           
           <ProgressButton
