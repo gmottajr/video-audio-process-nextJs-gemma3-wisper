@@ -386,6 +386,8 @@ export default function Home() {
               modelLoadingProgress={processor.transcriptionProgress}
               onModelSelect={handleModelSelect}
               onTranscribe={handleTranscribeFromDone}
+              processingStartTime={stateMachine.processingStartTime}
+              processingEndTime={stateMachine.processingEndTime}
             />
           )}
 

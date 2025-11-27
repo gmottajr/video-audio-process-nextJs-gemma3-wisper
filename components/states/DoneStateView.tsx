@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import { WaveformViewer } from "@/components/WaveformViewer";
 import { TranscriptionViewer } from "@/components/TranscriptionViewer";
 import { ResourceMonitor } from "@/components/ResourceMonitor";
+import { StatisticsModal } from "@/components/StatisticsModal";
 import ModelSelector, { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
-import { Download, RotateCcw, Brain } from "lucide-react";
+import { Download, RotateCcw, Brain, BarChart3 } from "lucide-react";
 import { getFormatById } from "@/utils/audioFormats";
 import { getVideoFormatById } from "@/utils/videoFormats";
 import type { ProcessingResult } from "@/hooks/useMediaProcessor";
@@ -29,6 +30,9 @@ interface DoneStateViewProps {
   modelLoadingProgress?: number;
   onModelSelect?: (modelKey: ModelKey) => void;
   onTranscribe?: (compressionType: CompressionType, normalizeAudio: boolean, modelKey: ModelKey) => void;
+  // Processing metrics
+  processingStartTime?: number | null;
+  processingEndTime?: number | null;
 }
 
 /**
@@ -50,7 +54,11 @@ export function DoneStateView({
   modelLoadingProgress = 0,
   onModelSelect,
   onTranscribe,
+  processingStartTime,
+  processingEndTime,
 }: DoneStateViewProps) {
+  // Statistics modal state
+  const [showStats, setShowStats] = useState(false);
   const format =
     result.type === "audio"
       ? getFormatById(formatId || "")
@@ -220,6 +228,14 @@ export function DoneStateView({
         )}
 
         <button
+          onClick={() => setShowStats(true)}
+          className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg font-bold text-lg transition-all duration-200 flex items-center justify-center gap-3 shadow-lg"
+        >
+          <BarChart3 className="w-5 h-5" />
+          Statistics
+        </button>
+
+        <button
           onClick={onReset}
           className={`px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 rounded-lg font-bold transition-all duration-200 flex items-center justify-center gap-3 shadow-lg ${
             result.type === "transcription" ? "flex-1" : ""
@@ -229,6 +245,18 @@ export function DoneStateView({
           Process Another
         </button>
       </div>
+
+      {/* Statistics Modal */}
+      <StatisticsModal
+        isOpen={showStats}
+        onClose={() => setShowStats(false)}
+        result={result}
+        file={file}
+        modelKey={result.type === "transcription" ? selectedModelKey : undefined}
+        startTime={processingStartTime || undefined}
+        endTime={processingEndTime || undefined}
+        peakMemoryMB={memoryUsageMB}
+      />
 
       {/* Transcribe This Audio Section (for audio results only) */}
       {result.type === "audio" && onTranscribe && (

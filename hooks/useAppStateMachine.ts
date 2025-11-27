@@ -42,6 +42,10 @@ export function useAppStateMachine() {
   const [compressionType, setCompressionType] = useState<CompressionType>("none"); // NEW: Audio compression type
   const [result, setResult] = useState<ProcessingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  // NEW: Processing timing and metrics
+  const [processingStartTime, setProcessingStartTime] = useState<number | null>(null);
+  const [processingEndTime, setProcessingEndTime] = useState<number | null>(null);
 
   /**
    * Transition: IDLE → INSPECT
@@ -89,6 +93,8 @@ export function useAppStateMachine() {
     setCompressionType(options?.compressionType || "none"); // Store compression type
     setResult(null);
     setError(null);
+    setProcessingStartTime(Date.now()); // Record start time
+    setProcessingEndTime(null); // Reset end time
     setState("PROCESSING");
   }, []);
 
@@ -103,6 +109,7 @@ export function useAppStateMachine() {
     // Since we control the call sequence, we trust the caller.
     
     setResult(processingResult);
+    setProcessingEndTime(Date.now()); // Record end time
     setState("DONE");
   }, []);
 
@@ -174,6 +181,10 @@ export function useAppStateMachine() {
     compressionType, // NEW: Expose compression type
     result,
     error,
+    
+    // Processing metrics
+    processingStartTime,
+    processingEndTime,
     
     // State transitions
     selectFile,
