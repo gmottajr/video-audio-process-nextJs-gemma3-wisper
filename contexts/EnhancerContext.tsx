@@ -17,6 +17,21 @@ import type {
   HardwareCapabilities 
 } from "@/types/enhancement";
 import { DEFAULT_MODEL } from "@/types/enhancement";
+import { logEnhancementMetrics, type EnhancementTelemetry } from "@/utils/enhancementTelemetry";
+
+// ============================================================================
+// Download State Persistence
+// ============================================================================
+
+const DOWNLOAD_STATE_KEY = 'mediaforge_model_download_state';
+
+interface DownloadState {
+  modelId: string;
+  startedAt: number;
+  progress: number;
+  totalMB: number;
+  completed: boolean;
+}
 
 // ============================================================================
 // Context Type Definition
@@ -41,6 +56,12 @@ interface EnhancerContextType {
   
   // Results
   lastResult: EnhancementResult | null;
+  
+  // Download state
+  totalDownloadMB: number;
+  showResumePrompt: boolean;
+  savedDownloadState: DownloadState | null;
+  dismissResumePrompt: () => void;
   
   // Actions
   loadModel: (modelId?: string) => Promise<void>;
@@ -110,6 +131,11 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
   // Results
   const [lastResult, setLastResult] = useState<EnhancementResult | null>(null);
   
+  // Download state persistence
+  const [totalDownloadMB, setTotalDownloadMB] = useState(0);
+  const [showResumePrompt, setShowResumePrompt] = useState(false);
+  const [savedDownloadState, setSavedDownloadState] = useState<DownloadState | null>(null);
+  
   // Request tracking for cancellation
   const currentRequestIdRef = useRef<string | null>(null);
 
@@ -146,6 +172,85 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
         workerRef.current = null;
       }
     };
+  }, []);
+
+  /**
+   * Check for interrupted downloads on mount
+   */
+  useEffect(() => {
+    try {
+      const savedState = localStorage.getItem(DOWNLOAD_STATE_KEY);
+      if (savedState) {
+        const state: DownloadState = JSON.parse(savedState);
+        // Only show resume prompt if download wasn't completed and was recent (< 24 hours)
+        const isRecent = Date.now() - state.startedAt < 24 * 60 * 60 * 1000;
+        if (!state.completed && isRecent && state.progress > 0 && state.progress < 100) {
+          console.log('[EnhancerContext] Found interrupted download:', state);
+          setShowResumePrompt(true);
+          setSavedDownloadState(state);
+        } else if (state.completed) {
+          // Clear completed download state
+          localStorage.removeItem(DOWNLOAD_STATE_KEY);
+        }
+      }
+    } catch (err) {
+      console.warn('[EnhancerContext] Failed to read download state:', err);
+    }
+  }, []);
+
+  /**
+   * Save download progress to localStorage
+   */
+  useEffect(() => {
+    if (isModelLoading && modelLoadProgress > 0 && currentModelId) {
+      try {
+        const state: DownloadState = {
+          modelId: currentModelId,
+          startedAt: Date.now(),
+          progress: modelLoadProgress,
+          totalMB: totalDownloadMB,
+          completed: false,
+        };
+        localStorage.setItem(DOWNLOAD_STATE_KEY, JSON.stringify(state));
+      } catch (err) {
+        console.warn('[EnhancerContext] Failed to save download state:', err);
+      }
+    }
+  }, [isModelLoading, modelLoadProgress, currentModelId, totalDownloadMB]);
+
+  /**
+   * Mark download as completed
+   */
+  useEffect(() => {
+    if (isModelLoaded && currentModelId) {
+      try {
+        const state: DownloadState = {
+          modelId: currentModelId,
+          startedAt: Date.now(),
+          progress: 100,
+          totalMB: totalDownloadMB,
+          completed: true,
+        };
+        localStorage.setItem(DOWNLOAD_STATE_KEY, JSON.stringify(state));
+        setShowResumePrompt(false);
+        setSavedDownloadState(null);
+      } catch (err) {
+        console.warn('[EnhancerContext] Failed to save completed state:', err);
+      }
+    }
+  }, [isModelLoaded, currentModelId, totalDownloadMB]);
+
+  /**
+   * Dismiss resume prompt
+   */
+  const dismissResumePrompt = useCallback(() => {
+    setShowResumePrompt(false);
+    setSavedDownloadState(null);
+    try {
+      localStorage.removeItem(DOWNLOAD_STATE_KEY);
+    } catch (err) {
+      console.warn('[EnhancerContext] Failed to clear download state:', err);
+    }
   }, []);
 
   // ============================================================================
@@ -195,8 +300,13 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
 
       await worker.sendRequest('init', { modelId: targetModelId }, {
         timeoutMs: 600000, // 10 minutes for download
-        onProgress: (prog, msg) => {
+        onProgress: (prog, msg, extra) => {
           setModelLoadProgress(prog);
+          
+          // Track total download size if available
+          if (extra?.totalMB) {
+            setTotalDownloadMB(extra.totalMB);
+          }
           
           // Determine stage based on message
           let stage: EnhancementStage = 'downloading';
@@ -208,6 +318,8 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
             stage,
             progress: prog,
             message: msg || `Downloading: ${prog}%`,
+            downloadedMB: extra?.downloadedMB,
+            totalMB: extra?.totalMB,
           });
         },
       });
@@ -311,6 +423,24 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
 
       console.log('[EnhancerContext] Enhancement complete');
       console.log('[EnhancerContext] Improvements:', enhancementResult.improvements);
+
+      // Log telemetry
+      if (capabilities) {
+        const telemetry: EnhancementTelemetry = {
+          modelId: currentModelId || 'unknown',
+          gpuTier: capabilities.gpuTier,
+          gpuInfo: capabilities.gpuInfo?.description,
+          downloadTime: 0, // Model was already loaded
+          processingTime: enhancementResult.processingTime,
+          transcriptLength: transcript.length,
+          enhancedLength: enhancementResult.enhancedText.length,
+          fillerWordsRemoved: enhancementResult.improvements.fillerCount,
+          tokensGenerated: enhancementResult.tokensGenerated || 0,
+          wasCached: true, // Model was loaded, so this is a cached run
+          timestamp: new Date().toISOString(),
+        };
+        logEnhancementMetrics(telemetry);
+      }
 
       return enhancementResult;
 
@@ -426,6 +556,12 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
     
     // Results
     lastResult,
+    
+    // Download state
+    totalDownloadMB,
+    showResumePrompt,
+    savedDownloadState,
+    dismissResumePrompt,
     
     // Actions
     loadModel,

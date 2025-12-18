@@ -169,4 +169,75 @@ export class ErrorHandlingService {
 // Export singleton instance
 export const errorHandler = new ErrorHandlingService();
 
+/**
+ * Get enhancement-specific error message
+ * Provides detailed, user-friendly messages for AI enhancement errors
+ */
+export function getEnhancementErrorMessage(error: Error): string {
+  const message = error.message.toLowerCase();
+  
+  // Network errors
+  if (message.includes('failed to fetch') || message.includes('network') || message.includes('net::')) {
+    return 'Network error downloading model. Check your internet connection and try again.';
+  }
+  
+  // CORS errors
+  if (message.includes('cors') || message.includes('cross-origin')) {
+    return 'Unable to download model due to browser security restrictions. Try a different browser or check your network settings.';
+  }
+  
+  // Out of memory
+  if (message.includes('out of memory') || message.includes('oom') || message.includes('allocation failed')) {
+    return 'Not enough memory to run AI enhancement. Close other browser tabs and applications, or try the smaller Qwen 0.5B model.';
+  }
+  
+  // WebGPU errors
+  if (message.includes('webgpu') || message.includes('gpu adapter') || message.includes('no adapter')) {
+    return 'GPU initialization failed. Your browser or hardware may not support WebGPU. Try Chrome 113+ or Edge 113+.';
+  }
+  
+  // Shader compilation errors
+  if (message.includes('shader') || message.includes('compile')) {
+    return 'GPU shader compilation failed. This may be a driver issue. Try updating your graphics drivers.';
+  }
+  
+  // Model loading errors
+  if (message.includes('model') && (message.includes('load') || message.includes('fetch'))) {
+    return 'Failed to load AI model. The download may have been interrupted. Try refreshing the page.';
+  }
+  
+  // Cache/storage errors
+  if (message.includes('indexeddb') || message.includes('storage') || message.includes('quota')) {
+    return 'Not enough browser storage space. Clear browser cache or allow more storage for this site.';
+  }
+  
+  // Timeout errors
+  if (message.includes('timeout') || message.includes('timed out')) {
+    return 'Operation timed out. Your connection may be slow. Try again with a stable internet connection.';
+  }
+  
+  // Worker errors
+  if (message.includes('worker') || message.includes('postmessage')) {
+    return 'AI worker failed to initialize. Try refreshing the page.';
+  }
+  
+  // Aborted/cancelled
+  if (message.includes('abort') || message.includes('cancel')) {
+    return 'Enhancement was cancelled.';
+  }
+  
+  // Token limit errors
+  if (message.includes('token') || message.includes('context length') || message.includes('too long')) {
+    return 'Transcript is too long for AI enhancement. Try selecting a shorter segment.';
+  }
+  
+  // Generic model errors
+  if (message.includes('inference') || message.includes('generate')) {
+    return 'AI model failed during text generation. Try again or use a different model.';
+  }
+  
+  // Return formatted original message for unknown errors
+  return `Enhancement failed: ${error.message}`;
+}
+
 

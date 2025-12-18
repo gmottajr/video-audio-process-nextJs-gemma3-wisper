@@ -25,7 +25,7 @@ A powerful browser-based application for video/audio processing and AI-powered t
 - **Combinable Effects** - Apply compression + normalization together
 
 ### 🤖 AI Transcription
-- **Whisper AI Models** (tiny, base, small, medium, large, turbo)
+- **Whisper AI Models** (tiny, base, small)
 - **Browser-Based** - No data sent to servers, complete privacy
 - **Word-Level Timestamps** for precise transcription
 - **Multiple Export Formats** (TXT, JSON, SRT subtitles)
@@ -34,6 +34,22 @@ A powerful browser-based application for video/audio processing and AI-powered t
   - Improves accuracy for difficult audio (quiet recordings, multi-speaker, etc.)
   - Smart recommendations guide you to the best settings
 - **Transcribe from Results** - Transcribe audio directly from extraction/conversion results
+
+### ✨ AI Transcript Enhancement (Beta)
+- **Optional AI Enhancement** - Clean up transcripts using local LLMs
+- **WebGPU Acceleration** - Fast processing using your GPU
+- **Privacy First** - All processing happens in your browser
+- **Multiple Models**:
+  - 🚀 **Llama 3.2 3B** - Best quality, ~1.7GB download
+  - ⚡ **Gemma 2 2B** - Good balance, ~1.2GB download
+  - 🔋 **Qwen 0.5B** - Fastest, ~300MB download
+- **Automatic Hardware Detection** - Model selected based on your GPU
+- **One-Time Download** - Models cached in browser for instant future use
+- **Features**:
+  - Remove filler words (um, uh, like, you know)
+  - Fix grammar and punctuation
+  - Improve sentence structure
+  - Preserve original meaning
 
 ### ✂️ Audio Segment Selection & Transcription (NEW!)
 - **Interactive Waveform Selection** - Click and drag to select audio segments
@@ -211,6 +227,58 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | Broadcast Audio | 🎚️ Studio + ☑️ Normalize |
 | Difficult/Quiet Audio | 🎛️ Both + ☑️ Normalize |
 | High-Quality Studio Recording | ⭕ No Compression |
+
+---
+
+## 🤖 AI Enhancement (Beta)
+
+MediaForge can optionally enhance transcripts using AI to:
+- Remove filler words (um, uh, like, you know)
+- Fix grammar and punctuation
+- Improve readability and sentence structure
+
+### Requirements
+
+| Requirement | Minimum |
+|-------------|---------|
+| **Browser** | Chrome 113+, Edge 113+, or Safari 18+ |
+| **RAM** | 8GB+ system memory |
+| **GPU** | Any WebGPU-compatible GPU |
+| **Disk Space** | 2GB free (for model cache) |
+
+### How to Use
+
+1. **Complete transcription** - Transcribe your audio/video file
+2. **Toggle "AI Enhancement"** - If your hardware is compatible, you'll see the option
+3. **Wait for model download** - One-time download (~300MB-1.7GB depending on model)
+4. **View enhanced result** - Compare raw vs enhanced transcript
+5. **Export either version** - Download raw, enhanced, or both
+
+### Model Performance
+
+| Model | Download Size | Processing Time* | Quality | Best For |
+|-------|--------------|------------------|---------|----------|
+| **Qwen 0.5B** | ~300MB | ~30 seconds | Basic | Quick edits, testing |
+| **Gemma 2 2B** | ~1.2GB | ~1-2 minutes | Good | Balanced quality/speed |
+| **Llama 3.2 3B** | ~1.7GB | ~2-3 minutes | Best | Production quality |
+
+*Processing time varies by hardware and transcript length. Model is auto-selected based on your GPU.
+
+### Hardware Tiers
+
+| GPU Tier | Examples | Recommended Model |
+|----------|----------|-------------------|
+| 🚀 **High** | RTX 3060+, RX 7600+, M1 Pro+ | Llama 3.2 3B |
+| ⚡ **Medium** | GTX 1060+, RX 6600, M1 | Llama 3.2 3B |
+| 🔋 **Low** | Intel Integrated, older GPUs | Qwen 0.5B |
+
+### Important Notes
+
+- **First use downloads model** - Subsequent uses are instant (cached in browser)
+- **Model cached in IndexedDB** - Survives browser restarts
+- **All processing local** - No data sent to servers
+- **Cancel anytime** - Stop enhancement mid-process if needed
+- **Falls back gracefully** - If enhancement fails, raw transcript is preserved
 
 ---
 

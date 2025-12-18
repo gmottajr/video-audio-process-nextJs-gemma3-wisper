@@ -18,7 +18,7 @@ export interface WorkerRequest {
   reject: (error: Error) => void;
   timeout: NodeJS.Timeout;
   timestamp: number;
-  onProgress?: (progress: number, message?: string) => void;
+  onProgress?: (progress: number, message?: string, extra?: { downloadedMB?: number; totalMB?: number; tokensGenerated?: number }) => void;
 }
 
 export interface WorkerResponse {
@@ -103,7 +103,11 @@ export class WorkerManager {
       response.status === 'streaming'
     ) {
       if (request.onProgress) {
-        request.onProgress(response.progress || 0, response.message);
+        request.onProgress(response.progress || 0, response.message, {
+          downloadedMB: response.downloadedMB,
+          totalMB: response.totalMB,
+          tokensGenerated: response.tokensGenerated,
+        });
       }
       return; // Don't complete the request
     }
@@ -157,7 +161,7 @@ export class WorkerManager {
     data: any,
     options: {
       timeoutMs?: number;
-      onProgress?: (progress: number, message?: string) => void;
+      onProgress?: (progress: number, message?: string, extra?: { downloadedMB?: number; totalMB?: number; tokensGenerated?: number }) => void;
     } = {}
   ): Promise<T> {
     if (!this.worker) {
