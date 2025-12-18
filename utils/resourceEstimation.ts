@@ -44,9 +44,6 @@ const MODEL_COMPLEXITY: Record<ModelKey, { ram: number; gpuRecommended: boolean;
   tiny: { ram: 1, gpuRecommended: false, name: "Tiny" },
   base: { ram: 1.5, gpuRecommended: false, name: "Base" },
   small: { ram: 2, gpuRecommended: true, name: "Small" },
-  medium: { ram: 5, gpuRecommended: true, name: "Medium" },
-  large: { ram: 10, gpuRecommended: true, name: "Large" },
-  turbo: { ram: 6, gpuRecommended: true, name: "Turbo" },
 };
 
 /**
@@ -64,9 +61,6 @@ const MODEL_BASE_RAM_GB: Record<ModelKey, number> = {
   tiny: 5,      // Tiny model is very light
   base: 15,     // Base model moderate
   small: 75,    // Small model heavy (validated: 400MB=76GB, 700MB=78GB, 1GB=78.3GB)
-  medium: 150,  // Medium model very heavy
-  large: 300,   // Large model extreme
-  turbo: 100,   // Turbo similar to medium
 };
 
 /**
@@ -112,9 +106,6 @@ export function estimateProcessingTime(fileSizeBytes: number, modelKey: ModelKey
     tiny: 0.3,    // Tiny is ~3x faster than Small
     base: 0.5,    // Base is ~2x faster than Small
     small: 1.0,   // Small baseline (700MB = 20min)
-    medium: 2.0,  // Medium is ~2x slower than Small
-    large: 4.0,   // Large is ~4x slower than Small
-    turbo: 1.5,   // Turbo between Small and Medium
   };
   
   // Base rate for Small model: 700MB in 20 minutes = 0.0286 min/MB

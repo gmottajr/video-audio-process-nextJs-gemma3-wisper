@@ -36,6 +36,20 @@ export class ProcessingError extends Error {
   }
 }
 
+export class EnhancementError extends Error {
+  constructor(message: string, public stage?: string) {
+    super(message);
+    this.name = "EnhancementError";
+  }
+}
+
+export class HardwareError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "HardwareError";
+  }
+}
+
 /**
  * Error Handling Service
  * 
@@ -64,6 +78,20 @@ export class ErrorHandlingService {
 
     if (error instanceof ProcessingError) {
       return `Processing failed: ${error.message}. Please try again.`;
+    }
+
+    if (error instanceof EnhancementError) {
+      if (error.stage === 'downloading') {
+        return `Failed to download AI model: ${error.message}. Check your internet connection.`;
+      }
+      if (error.stage === 'loading') {
+        return `Failed to load AI model: ${error.message}. Try refreshing the page.`;
+      }
+      return `Enhancement failed: ${error.message}. Please try again.`;
+    }
+
+    if (error instanceof HardwareError) {
+      return `Hardware requirement not met: ${error.message}`;
     }
 
     // Handle standard Error objects

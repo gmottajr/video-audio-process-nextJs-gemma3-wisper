@@ -89,7 +89,7 @@ export async function extractAudioSegment(
     const outputData = await ffmpegInstance.readFile(outputFileName);
     
     // Create blob from output
-    const outputBlob = new Blob([outputData], { type: "audio/wav" });
+    const outputBlob = new Blob([outputData as BlobPart], { type: "audio/wav" });
     
     console.log(`[AudioExtraction] Segment extracted successfully: ${outputBlob.size} bytes`);
     

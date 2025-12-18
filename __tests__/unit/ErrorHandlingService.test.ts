@@ -10,6 +10,8 @@ import {
   ValidationError,
   ModelError,
   ProcessingError,
+  EnhancementError,
+  HardwareError,
 } from '@/services/ErrorHandlingService';
 
 describe('ErrorHandlingService', () => {
@@ -48,6 +50,24 @@ describe('ErrorHandlingService', () => {
       const error = new ProcessingError('processing failed', originalError);
       expect(error.name).toBe('ProcessingError');
       expect(error.originalError).toBe(originalError);
+    });
+
+    test('EnhancementError should have correct name', () => {
+      const error = new EnhancementError('enhancement failed');
+      expect(error.name).toBe('EnhancementError');
+      expect(error.message).toBe('enhancement failed');
+    });
+
+    test('EnhancementError should store stage', () => {
+      const error = new EnhancementError('download failed', 'downloading');
+      expect(error.name).toBe('EnhancementError');
+      expect(error.stage).toBe('downloading');
+    });
+
+    test('HardwareError should have correct name', () => {
+      const error = new HardwareError('WebGPU not supported');
+      expect(error.name).toBe('HardwareError');
+      expect(error.message).toBe('WebGPU not supported');
     });
   });
 
@@ -89,6 +109,38 @@ describe('ErrorHandlingService', () => {
       
       expect(message).toContain('Processing failed');
       expect(message).toContain('process failed');
+    });
+
+    test('should handle EnhancementError', () => {
+      const error = new EnhancementError('enhancement failed');
+      const message = service.getUserFriendlyMessage(error);
+      
+      expect(message).toContain('Enhancement failed');
+      expect(message).toContain('enhancement failed');
+    });
+
+    test('should handle EnhancementError with downloading stage', () => {
+      const error = new EnhancementError('network timeout', 'downloading');
+      const message = service.getUserFriendlyMessage(error);
+      
+      expect(message).toContain('download AI model');
+      expect(message).toContain('network timeout');
+    });
+
+    test('should handle EnhancementError with loading stage', () => {
+      const error = new EnhancementError('out of memory', 'loading');
+      const message = service.getUserFriendlyMessage(error);
+      
+      expect(message).toContain('load AI model');
+      expect(message).toContain('out of memory');
+    });
+
+    test('should handle HardwareError', () => {
+      const error = new HardwareError('WebGPU not supported');
+      const message = service.getUserFriendlyMessage(error);
+      
+      expect(message).toContain('Hardware requirement');
+      expect(message).toContain('WebGPU not supported');
     });
 
     test('should detect network errors', () => {

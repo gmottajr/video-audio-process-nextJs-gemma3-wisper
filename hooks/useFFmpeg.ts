@@ -291,7 +291,7 @@ export function useFFmpeg() {
         }
 
         // Convert Uint8Array to Blob
-        const blob = new Blob([data], { type: "application/octet-stream" });
+        const blob = new Blob([data as BlobPart], { type: "application/octet-stream" });
         
         console.log(`[useFFmpeg] Processing complete. Output size: ${blob.size} bytes`);
         return blob;

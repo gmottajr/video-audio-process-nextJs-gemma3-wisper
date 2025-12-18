@@ -119,9 +119,10 @@ export function useMediaProcessor() {
         // Track progress updates
         const progressInterval = setInterval(() => {
           const prog = ffmpeg.progress;
-          if (prog < 10) setStatus({ phase: "initializing", progress: prog, speed: ffmpeg.metrics.speed });
-          else if (prog < 95) setStatus({ phase: "processing", progress: prog, speed: ffmpeg.metrics.speed });
-          else setStatus({ phase: "finalizing", progress: prog, speed: ffmpeg.metrics.speed });
+          const speed = ffmpeg.metrics.speed != null ? `${ffmpeg.metrics.speed}x` : undefined;
+          if (prog < 10) setStatus({ phase: "initializing", progress: prog, speed });
+          else if (prog < 95) setStatus({ phase: "processing", progress: prog, speed });
+          else setStatus({ phase: "finalizing", progress: prog, speed });
         }, 500);
 
         try {

@@ -8,7 +8,7 @@
  * - Cleaning up listeners on completion
  */
 
-export type WorkerMessageType = 'load' | 'transcribe' | 'cancel';
+export type WorkerMessageType = 'load' | 'transcribe' | 'cancel' | 'init' | 'enhance' | 'reset';
 
 export interface WorkerRequest {
   id: string;
@@ -23,11 +23,15 @@ export interface WorkerRequest {
 
 export interface WorkerResponse {
   requestId: string;
-  status: 'ready' | 'complete' | 'error' | 'progress' | 'loading' | 'transcribing';
+  status: 'ready' | 'complete' | 'error' | 'progress' | 'loading' | 'transcribing' | 'downloading' | 'processing' | 'streaming' | 'cancelled' | 'reset';
   message?: string;
   progress?: number;
   result?: any;
   error?: string;
+  // Enhancement-specific fields
+  downloadedMB?: number;
+  totalMB?: number;
+  tokensGenerated?: number;
 }
 
 /**
@@ -90,15 +94,22 @@ export class WorkerManager {
     console.log(`[WorkerManager] 📨 Response for ${response.requestId}: [${response.status}] ${response.message || '(no message)'}`);
 
     // Handle progress updates (non-terminal)
-    if (response.status === 'progress' || response.status === 'loading' || response.status === 'transcribing') {
+    if (
+      response.status === 'progress' || 
+      response.status === 'loading' || 
+      response.status === 'transcribing' ||
+      response.status === 'downloading' ||
+      response.status === 'processing' ||
+      response.status === 'streaming'
+    ) {
       if (request.onProgress) {
         request.onProgress(response.progress || 0, response.message);
       }
       return; // Don't complete the request
     }
 
-    // Handle terminal states (complete/ready/error)
-    if (response.status === 'complete' || response.status === 'ready') {
+    // Handle terminal states (complete/ready/error/cancelled/reset)
+    if (response.status === 'complete' || response.status === 'ready' || response.status === 'reset') {
       clearTimeout(request.timeout);
       this.pendingRequests.delete(response.requestId);
       console.log(`[WorkerManager] ✅ Request ${response.requestId} completed successfully`);
@@ -108,6 +119,11 @@ export class WorkerManager {
       this.pendingRequests.delete(response.requestId);
       console.error(`[WorkerManager] ❌ Request ${response.requestId} failed:`, response.error || response.message);
       request.reject(new Error(response.error || response.message || 'Unknown error'));
+    } else if (response.status === 'cancelled') {
+      clearTimeout(request.timeout);
+      this.pendingRequests.delete(response.requestId);
+      console.log(`[WorkerManager] ⚠️ Request ${response.requestId} was cancelled`);
+      request.reject(new Error('Operation cancelled'));
     }
   };
 

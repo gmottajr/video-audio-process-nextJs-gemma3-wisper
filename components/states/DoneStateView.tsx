@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { WaveformViewer, WaveformSelection } from "@/components/WaveformViewer";
 import { TranscriptionViewer } from "@/components/TranscriptionViewer";
+import { EnhancedTranscriptionViewer } from "@/components/EnhancedTranscriptionViewer";
 import { ResourceMonitor } from "@/components/ResourceMonitor";
 import { StatisticsModal } from "@/components/StatisticsModal";
 import { TranscribeFromDoneForm } from "@/components/TranscribeFromDoneForm";
 import { ResourceComparison } from "@/components/ResourceComparison";
+import { EnhancementToggle } from "@/components/EnhancementToggle";
+import { EnhancementProgress } from "@/components/EnhancementProgress";
 import ModelSelector, { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
 import { Download, RotateCcw, BarChart3, Scissors, Sparkles } from "lucide-react";
 import { getFormatById } from "@/utils/audioFormats";
@@ -17,6 +20,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { extractAudioSegmentFromUrl } from "@/utils/audioExtraction";
 import { createSegmentMetadata, formatSegmentLabel, estimateSegmentSize } from "@/types/audioSegment";
 import { getResourceRequirements } from "@/utils/resourceEstimation";
+import { useEnhancerContextOptional } from "@/contexts/EnhancerContext";
+import type { EnhancementResult } from "@/types/enhancement";
 
 interface DoneStateViewProps {
   result: ProcessingResult;
@@ -73,6 +78,13 @@ export function DoneStateView({
   const [segmentModelKey, setSegmentModelKey] = useState<ModelKey>(selectedModelKey);
   const [segmentCompressionType, setSegmentCompressionType] = useState<CompressionType>("none");
   const [segmentNormalizeAudio, setSegmentNormalizeAudio] = useState(false);
+  
+  // AI Enhancement state
+  const [enhancementEnabled, setEnhancementEnabled] = useState(false);
+  const [enhancedResult, setEnhancedResult] = useState<EnhancementResult | null>(null);
+  
+  // Get enhancer context (optional - may not be available)
+  const enhancer = useEnhancerContextOptional();
   
   const format =
     result.type === "audio"
@@ -174,6 +186,41 @@ export function DoneStateView({
       setIsExtractingSegment(false);
     }
   };
+  
+  // Handle enhancement toggle
+  const handleEnhancementToggle = async (enabled: boolean) => {
+    setEnhancementEnabled(enabled);
+    
+    // If turning on and we have a transcription, start enhancement
+    if (enabled && result.type === "transcription" && result.transcription?.text && enhancer) {
+      try {
+        // Load model if not already loaded
+        if (!enhancer.isModelLoaded && !enhancer.isModelLoading) {
+          await enhancer.loadModel();
+        }
+        
+        // Run enhancement
+        const enhancementResult = await enhancer.enhance(result.transcription.text);
+        setEnhancedResult(enhancementResult);
+      } catch (error) {
+        console.error('[DoneStateView] Enhancement failed:', error);
+        // Error is handled by the enhancer context
+      }
+    }
+  };
+  
+  // Handle enhancement cancellation
+  const handleCancelEnhancement = () => {
+    if (enhancer) {
+      enhancer.cancelEnhancement();
+    }
+  };
+  
+  // Check if enhancement is available
+  const canEnhance = enhancer?.capabilities?.isCapable && result.type === "transcription" && result.transcription?.text;
+  
+  // Determine if we should show the progress overlay
+  const showEnhancementProgress = enhancer && (enhancer.isModelLoading || enhancer.isEnhancing) && enhancer.progress;
 
   return (
     <div className="animate-in fade-in duration-500">
@@ -390,13 +437,44 @@ export function DoneStateView({
             </video>
           </div>
         ) : result.type === "transcription" && result.transcription ? (
-          <TranscriptionViewer
-            result={result.transcription}
-            filename={file.name.split(".")[0]}
-            modelName={
-              currentModel ? WHISPER_MODELS[selectedModelKey].name : undefined
-            }
-          />
+          <>
+            <EnhancedTranscriptionViewer
+              rawResult={result.transcription}
+              enhancedResult={enhancedResult}
+              filename={file.name.split(".")[0]}
+              modelName={
+                currentModel ? WHISPER_MODELS[selectedModelKey].name : undefined
+              }
+            />
+            
+            {/* AI Enhancement Toggle */}
+            {enhancer && enhancer.capabilities && !enhancer.isCheckingHardware && (
+              <EnhancementToggle
+                capabilities={enhancer.capabilities}
+                enabled={enhancementEnabled}
+                onToggle={handleEnhancementToggle}
+                disabled={enhancer.isEnhancing || enhancer.isModelLoading}
+                isModelLoaded={enhancer.isModelLoaded}
+                isModelLoading={enhancer.isModelLoading}
+              />
+            )}
+            
+            {/* Enhancement Error Display */}
+            {enhancer?.error && (
+              <div className="mt-4 p-4 bg-red-950/30 border border-red-500/30 rounded-lg">
+                <p className="text-sm text-red-300 flex items-center gap-2">
+                  <span>❌</span>
+                  Enhancement failed: {enhancer.error}
+                </p>
+                <button
+                  onClick={() => enhancer.clearError()}
+                  className="mt-2 text-xs text-red-400 hover:text-red-300 underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+          </>
         ) : null}
       </div>
 
@@ -523,6 +601,14 @@ export function DoneStateView({
           />
         </div>
       </details>
+      
+      {/* Enhancement Progress Overlay */}
+      {showEnhancementProgress && enhancer.progress && (
+        <EnhancementProgress
+          progress={enhancer.progress}
+          onCancel={handleCancelEnhancement}
+        />
+      )}
     </div>
   );
 }

@@ -82,7 +82,6 @@ export function WaveformViewer({
       barGap: 1,
       cursorWidth: 2,
       normalize: true,
-      responsive: true,
       plugins: [regionsPlugin],
     });
 

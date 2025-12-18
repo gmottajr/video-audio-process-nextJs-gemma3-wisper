@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { TranscriberProvider } from "@/contexts/TranscriberContext";
 import { FontProvider } from "@/contexts/FontContext";
+import { EnhancerProvider } from "@/contexts/EnhancerContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -50,7 +51,9 @@ export default function RootLayout({
       <body className={`${inter.className} ${audiowide.variable} ${specialElite.variable} ${barrio.variable}`}>
         <FontProvider>
           <TranscriberProvider>
-            {children}
+            <EnhancerProvider>
+              {children}
+            </EnhancerProvider>
           </TranscriberProvider>
         </FontProvider>
       </body>

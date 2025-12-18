@@ -479,6 +479,120 @@ describe('WorkerManager', () => {
     });
   });
 
+  describe('Enhancement Message Types', () => {
+    test('should handle "init" message type for enhancement', async () => {
+      const promise = workerManager.sendRequest('init', { modelId: 'test-model' });
+      
+      const requestId = Array.from((workerManager as any).pendingRequests.keys())[0];
+      
+      setTimeout(() => {
+        mockWorker.simulateMessage({ 
+          requestId,
+          status: 'ready',
+          message: 'Model loaded'
+        });
+      }, 10);
+
+      const result = await promise;
+      expect(result.status).toBe('ready');
+    });
+
+    test('should handle "enhance" message type', async () => {
+      const promise = workerManager.sendRequest('enhance', { transcript: 'test transcript' });
+      
+      const requestId = Array.from((workerManager as any).pendingRequests.keys())[0];
+      
+      setTimeout(() => {
+        mockWorker.simulateMessage({ 
+          requestId,
+          status: 'complete',
+          result: { enhancedText: 'enhanced transcript' }
+        });
+      }, 10);
+
+      const result = await promise;
+      expect(result.enhancedText).toBe('enhanced transcript');
+    });
+
+    test('should handle "reset" message type', async () => {
+      const promise = workerManager.sendRequest('reset', {});
+      
+      const requestId = Array.from((workerManager as any).pendingRequests.keys())[0];
+      
+      setTimeout(() => {
+        mockWorker.simulateMessage({ 
+          requestId,
+          status: 'reset',
+          message: 'Reset complete'
+        });
+      }, 10);
+
+      const result = await promise;
+      expect(result.status).toBe('reset');
+    });
+
+    test('should call progress callback for downloading status', async () => {
+      const progressUpdates: number[] = [];
+      
+      const promise = workerManager.sendRequest('init', { modelId: 'test' }, {
+        onProgress: (progress) => {
+          progressUpdates.push(progress);
+        }
+      });
+      
+      const requestId = Array.from((workerManager as any).pendingRequests.keys())[0];
+      
+      setTimeout(() => {
+        mockWorker.simulateMessage({ requestId, status: 'downloading', progress: 25 });
+        mockWorker.simulateMessage({ requestId, status: 'downloading', progress: 50 });
+        mockWorker.simulateMessage({ requestId, status: 'downloading', progress: 75 });
+        mockWorker.simulateMessage({ requestId, status: 'ready' });
+      }, 10);
+
+      await promise;
+      
+      expect(progressUpdates).toEqual([25, 50, 75]);
+    });
+
+    test('should call progress callback for streaming status', async () => {
+      const progressUpdates: number[] = [];
+      
+      const promise = workerManager.sendRequest('enhance', { transcript: 'test' }, {
+        onProgress: (progress) => {
+          progressUpdates.push(progress);
+        }
+      });
+      
+      const requestId = Array.from((workerManager as any).pendingRequests.keys())[0];
+      
+      setTimeout(() => {
+        mockWorker.simulateMessage({ requestId, status: 'processing', progress: 20 });
+        mockWorker.simulateMessage({ requestId, status: 'streaming', progress: 60 });
+        mockWorker.simulateMessage({ requestId, status: 'complete', result: {} });
+      }, 10);
+
+      await promise;
+      
+      expect(progressUpdates).toEqual([20, 60]);
+    });
+
+    test('should handle cancelled status', async () => {
+      const promise = workerManager.sendRequest('enhance', { transcript: 'test' });
+      
+      const requestId = Array.from((workerManager as any).pendingRequests.keys())[0];
+      
+      setTimeout(() => {
+        mockWorker.simulateMessage({ 
+          requestId,
+          status: 'cancelled',
+          message: 'Operation cancelled'
+        });
+      }, 10);
+
+      await expect(promise).rejects.toThrow('Operation cancelled');
+    });
+  });
+
   describe('Concurrent Requests', () => {
     test('should handle multiple concurrent requests independently', async () => {
       const promise1 = workerManager.sendRequest('load', { model: 'test1' });
