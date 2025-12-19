@@ -18,6 +18,11 @@ import type {
 } from "@/types/enhancement";
 import { DEFAULT_MODEL } from "@/types/enhancement";
 import { logEnhancementMetrics, type EnhancementTelemetry } from "@/utils/enhancementTelemetry";
+import type { TranscriptionResult } from "@/contexts/TranscriberContext";
+import type { WhisperMetadata, EnhancementStrategy } from "@/types/whisper-metadata";
+import { extractWhisperMetadata } from "@/utils/whisperMetadataExtractor";
+import { generateEnhancementStrategy, getStrategySummary } from "@/utils/enhancementStrategyGenerator";
+import { buildContextAwarePrompt, buildSimplePrompt } from "@/utils/contextAwarePromptBuilder";
 
 // ============================================================================
 // Download State Persistence
@@ -57,6 +62,11 @@ interface EnhancerContextType {
   // Results
   lastResult: EnhancementResult | null;
   
+  // Phase 2: Metadata and Strategy
+  lastMetadata: WhisperMetadata | null;
+  lastStrategy: EnhancementStrategy | null;
+  useContextAwarePrompts: boolean;
+  
   // Download state
   totalDownloadMB: number;
   showResumePrompt: boolean;
@@ -65,7 +75,7 @@ interface EnhancerContextType {
   
   // Actions
   loadModel: (modelId?: string) => Promise<void>;
-  enhance: (transcript: string) => Promise<EnhancementResult>;
+  enhance: (transcript: string, whisperResult?: TranscriptionResult, audioDuration?: number) => Promise<EnhancementResult>;
   cancelEnhancement: () => void;
   reset: () => void;
   clearError: () => void;
@@ -130,6 +140,11 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
   
   // Results
   const [lastResult, setLastResult] = useState<EnhancementResult | null>(null);
+  
+  // Phase 2: Metadata and Strategy
+  const [lastMetadata, setLastMetadata] = useState<WhisperMetadata | null>(null);
+  const [lastStrategy, setLastStrategy] = useState<EnhancementStrategy | null>(null);
+  const [useContextAwarePrompts, setUseContextAwarePrompts] = useState(true);
   
   // Download state persistence
   const [totalDownloadMB, setTotalDownloadMB] = useState(0);
@@ -358,8 +373,13 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
 
   /**
    * Enhance a transcript using the loaded model
+   * Phase 2: Now accepts optional Whisper result for context-aware prompting
    */
-  const enhance = useCallback(async (transcript: string): Promise<EnhancementResult> => {
+  const enhance = useCallback(async (
+    transcript: string,
+    whisperResult?: TranscriptionResult,
+    audioDuration?: number
+  ): Promise<EnhancementResult> => {
     // Validate model is loaded
     if (!isModelLoaded || !workerRef.current) {
       const errorMsg = 'Model not loaded. Please load the model first.';
@@ -389,12 +409,75 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
     setProgress({
       stage: 'processing',
       progress: 0,
-      message: 'Starting enhancement...',
+      message: 'Analyzing transcript...',
     });
+
+    // Phase 2: Extract metadata and generate strategy
+    let metadata: WhisperMetadata | null = null;
+    let strategy: EnhancementStrategy | null = null;
+    let promptText: string;
+    
+    if (useContextAwarePrompts && whisperResult) {
+      try {
+        console.log('[EnhancerContext] Phase 2: Extracting metadata from Whisper result...');
+        metadata = extractWhisperMetadata(whisperResult, audioDuration);
+        setLastMetadata(metadata);
+        
+        console.log('[EnhancerContext] Metadata extracted:', {
+          contentType: metadata.contentType,
+          contentTypeConfidence: metadata.contentTypeConfidence,
+          fillerDensity: metadata.fillerDensity,
+          fillerWordPercentage: `${metadata.fillerWordPercentage.toFixed(1)}%`,
+          wordsPerMinute: Math.round(metadata.wordsPerMinute),
+          speakingRate: metadata.speakingRateCategory,
+          speakerCount: metadata.speakerCount,
+          topKeywords: metadata.keywords.topKeywords.slice(0, 5).map(k => k.word),
+        });
+        
+        strategy = generateEnhancementStrategy(metadata);
+        setLastStrategy(strategy);
+        
+        const strategySummary = getStrategySummary(strategy, metadata);
+        console.log('[EnhancerContext] Strategy generated:', strategySummary);
+        
+        // Build context-aware prompt
+        promptText = buildContextAwarePrompt({
+          metadata,
+          strategy,
+        });
+        
+        console.log('[EnhancerContext] Using context-aware prompt for', metadata.contentType, 'content');
+        
+        setProgress({
+          stage: 'processing',
+          progress: 5,
+          message: `Detected ${metadata.contentType} content. Preparing tailored enhancement...`,
+        });
+        
+      } catch (metadataErr) {
+        console.warn('[EnhancerContext] Failed to extract metadata, falling back to simple prompt:', metadataErr);
+        // Fall back to simple prompt
+        promptText = buildSimplePrompt(transcript.trim());
+        setLastMetadata(null);
+        setLastStrategy(null);
+      }
+    } else {
+      // Use simple prompt when no Whisper result provided or context-aware disabled
+      console.log('[EnhancerContext] Using simple prompt (Phase 1 mode)');
+      promptText = buildSimplePrompt(transcript.trim());
+      setLastMetadata(null);
+      setLastStrategy(null);
+    }
 
     try {
       const result = await workerRef.current.sendRequest<EnhancementResult>('enhance', {
         transcript: transcript.trim(),
+        prompt: promptText, // Pass the generated prompt to the worker
+        metadata: metadata ? {
+          contentType: metadata.contentType,
+          fillerDensity: metadata.fillerDensity,
+          speakingRate: metadata.speakingRateCategory,
+        } : undefined,
       }, {
         timeoutMs: 300000, // 5 minutes for processing
         onProgress: (prog, msg) => {
@@ -423,8 +506,19 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
 
       console.log('[EnhancerContext] Enhancement complete');
       console.log('[EnhancerContext] Improvements:', enhancementResult.improvements);
+      
+      if (metadata) {
+        console.log('[EnhancerContext] Phase 2 enhancement used:', {
+          contentType: metadata.contentType,
+          strategy: strategy ? {
+            fillerRemoval: strategy.fillerRemoval,
+            grammarCorrection: strategy.grammarCorrection,
+            targetFormality: strategy.targetFormality,
+          } : null,
+        });
+      }
 
-      // Log telemetry
+      // Log telemetry with Phase 2 data
       if (capabilities) {
         const telemetry: EnhancementTelemetry = {
           modelId: currentModelId || 'unknown',
@@ -460,7 +554,7 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
       setIsEnhancing(false);
       currentRequestIdRef.current = null;
     }
-  }, [isModelLoaded, isEnhancing]);
+  }, [isModelLoaded, isEnhancing, useContextAwarePrompts, capabilities, currentModelId]);
 
   // ============================================================================
   // Cancellation
@@ -556,6 +650,11 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
     
     // Results
     lastResult,
+    
+    // Phase 2: Metadata and Strategy
+    lastMetadata,
+    lastStrategy,
+    useContextAwarePrompts,
     
     // Download state
     totalDownloadMB,

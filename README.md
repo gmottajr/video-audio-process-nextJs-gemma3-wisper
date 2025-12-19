@@ -280,6 +280,30 @@ MediaForge can optionally enhance transcripts using AI to:
 - **Cancel anytime** - Stop enhancement mid-process if needed
 - **Falls back gracefully** - If enhancement fails, raw transcript is preserved
 
+### Phase 2: Context-Aware Enhancement
+
+The AI enhancement now includes **intelligent content analysis** that tailors the enhancement to your specific content:
+
+**Automatic Content Detection:**
+- 📊 **Business** - Meetings, presentations, sales calls → Professional tone, aggressive filler removal
+- 💻 **Technical** - Engineering, coding, IT → Preserves technical terms, balanced cleanup
+- 💬 **Casual** - Personal conversations → Maintains natural tone, light cleanup
+- 🎤 **Interview** - Q&A, podcasts → Preserves question/answer structure
+- 📚 **Lecture** - Educational content → Formal tone, clear structure
+
+**Smart Analysis:**
+- Detects speaking rate (fast/normal/slow)
+- Analyzes filler word density
+- Identifies technical terms, acronyms, proper nouns
+- Measures sentence complexity
+- Evaluates transcription confidence
+
+**Tailored Strategies:**
+- Filler removal intensity adapts to content type
+- Grammar correction level varies (strict → conservative)
+- Sentence restructuring based on complexity
+- Formality adjustment (formal → casual)
+
 ---
 
 ## ⚠️ Resource Requirements

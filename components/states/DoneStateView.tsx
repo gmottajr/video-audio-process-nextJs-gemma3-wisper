@@ -199,9 +199,23 @@ export function DoneStateView({
           await enhancer.loadModel();
         }
         
-        // Run enhancement
-        const enhancementResult = await enhancer.enhance(result.transcription.text);
+        // Run enhancement with Whisper result for context-aware prompting (Phase 2)
+        // Pass the full transcription result and audio duration for metadata extraction
+        const enhancementResult = await enhancer.enhance(
+          result.transcription.text,
+          result.transcription,  // Pass full Whisper result for metadata extraction
+          metrics?.duration       // Pass audio duration
+        );
         setEnhancedResult(enhancementResult);
+        
+        // Log Phase 2 metadata if available
+        if (enhancer.lastMetadata) {
+          console.log('[DoneStateView] Phase 2 Enhancement used:', {
+            contentType: enhancer.lastMetadata.contentType,
+            fillerDensity: enhancer.lastMetadata.fillerDensity,
+            speakingRate: enhancer.lastMetadata.speakingRateCategory,
+          });
+        }
       } catch (error) {
         console.error('[DoneStateView] Enhancement failed:', error);
         // Error is handled by the enhancer context

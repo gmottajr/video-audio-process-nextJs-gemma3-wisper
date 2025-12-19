@@ -226,8 +226,10 @@ async function initEngine(modelId, requestId) {
  * Enhance a transcript using the loaded model
  * @param {string} transcript - Raw transcript text
  * @param {string} requestId - Request ID for response tracking
+ * @param {string} [customPrompt] - Optional custom prompt (Phase 2 context-aware)
+ * @param {Object} [metadata] - Optional metadata about the content
  */
-async function enhanceTranscript(transcript, requestId) {
+async function enhanceTranscript(transcript, requestId, customPrompt = null, metadata = null) {
   if (!engine || !isReady) {
     self.postMessage({
       requestId,
@@ -283,12 +285,29 @@ async function enhanceTranscript(transcript, requestId) {
     const estimatedInputTokens = Math.ceil(trimmedTranscript.split(/\s+/).length * 1.3);
     const estimatedOutputTokens = Math.ceil(estimatedInputTokens * 0.9);
     
-    // Create streaming completion
-    const stream = await engine.chat.completions.create({
-      messages: [
+    // Build messages based on whether we have a custom prompt (Phase 2)
+    let messages;
+    if (customPrompt) {
+      // Phase 2: Context-aware prompt - use the full custom prompt as user message
+      console.log('[EnhancerWorker] Using Phase 2 context-aware prompt');
+      if (metadata) {
+        console.log('[EnhancerWorker] Content metadata:', metadata);
+      }
+      messages = [
+        { role: 'user', content: customPrompt },
+      ];
+    } else {
+      // Phase 1: Simple prompt - use system prompt + transcript
+      console.log('[EnhancerWorker] Using Phase 1 simple prompt');
+      messages = [
         { role: 'system', content: ENHANCEMENT_SYSTEM_PROMPT },
         { role: 'user', content: trimmedTranscript },
-      ],
+      ];
+    }
+    
+    // Create streaming completion
+    const stream = await engine.chat.completions.create({
+      messages,
       temperature: 0.2,  // Low temperature for consistent output
       top_p: 0.9,
       max_tokens: Math.max(estimatedOutputTokens * 2, 2048),
@@ -459,7 +478,7 @@ self.addEventListener('message', async (event) => {
         break;
         
       case 'enhance':
-        await enhanceTranscript(data?.transcript, requestId);
+        await enhanceTranscript(data?.transcript, requestId, data?.prompt, data?.metadata);
         break;
         
       case 'cancel':
@@ -490,4 +509,5 @@ self.addEventListener('message', async (event) => {
 });
 
 console.log('[EnhancerWorker] AI Enhancement worker initialized');
+
 
