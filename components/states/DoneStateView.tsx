@@ -22,6 +22,12 @@ import { createSegmentMetadata, formatSegmentLabel, estimateSegmentSize } from "
 import { getResourceRequirements } from "@/utils/resourceEstimation";
 import { useEnhancerContextOptional } from "@/contexts/EnhancerContext";
 import type { EnhancementResult } from "@/types/enhancement";
+import type { EnhancementQualityMetrics } from "@/types/quality-metrics";
+import { calculateEnhancementQualityMetrics } from "@/utils/qualityMetricsCalculator";
+import { recordEnhancement } from "@/utils/enhancementHistoryManager";
+import { saveFeedback } from "@/utils/feedbackManager";
+import { QualityMetricsDisplay } from "@/components/QualityMetricsDisplay";
+import { FeedbackPanel } from "@/components/FeedbackPanel";
 
 interface DoneStateViewProps {
   result: ProcessingResult;
@@ -82,6 +88,12 @@ export function DoneStateView({
   // AI Enhancement state
   const [enhancementEnabled, setEnhancementEnabled] = useState(false);
   const [enhancedResult, setEnhancedResult] = useState<EnhancementResult | null>(null);
+  
+  // Phase 3: Quality metrics and feedback
+  const [qualityMetrics, setQualityMetrics] = useState<EnhancementQualityMetrics | null>(null);
+  const [enhancementId, setEnhancementId] = useState<string | null>(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   
   // Get enhancer context (optional - may not be available)
   const enhancer = useEnhancerContextOptional();
@@ -193,6 +205,8 @@ export function DoneStateView({
     
     // If turning on and we have a transcription, start enhancement
     if (enabled && result.type === "transcription" && result.transcription?.text && enhancer) {
+      const startTime = Date.now();
+      
       try {
         // Load model if not already loaded
         if (!enhancer.isModelLoaded && !enhancer.isModelLoading) {
@@ -207,6 +221,40 @@ export function DoneStateView({
           metrics?.duration       // Pass audio duration
         );
         setEnhancedResult(enhancementResult);
+        
+        const processingTimeMs = Date.now() - startTime;
+        
+        // Phase 3: Calculate quality metrics
+        const calculatedMetrics = calculateEnhancementQualityMetrics(
+          result.transcription.text,
+          enhancementResult.enhancedText,
+          enhancementResult.stats?.fillerWordsRemoved || 0
+        );
+        setQualityMetrics(calculatedMetrics);
+        
+        console.log('[DoneStateView] Quality metrics calculated:', {
+          qualityScore: calculatedMetrics.qualityScore,
+          confidenceScore: calculatedMetrics.confidenceScore,
+          readabilityImprovement: calculatedMetrics.readabilityImprovement,
+        });
+        
+        // Phase 3: Record enhancement in history
+        const contentType = enhancer.lastMetadata?.contentType || 'unknown';
+        const record = recordEnhancement(calculatedMetrics, {
+          contentType,
+          modelId: enhancer.currentModelId || 'unknown',
+          processingTimeMs,
+        });
+        
+        if (record) {
+          setEnhancementId(record.id);
+          console.log('[DoneStateView] Enhancement recorded:', record.id);
+          
+          // Show feedback panel after 2 seconds
+          setTimeout(() => {
+            setShowFeedback(true);
+          }, 2000);
+        }
         
         // Log Phase 2 metadata if available
         if (enhancer.lastMetadata) {
@@ -229,6 +277,26 @@ export function DoneStateView({
       enhancer.cancelEnhancement();
     }
   };
+  
+  // Phase 3: Handle feedback submission
+  const handleFeedbackSubmit = useCallback((feedback: {
+    rating: 1 | 2 | 3 | 4 | 5;
+    issues?: any[];
+    comments?: string;
+  }) => {
+    if (enhancementId) {
+      const success = saveFeedback(enhancementId, feedback);
+      if (success) {
+        setFeedbackSubmitted(true);
+        console.log('[DoneStateView] Feedback submitted for:', enhancementId);
+      }
+    }
+  }, [enhancementId]);
+  
+  // Phase 3: Handle feedback panel close
+  const handleFeedbackClose = useCallback(() => {
+    setShowFeedback(false);
+  }, []);
   
   // Check if enhancement is available
   const canEnhance = enhancer?.capabilities?.isCapable && result.type === "transcription" && result.transcription?.text;
@@ -470,6 +538,26 @@ export function DoneStateView({
                 disabled={enhancer.isEnhancing || enhancer.isModelLoading}
                 isModelLoaded={enhancer.isModelLoaded}
                 isModelLoading={enhancer.isModelLoading}
+              />
+            )}
+            
+            {/* Phase 3: Quality Metrics Display */}
+            {qualityMetrics && enhancedResult && (
+              <div className="mt-6">
+                <QualityMetricsDisplay 
+                  metrics={qualityMetrics}
+                  defaultExpanded={false}
+                />
+              </div>
+            )}
+            
+            {/* Phase 3: Feedback Panel */}
+            {enhancementId && !feedbackSubmitted && (
+              <FeedbackPanel
+                enhancementId={enhancementId}
+                isVisible={showFeedback}
+                onClose={handleFeedbackClose}
+                onSubmit={handleFeedbackSubmit}
               />
             )}
             
