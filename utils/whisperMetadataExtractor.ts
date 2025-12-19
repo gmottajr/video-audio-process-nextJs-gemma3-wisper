@@ -518,13 +518,13 @@ export function extractKeywords(text: string, totalWords: number): KeywordAnalys
   const acronyms = Array.from(
     text.matchAll(/\b[A-Z]{2,}\b/g)
   ).map(m => m[0]);
-  const uniqueAcronyms = [...new Set(acronyms)];
+  const uniqueAcronyms = Array.from(new Set(acronyms));
   
   // Detect proper nouns (capitalized words not at sentence start)
   const properNouns = Array.from(
     text.matchAll(/(?<![.!?]\s)[A-Z][a-z]+/g)
   ).map(m => m[0]);
-  const uniqueProperNouns = [...new Set(properNouns)].slice(0, 20);
+  const uniqueProperNouns = Array.from(new Set(properNouns)).slice(0, 20);
   
   // Detect technical terms (common programming/technical vocabulary)
   const technicalDictionary = new Set([
@@ -535,7 +535,7 @@ export function extractKeywords(text: string, totalWords: number): KeywordAnalys
   ]);
   
   const technicalTerms = words.filter(w => technicalDictionary.has(w));
-  const uniqueTechnicalTerms = [...new Set(technicalTerms)];
+  const uniqueTechnicalTerms = Array.from(new Set(technicalTerms));
   
   return {
     topKeywords,

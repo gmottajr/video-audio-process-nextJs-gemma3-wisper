@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { WaveformViewer, WaveformSelection } from "@/components/WaveformViewer";
 import { TranscriptionViewer } from "@/components/TranscriptionViewer";
-import { EnhancedTranscriptionViewer } from "@/components/EnhancedTranscriptionViewer";
+import { TabbedTranscriptionView } from "@/components/TabbedTranscriptionView";
 import { ResourceMonitor } from "@/components/ResourceMonitor";
 import { StatisticsModal } from "@/components/StatisticsModal";
 import { TranscribeFromDoneForm } from "@/components/TranscribeFromDoneForm";
@@ -26,7 +26,6 @@ import type { EnhancementQualityMetrics } from "@/types/quality-metrics";
 import { calculateEnhancementQualityMetrics } from "@/utils/qualityMetricsCalculator";
 import { recordEnhancement } from "@/utils/enhancementHistoryManager";
 import { saveFeedback } from "@/utils/feedbackManager";
-import { QualityMetricsDisplay } from "@/components/QualityMetricsDisplay";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
 
 interface DoneStateViewProps {
@@ -228,7 +227,7 @@ export function DoneStateView({
         const calculatedMetrics = calculateEnhancementQualityMetrics(
           result.transcription.text,
           enhancementResult.enhancedText,
-          enhancementResult.stats?.fillerWordsRemoved || 0
+          enhancementResult.improvements?.fillerCount || 0
         );
         setQualityMetrics(calculatedMetrics);
         
@@ -296,6 +295,17 @@ export function DoneStateView({
   // Phase 3: Handle feedback panel close
   const handleFeedbackClose = useCallback(() => {
     setShowFeedback(false);
+  }, []);
+  
+  // Phase 4: Handle re-enhancement request
+  const handleReEnhance = useCallback(() => {
+    // Reset enhancement state to allow re-enhancement
+    setEnhancedResult(null);
+    setQualityMetrics(null);
+    setEnhancementId(null);
+    setFeedbackSubmitted(false);
+    setShowFeedback(false);
+    setEnhancementEnabled(false);
   }, []);
   
   // Check if enhancement is available
@@ -520,14 +530,26 @@ export function DoneStateView({
           </div>
         ) : result.type === "transcription" && result.transcription ? (
           <>
-            <EnhancedTranscriptionViewer
-              rawResult={result.transcription}
-              enhancedResult={enhancedResult}
-              filename={file.name.split(".")[0]}
-              modelName={
-                currentModel ? WHISPER_MODELS[selectedModelKey].name : undefined
-              }
-            />
+            {/* Phase 4: Tabbed Transcription View (shown when enhancement is complete) */}
+            {enhancedResult ? (
+              <TabbedTranscriptionView
+                originalText={result.transcription.text}
+                enhancedText={enhancedResult.enhancedText}
+                qualityMetrics={qualityMetrics}
+                processingTime={enhancedResult.processingTime}
+                chunks={result.transcription.chunks}
+                metadata={{
+                  contentType: enhancer?.lastMetadata?.contentType,
+                  duration: metrics?.duration,
+                  modelName: currentModel ? WHISPER_MODELS[selectedModelKey].name : undefined,
+                  filename: file.name.split(".")[0],
+                }}
+                onReEnhance={handleReEnhance}
+              />
+            ) : (
+              /* Show basic transcription view before enhancement */
+              <TranscriptionViewer result={result.transcription} />
+            )}
             
             {/* AI Enhancement Toggle */}
             {enhancer && enhancer.capabilities && !enhancer.isCheckingHardware && (
@@ -539,16 +561,6 @@ export function DoneStateView({
                 isModelLoaded={enhancer.isModelLoaded}
                 isModelLoading={enhancer.isModelLoading}
               />
-            )}
-            
-            {/* Phase 3: Quality Metrics Display */}
-            {qualityMetrics && enhancedResult && (
-              <div className="mt-6">
-                <QualityMetricsDisplay 
-                  metrics={qualityMetrics}
-                  defaultExpanded={false}
-                />
-              </div>
             )}
             
             {/* Phase 3: Feedback Panel */}
