@@ -35,21 +35,88 @@ A powerful browser-based application for video/audio processing and AI-powered t
   - Smart recommendations guide you to the best settings
 - **Transcribe from Results** - Transcribe audio directly from extraction/conversion results
 
-### ✨ AI Transcript Enhancement (Beta)
-- **Optional AI Enhancement** - Clean up transcripts using local LLMs
+### ✨ AI Transcript Enhancement
+- **Optional AI Enhancement** - Clean up transcripts using local LLMs (Llama, Qwen, SmolLM)
 - **WebGPU Acceleration** - Fast processing using your GPU
-- **Privacy First** - All processing happens in your browser
-- **Multiple Models**:
-  - 🚀 **Llama 3.2 3B** - Best quality, ~1.7GB download
-  - ⚡ **Gemma 2 2B** - Good balance, ~1.2GB download
-  - 🔋 **Qwen 0.5B** - Fastest, ~300MB download
-- **Automatic Hardware Detection** - Model selected based on your GPU
-- **One-Time Download** - Models cached in browser for instant future use
-- **Features**:
-  - Remove filler words (um, uh, like, you know)
+- **Privacy First** - All processing happens in your browser, zero data sent to servers
+- **Multiple Models** (quantized q4f32 for maximum compatibility):
+  - 🦙 **Llama 3.2 3B** - Best quality, ~1.8GB download (8K-32K context window)
+  - 🦙 **Llama 3.2 1B** - Balanced quality, ~0.7GB download (8K-32K context window) **[Default]**
+  - 🔮 **Qwen 2.5 0.5B** - Fastest, ~0.4GB download (4K context window)
+  - 🤏 **SmolLM2 360M** - Ultra-fast, ~0.25GB download (minimal model)
+- **Automatic Hardware Detection** - Model recommended based on your GPU tier
+- **One-Time Download** - Models cached in IndexedDB for instant future use
+- **Smart Chunking** - Automatically handles long transcripts (>3000 tokens) by splitting at sentence boundaries
+- **Enhancement Features**:
+  - Remove filler words (um, uh, like, you know, so, basically)
   - Fix grammar and punctuation
-  - Improve sentence structure
-  - Preserve original meaning
+  - Improve sentence structure and readability
+  - Preserve original meaning and technical terms
+  - Maintain natural conversation flow
+
+### 📊 Multi-Tab Transcript View
+After transcription (and optional enhancement), view your results in multiple formats:
+
+#### **Original Tab**
+- Raw Whisper transcription output
+- Includes all filler words and natural speech patterns
+- Word count, sentence count, reading time statistics
+- Readability score (Flesch-Kincaid)
+
+#### **Enhanced Tab** (if AI enhancement enabled)
+- AI-cleaned transcript with filler words removed
+- Improved grammar and sentence structure
+- Quality score (0-100) showing enhancement effectiveness
+- Metrics: filler words removed, readability improvement, reduction percentage
+- **Editable** - Click "Edit" to manually adjust the enhanced text
+- See exactly what improvements were made
+
+#### **Side-by-Side Tab**
+- Compare original and enhanced versions simultaneously
+- Color-coded highlights show what changed
+- Synchronized scrolling (toggle on/off)
+- Perfect for quality checking the enhancement
+
+#### **Diff View Tab**
+- Line-by-line comparison with color coding:
+  - 🟢 **Green** - Added content (improvements)
+  - 🔴 **Red** - Removed content (filler words, redundancies)
+  - ⚪ **Gray** - Unchanged content
+- See every single change the AI made
+- Statistical summary of changes
+
+#### **Analysis Tab** (Coming Soon)
+- AI-powered deep insights from your transcript:
+  - 🔑 **Key Points** - Main takeaways (5-7 points)
+  - ❓ **Questions Raised** - Explicit and implicit questions
+  - ⚠️ **Deviations** - When discussion went off-topic
+  - 🔄 **Misalignments** - Disagreements or conflicting viewpoints
+  - ✅ **Resolutions** - Problems solved during discussion
+  - 💬 **Significant Statements** - Important assertions and commitments
+  - ☑️ **Action Items** - Tasks identified with assignees
+  - ⚖️ **Decisions Made** - Formal and informal decisions
+
+### 🎙️ Speaker-Aware Formatting
+- **Intelligent Speaker Detection** - Automatically identifies when different people speak
+- **Three Sensitivity Levels**:
+  - 🔵 **Low** - Long pauses only (3+ seconds) - best for single speakers
+  - 🟢 **Medium** (default) - Normal conversation pauses (1.5+ seconds)
+  - 🟠 **High** - Even brief pauses (0.8+ seconds) - best for fast-paced discussions
+- **Optional Timestamps** - Show `[MM:SS]` or `[HH:MM:SS]` aligned with speaker turns
+- **Detection Methods**:
+  - Pause duration analysis
+  - Question-answer pattern recognition
+  - Conversational markers (yeah, well, okay, so, etc.)
+- **Works with Both Original and Enhanced Transcripts**
+- **Format Example**:
+  ```
+  [00:15] **Speaker 1**: Welcome everyone. Let's begin the meeting.
+  
+  [00:23] **Speaker 2**: Thanks for having me. I have some questions.
+  
+  [00:31] **Speaker 1**: Of course. What would you like to know?
+  ```
+- **Perfect For**: Meetings, interviews, podcasts, multi-speaker conversations
 
 ### ✂️ Audio Segment Selection & Transcription (NEW!)
 - **Interactive Waveform Selection** - Click and drag to select audio segments
@@ -230,12 +297,13 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 🤖 AI Enhancement (Beta)
+## 🤖 AI Enhancement
 
-MediaForge can optionally enhance transcripts using AI to:
-- Remove filler words (um, uh, like, you know)
-- Fix grammar and punctuation
-- Improve readability and sentence structure
+MediaForge enhances transcripts using browser-based LLMs to:
+- Remove filler words (um, uh, like, you know, so, basically)
+- Fix grammar, punctuation, and sentence structure
+- Improve readability while preserving meaning
+- Format with speaker detection and timestamps
 
 ### Requirements
 
@@ -244,41 +312,81 @@ MediaForge can optionally enhance transcripts using AI to:
 | **Browser** | Chrome 113+, Edge 113+, or Safari 18+ |
 | **RAM** | 8GB+ system memory |
 | **GPU** | Any WebGPU-compatible GPU |
+| **VRAM** | 1GB+ for Qwen/SmolLM, 2GB+ for Llama 1B, 4GB+ for Llama 3B |
 | **Disk Space** | 2GB free (for model cache) |
 
-### How to Use
+### How to Use - The Complete Flow
 
-1. **Complete transcription** - Transcribe your audio/video file
-2. **Toggle "AI Enhancement"** - If your hardware is compatible, you'll see the option
-3. **Wait for model download** - One-time download (~300MB-1.7GB depending on model)
-4. **View enhanced result** - Compare raw vs enhanced transcript
-5. **Export either version** - Download raw, enhanced, or both
+1. **Complete transcription** - Transcribe your audio/video file with Whisper
+2. **Toggle "AI Enhancement"** - If your hardware is compatible, you'll see the toggle
+3. **Wait for model download** - One-time download (250MB-1.8GB depending on model)
+4. **Enhancement processing**:
+   - Shows progress: "Processing chunk 1/5..." for long transcripts
+   - Automatically chunks transcripts > 3000 tokens
+   - Typically takes 30 seconds to 3 minutes depending on model and length
+5. **Configure speaker formatting**:
+   - Toggle **"Separate by Speaker"** - Each speaker on separate line
+   - Toggle **"Show Timestamps"** - Display time markers
+   - Adjust **sensitivity** (Low/Medium/High) - How aggressively to detect speakers
+6. **View results in 4 tabs**:
+   - **Original** - Raw Whisper output with statistics
+   - **Enhanced** - AI-cleaned version with quality score
+   - **Side-by-Side** - Compare both versions
+   - **Diff** - See exactly what changed (color-coded)
+7. **Edit if needed** - Click "Edit" in Enhanced tab to manually refine
+8. **Export** - Download as TXT, JSON, or SRT with formatting applied
 
 ### Model Performance
 
-| Model | Download Size | Processing Time* | Quality | Best For |
-|-------|--------------|------------------|---------|----------|
-| **Qwen 0.5B** | ~300MB | ~30 seconds | Basic | Quick edits, testing |
-| **Gemma 2 2B** | ~1.2GB | ~1-2 minutes | Good | Balanced quality/speed |
-| **Llama 3.2 3B** | ~1.7GB | ~2-3 minutes | Best | Production quality |
+| Model | Size | Context | Processing Time* | Quality | Best For |
+|-------|------|---------|------------------|---------|----------|
+| **Llama 3.2 3B** | ~1.8GB | 8K-32K | ~2-3 min | Excellent | High-quality production work |
+| **Llama 3.2 1B** | ~0.7GB | 8K-32K | ~1-2 min | Very Good | **Default - Best balance** ⭐ |
+| **Qwen 2.5 0.5B** | ~0.4GB | 4K | ~30-60 sec | Good | Quick edits, low-end hardware |
+| **SmolLM2 360M** | ~0.25GB | 2K | ~20-30 sec | Basic | Ultra-fast, minimal cleanup |
 
-*Processing time varies by hardware and transcript length. Model is auto-selected based on your GPU.
+*Processing time for typical 5-minute transcript. Model is auto-recommended based on your GPU.
 
-### Hardware Tiers
+### Hardware Tiers & Recommendations
 
-| GPU Tier | Examples | Recommended Model |
-|----------|----------|-------------------|
-| 🚀 **High** | RTX 3060+, RX 7600+, M1 Pro+ | Llama 3.2 3B |
-| ⚡ **Medium** | GTX 1060+, RX 6600, M1 | Llama 3.2 3B |
-| 🔋 **Low** | Intel Integrated, older GPUs | Qwen 0.5B |
+| GPU Tier | VRAM | Examples | Recommended Model |
+|----------|------|----------|-------------------|
+| 🚀 **High** | 4GB+ | RTX 3060+, RX 7600+, M1 Pro+ | Llama 3.2 3B |
+| ⚡ **Medium** | 2GB+ | GTX 1060+, RX 6600, M1 | **Llama 3.2 1B** (Default) |
+| 🔋 **Low** | 1GB+ | Intel Integrated, older GPUs | Qwen 0.5B or SmolLM2 |
+
+### Context Window & Chunking
+
+**What is Context Window?**
+- Maximum tokens (words) the model can process at once
+- Llama 1B/3B: 8K-32K tokens (~6,000-24,000 words)
+- Qwen 0.5B: 4K tokens (~3,000 words)
+- SmolLM2: 2K tokens (~1,500 words)
+
+**Automatic Chunking:**
+- Transcripts > 3000 tokens are automatically split
+- Splits at sentence boundaries for natural flow
+- Processes each chunk sequentially
+- Progress shows: "Processing chunk 2/5..."
+- Seamlessly merges results
+
+**Example:**
+- 10,000-word transcript with Qwen 0.5B:
+  - Auto-chunks into 4 parts
+  - Processes: "Chunk 1/4... Chunk 2/4..." etc.
+  - Merges into single enhanced transcript
+  - User sees smooth progress, gets complete result
 
 ### Important Notes
 
-- **First use downloads model** - Subsequent uses are instant (cached in browser)
-- **Model cached in IndexedDB** - Survives browser restarts
-- **All processing local** - No data sent to servers
-- **Cancel anytime** - Stop enhancement mid-process if needed
-- **Falls back gracefully** - If enhancement fails, raw transcript is preserved
+- ✅ **First use downloads model** - Subsequent uses are instant (cached in IndexedDB)
+- ✅ **Cache survives restarts** - Model persists across browser sessions
+- 🔒 **100% local processing** - Zero data sent to servers, complete privacy
+- ⚡ **WebGPU acceleration** - Uses your GPU for fast inference
+- 🔄 **Cancel anytime** - Stop enhancement mid-process if needed
+- 💾 **Graceful fallback** - If enhancement fails, original transcript is preserved
+- 📊 **Quality metrics** - See readability scores, filler words removed, compression ratio
+- 🎭 **Works with any audio** - Meetings, interviews, podcasts, lectures, conversations
 
 ### Phase 2: Context-Aware Enhancement
 
@@ -386,8 +494,12 @@ The AI enhancement now includes **objective quality measurement** and **user fee
 - **TypeScript** - Type safety throughout
 - **FFmpeg.wasm** - Video/audio processing in browser
 - **Transformers.js** - Whisper AI for transcription
+- **WebLLM** - Browser-based LLM inference (Llama, Qwen) ⭐ NEW
+- **WebGPU** - GPU acceleration for AI models ⭐ NEW
 - **Tailwind CSS** - Modern styling
-- **Web Workers** - Background processing
+- **Web Workers** - Background processing (transcription & enhancement)
+- **WaveSurfer.js** - Audio waveform visualization
+- **IndexedDB** - Model caching
 
 ### Key Components
 - **State Machine** (`useAppStateMachine`) - Predictable state management
@@ -395,9 +507,14 @@ The AI enhancement now includes **objective quality measurement** and **user fee
 - **Audio Converter** (`useAudioConverter`) - Handles compression & normalization
 - **FFmpeg Integration** (`useFFmpeg`) - Browser-based media processing
 - **Transcriber** (`useTranscriber`) - AI transcription with Whisper
+- **Enhancer Context** (`EnhancerContext`) - AI enhancement with WebLLM
 - **Audio Extraction** (`utils/audioExtraction`) - Segment extraction with FFmpeg.wasm
+- **Transcript Chunker** (`utils/transcriptChunker`) - Smart chunking for long transcripts ⭐ NEW
+- **Speaker Formatter** (`utils/speakerFormatter`) - Speaker detection & formatting ⭐ NEW
+- **Analysis Prompt Builder** (`utils/analysisPromptBuilder`) - AI analysis prompts ⭐ NEW
 - **WaveSurfer Regions** (`WaveformViewer`) - Interactive segment selection
 - **Resource Comparison** (`ResourceComparison`) - Visual RAM/time comparison
+- **Multi-Tab View** (`TabbedTranscriptionView`) - Original/Enhanced/Side-by-Side/Diff tabs ⭐ NEW
 
 ### Processing Pipeline
 
@@ -446,19 +563,25 @@ npm test -- audioCompression
 
 ### Test Coverage
 
-- **Total Tests:** 308+ tests
-- **Unit Tests:** 280+ tests
+- **Total Tests:** 416+ tests ✅
+- **Unit Tests:** 384+ tests
   - Audio compression: 43 tests
   - Audio extraction: 237 tests (FFmpeg segment extraction)
-  - Component tests: 40+ tests
-- **Integration Tests:** 28+ tests (end-to-end workflows)
-- **Coverage:** >96%
+  - Transcript chunking: 32 tests ⭐ NEW
+  - Speaker formatting: 41 tests ⭐ NEW
+  - UI components: 63+ tests (including TranscriptFormattingControls)
+  - Other utilities and hooks: 8+ tests
+- **Integration Tests:** 32+ tests (end-to-end workflows)
+  - Enhancement + Speaker Formatting: 12 tests ⭐ NEW
+- **Coverage:** >90%
 
-**Recent Additions:**
-- ✅ 237 comprehensive tests for audio extraction utility
-- ✅ All segment extraction edge cases covered
-- ✅ FFmpeg error handling and cleanup tests
-- ✅ Parameter validation tests
+**Recent Additions (Latest Updates):**
+- ✅ 32 tests for transcript chunking (context window fix)
+- ✅ 41 tests for speaker detection and formatting
+- ✅ 23 tests for formatting controls UI component
+- ✅ 12 integration tests for complete enhancement + formatting workflow
+- ✅ All edge cases covered (empty strings, unicode, long transcripts, etc.)
+- ✅ Performance tests included (< 1s for 1000 sentences)
 
 ---
 
@@ -472,6 +595,13 @@ npm test -- audioCompression
 │   └── layout.tsx           # Root layout
 ├── components/              # React components
 │   ├── states/             # State-specific views
+│   │   └── DoneStateView.tsx # Results view with enhancement
+│   ├── tabs/               # Transcript view tabs ⭐ NEW
+│   │   ├── OriginalTabView.tsx
+│   │   ├── EnhancedTabView.tsx
+│   │   ├── SideBySideTabView.tsx
+│   │   ├── DiffTabView.tsx
+│   │   └── AnalysisTabView.tsx # AI analysis (coming soon)
 │   ├── transcription/      # Transcription sub-components (SRP)
 │   │   ├── TranscriptionFormHeader.tsx
 │   │   ├── EnhancementOptionsSelector.tsx
@@ -480,7 +610,11 @@ npm test -- audioCompression
 │   │   └── TranscribeButton.tsx
 │   ├── ActionSelector.tsx  # Format & compression selection
 │   ├── WaveformViewer.tsx  # Audio visualization with regions
+│   ├── TabbedTranscriptionView.tsx # Multi-tab transcript viewer ⭐ NEW
+│   ├── TranscriptFormattingControls.tsx # Speaker formatting UI ⭐ NEW
 │   ├── TranscriptionViewer.tsx
+│   ├── EnhancementToggle.tsx # AI enhancement toggle
+│   ├── EnhancementProgress.tsx # Enhancement progress overlay
 │   ├── ResourceComparison.tsx # Segment vs full comparison
 │   └── ResourceWarning.tsx # RAM/GPU warnings
 ├── hooks/                   # Custom React hooks
@@ -491,16 +625,27 @@ npm test -- audioCompression
 │   └── useTranscriber.ts
 ├── contexts/               # React contexts
 │   ├── FontContext.tsx
-│   └── TranscriberContext.tsx
+│   ├── TranscriberContext.tsx
+│   └── EnhancerContext.tsx # AI enhancement state management ⭐
 ├── utils/                  # Utility functions
 │   ├── audioFormats.ts
 │   ├── videoFormats.ts
 │   ├── resourceEstimation.ts
 │   ├── compressionHelpers.ts
 │   ├── audioExtraction.ts  # FFmpeg segment extraction
-│   └── audioContentDetector.ts # Smart content detection
+│   ├── audioContentDetector.ts # Smart content detection
+│   ├── transcriptChunker.ts # Long transcript chunking ⭐ NEW
+│   ├── speakerFormatter.ts # Speaker detection & formatting ⭐ NEW
+│   ├── analysisPromptBuilder.ts # AI analysis prompts ⭐ NEW
+│   ├── whisperMetadataExtractor.ts # Transcript analysis
+│   ├── enhancementStrategyGenerator.ts # Context-aware strategies
+│   └── contextAwarePromptBuilder.ts # Smart prompts
 ├── types/                  # TypeScript types
-│   └── audioSegment.ts     # Segment metadata types
+│   ├── audioSegment.ts     # Segment metadata types
+│   ├── enhancement.ts      # Enhancement types
+│   ├── quality-metrics.ts  # Quality scoring
+│   ├── whisper-metadata.ts # Transcript metadata
+│   └── transcript-analysis.ts # AI analysis types ⭐ NEW
 └── __tests__/              # Test files
     ├── unit/
     └── integration/
@@ -723,11 +868,77 @@ The codebase follows **Single Responsibility Principle** with focused, testable 
 
 ---
 
+## 🆕 Latest Updates
+
+### Phase 5: Enhanced Transcript Enhancement & Speaker Formatting
+
+**What's New:**
+
+1. **Context Window Fix** ✅
+   - Automatically handles transcripts of ANY length
+   - Smart chunking at sentence boundaries (3000 tokens per chunk)
+   - Progress tracking: "Processing chunk 2/5..."
+   - Seamless merging of enhanced chunks
+   - Fixes `ContextWindowSizeExceededError` for long transcripts
+
+2. **Forced Llama 3.2 1B Model** ✅
+   - Override auto-detection that selected smaller models
+   - 8K-32K context window (vs 4K in Qwen 0.5B)
+   - Better quality while staying lightweight (700MB)
+   - Default for all GPU tiers
+
+3. **Multi-Tab Transcript View** ✅
+   - **Original Tab** - Raw Whisper output with statistics
+   - **Enhanced Tab** - AI-cleaned, editable, with quality scores
+   - **Side-by-Side Tab** - Compare versions with sync scrolling
+   - **Diff Tab** - Color-coded line-by-line comparison
+   - **Analysis Tab** - Deep AI insights (coming soon)
+
+4. **Speaker-Aware Formatting** ✅
+   - Intelligent speaker detection using pause analysis
+   - Three sensitivity levels (Low/Medium/High)
+   - Optional timestamps: `[MM:SS] **Speaker 1**: text`
+   - Question-answer pattern recognition
+   - Conversational marker detection (yeah, well, okay)
+   - Works with original AND enhanced transcripts
+   - Perfect for meetings, interviews, podcasts
+
+5. **Comprehensive Test Coverage** ✅
+   - 108 new tests (all passing)
+   - Transcript chunking: 32 tests
+   - Speaker formatting: 41 tests
+   - UI components: 23 tests
+   - Integration tests: 12 tests
+   - Total: 416+ tests with ~90% coverage
+
+**Benefits:**
+- ✅ No more context window errors - process any length transcript
+- ✅ Professional formatting for conversations and meetings
+- ✅ User control over speaker detection sensitivity
+- ✅ Optional timestamps aligned with speech
+- ✅ Compare original vs enhanced easily
+- ✅ See exactly what the AI changed (Diff view)
+- ✅ Edit enhanced text manually if needed
+- ✅ Export with formatting applied
+
+**Documentation:**
+- `LLAMA_CONTEXT_WINDOW_FIX.md` - Context window fix details
+- `SPEAKER_FORMATTING_FEATURE.md` - Speaker formatting guide
+- `TEST_COVERAGE_REPORT.md` - Complete test documentation
+- `TEST_RESULTS_SUMMARY.md` - Test execution results
+- `AI_ANALYSIS_FEATURE.md` - Upcoming AI analysis feature
+
+---
+
 ## 🙏 Acknowledgments
 
 - **FFmpeg.wasm** - Browser-based media processing
 - **Transformers.js** - Whisper AI in the browser
 - **OpenAI Whisper** - State-of-the-art speech recognition
+- **WebLLM (MLC)** - Browser-based LLM inference
+- **Meta AI** - Llama 3.2 models
+- **Alibaba Cloud** - Qwen 2.5 models
+- **Hugging Face** - SmolLM2 models
 - **WaveSurfer.js** - Audio waveform visualization with regions
 - **Next.js** - React framework
 - **Tailwind CSS** - Styling framework
