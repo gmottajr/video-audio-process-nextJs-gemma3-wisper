@@ -1,0 +1,3598 @@
+diff --git a/__tests__/unit/contextAwarePromptBuilder.test.ts b/__tests__/unit/contextAwarePromptBuilder.test.ts
+new file mode 100644
+index 0000000..62acdd3
+--- /dev/null
++++ b/__tests__/unit/contextAwarePromptBuilder.test.ts
+@@ -0,0 +1,487 @@
++/**
++ * Tests for Context-Aware Prompt Builder
++ */
++
++import {
++  buildContextAwarePrompt,
++  buildSimplePrompt,
++  getPromptStats,
++} from '@/utils/contextAwarePromptBuilder';
++import type { WhisperMetadata, EnhancementStrategy, PromptConfiguration } from '@/types/whisper-metadata';
++
++describe('ContextAwarePromptBuilder', () => {
++  // ============================================================================
++  // Test Fixtures
++  // ============================================================================
++  
++  const createTestMetadata = (overrides: Partial<WhisperMetadata> = {}): WhisperMetadata => ({
++    duration: 60,
++    totalWords: 200,
++    totalCharacters: 1000,
++    language: 'en',
++    contentType: 'business',
++    contentTypeConfidence: 'high',
++    contentTypeReasons: ['Found 5 business terms'],
++    speakingRate: 'normal',
++    wordsPerMinute: 130,
++    speakingRateCategory: 'normal',
++    fillerDensity: 'moderate',
++    fillerWordCount: 10,
++    fillerWordPercentage: 5.0,
++    fillerWordsByType: {
++      basic: 3,
++      discourse: 4,
++      hedging: 2,
++      starters: 1,
++      repetition: 0,
++    },
++    fillerWordInstances: [],
++    estimatedSentenceCount: 10,
++    averageWordsPerSentence: 20,
++    sentenceLengthVariation: 'consistent',
++    temporal: {
++      totalDuration: 60,
++      speakingDuration: 55,
++      silenceDuration: 5,
++      averagePauseDuration: 300,
++      longestPause: 2,
++      pauseCount: 5,
++    },
++    confidence: {
++      averageConfidence: 0.9,
++      minConfidence: 0.7,
++      maxConfidence: 1.0,
++      lowConfidenceCount: 0,
++      lowConfidenceSegments: [],
++    },
++    keywords: {
++      topKeywords: [
++        { word: 'meeting', count: 5, frequency: 2.5 },
++        { word: 'project', count: 4, frequency: 2.0 },
++        { word: 'budget', count: 3, frequency: 1.5 },
++      ],
++      technicalTerms: [],
++      properNouns: ['John', 'Microsoft'],
++      acronyms: ['ROI', 'KPI'],
++    },
++    segments: [
++      { index: 0, start: 0, end: 30, text: 'First half of the transcript about the quarterly meeting.' },
++      { index: 1, start: 30, end: 60, text: 'Second half discussing budget and project details.' },
++    ],
++    ...overrides,
++  });
++
++  const createTestStrategy = (overrides: Partial<EnhancementStrategy> = {}): EnhancementStrategy => ({
++    fillerRemoval: 'moderate',
++    grammarCorrection: 'balanced',
++    targetFormality: 'professional',
++    restructureSentences: 'minimal',
++    preserveTechnicalTerms: false,
++    preserveAcronyms: true,
++    preserveProperNouns: true,
++    preserveSpeakerVoices: false,
++    maintainQuestionAnswerFormat: false,
++    flagLowConfidenceSegments: false,
++    conservativeOnLowConfidence: false,
++    ...overrides,
++  });
++
++  // ============================================================================
++  // buildContextAwarePrompt Tests
++  // ============================================================================
++  
++  describe('buildContextAwarePrompt', () => {
++    test('should build a complete prompt with all sections', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata(),
++        strategy: createTestStrategy(),
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      
++      // Should include key sections
++      expect(prompt).toContain('TRANSCRIPT CONTEXT');
++      expect(prompt).toContain('ENHANCEMENT INSTRUCTIONS');
++      expect(prompt).toContain('STYLE GUIDELINES');
++      expect(prompt).toContain('ORIGINAL TRANSCRIPT');
++      expect(prompt).toContain('ENHANCED TRANSCRIPT');
++    });
++    
++    test('should include content type in context section', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata({ contentType: 'business' }),
++        strategy: createTestStrategy(),
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      
++      expect(prompt).toContain('BUSINESS MEETING');
++    });
++    
++    test('should include filler density information', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata({ fillerWordPercentage: 7.5 }),
++        strategy: createTestStrategy(),
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      
++      expect(prompt).toContain('7.5%');
++    });
++    
++    test('should include speaking rate', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata({ wordsPerMinute: 150 }),
++        strategy: createTestStrategy(),
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      
++      expect(prompt).toContain('150 words/minute');
++    });
++    
++    test('should include transcript text from segments', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata(),
++        strategy: createTestStrategy(),
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      
++      expect(prompt).toContain('quarterly meeting');
++      expect(prompt).toContain('budget and project');
++    });
++    
++    test('should include appropriate filler removal instructions', () => {
++      const aggressiveConfig: PromptConfiguration = {
++        metadata: createTestMetadata(),
++        strategy: createTestStrategy({ fillerRemoval: 'aggressive' }),
++      };
++      
++      const aggressivePrompt = buildContextAwarePrompt(aggressiveConfig);
++      expect(aggressivePrompt).toContain('REMOVE ALL');
++      
++      const minimalConfig: PromptConfiguration = {
++        metadata: createTestMetadata(),
++        strategy: createTestStrategy({ fillerRemoval: 'minimal' }),
++      };
++      
++      const minimalPrompt = buildContextAwarePrompt(minimalConfig);
++      expect(minimalPrompt).toContain('ONLY REMOVE');
++    });
++    
++    test('should include preservation rules in system prompt', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata({
++          keywords: {
++            topKeywords: [],
++            technicalTerms: ['API', 'database'],
++            properNouns: ['John'],
++            acronyms: ['API', 'SDK', 'REST', 'HTTP'],
++          },
++        }),
++        strategy: createTestStrategy({
++          preserveTechnicalTerms: true,
++          preserveAcronyms: true,
++          preserveProperNouns: true,
++        }),
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      
++      expect(prompt).toContain('Technical terminology');
++      expect(prompt).toContain('Acronyms');
++      expect(prompt).toContain('Proper nouns');
++    });
++    
++    test('should include custom instructions when provided', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata(),
++        strategy: createTestStrategy(),
++        customInstructions: 'Please keep all project code names unchanged.',
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      
++      expect(prompt).toContain('CUSTOM INSTRUCTIONS');
++      expect(prompt).toContain('project code names');
++    });
++    
++    test('should include examples when provided', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata(),
++        strategy: createTestStrategy(),
++        examples: [
++          {
++            before: 'Um, so basically',
++            after: 'So',
++            explanation: 'Removed filler words',
++          },
++        ],
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      
++      expect(prompt).toContain('EXAMPLES');
++      expect(prompt).toContain('Um, so basically');
++      expect(prompt).toContain('Removed filler words');
++    });
++    
++    test('should include default examples based on content type', () => {
++      const businessConfig: PromptConfiguration = {
++        metadata: createTestMetadata({ contentType: 'business' }),
++        strategy: createTestStrategy(),
++      };
++      
++      const businessPrompt = buildContextAwarePrompt(businessConfig);
++      expect(businessPrompt).toContain('EXAMPLES');
++      
++      const technicalConfig: PromptConfiguration = {
++        metadata: createTestMetadata({ contentType: 'technical' }),
++        strategy: createTestStrategy(),
++      };
++      
++      const technicalPrompt = buildContextAwarePrompt(technicalConfig);
++      expect(technicalPrompt).toContain('EXAMPLES');
++    });
++    
++    test('should handle different content types with appropriate style guidance', () => {
++      const contentTypes: Array<{ type: WhisperMetadata['contentType']; expectedText: string }> = [
++        { type: 'business', expectedText: 'BUSINESS content' },
++        { type: 'technical', expectedText: 'TECHNICAL content' },
++        { type: 'casual', expectedText: 'CASUAL content' },
++        { type: 'interview', expectedText: 'INTERVIEW content' },
++        { type: 'lecture', expectedText: 'LECTURE content' },
++      ];
++      
++      for (const { type, expectedText } of contentTypes) {
++        const config: PromptConfiguration = {
++          metadata: createTestMetadata({ contentType: type }),
++          strategy: createTestStrategy(),
++        };
++        
++        const prompt = buildContextAwarePrompt(config);
++        expect(prompt).toContain(expectedText);
++      }
++    });
++    
++    test('should include special considerations for fast speaking', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata({ speakingRateCategory: 'fast' }),
++        strategy: createTestStrategy(),
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      
++      expect(prompt).toContain('Fast speaking pace');
++    });
++    
++    test('should include special considerations for high filler density', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata({ fillerDensity: 'very_high' }),
++        strategy: createTestStrategy(),
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      
++      expect(prompt).toContain('Very high filler density');
++    });
++    
++    test('should include key topics', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata(),
++        strategy: createTestStrategy(),
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      
++      expect(prompt).toContain('Key topics');
++      expect(prompt).toContain('meeting');
++    });
++    
++    test('should include proper nouns to preserve', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata({
++          keywords: {
++            topKeywords: [],
++            technicalTerms: [],
++            properNouns: ['John', 'Microsoft', 'Project Alpha'],
++            acronyms: [],
++          },
++        }),
++        strategy: createTestStrategy({ preserveProperNouns: true }),
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      
++      expect(prompt).toContain('Preserve names');
++      expect(prompt).toContain('John');
++    });
++  });
++
++  // ============================================================================
++  // buildSimplePrompt Tests
++  // ============================================================================
++  
++  describe('buildSimplePrompt', () => {
++    test('should build a simple fallback prompt', () => {
++      const transcript = 'Um so like basically the meeting went well.';
++      const prompt = buildSimplePrompt(transcript);
++      
++      expect(prompt).toContain('professional transcript editor');
++      expect(prompt).toContain('ORIGINAL TRANSCRIPT');
++      expect(prompt).toContain(transcript);
++      expect(prompt).toContain('ENHANCED TRANSCRIPT');
++    });
++    
++    test('should include filler word removal instructions', () => {
++      const prompt = buildSimplePrompt('Test transcript');
++      
++      expect(prompt).toContain('Remove filler words');
++      expect(prompt).toContain('um');
++      expect(prompt).toContain('uh');
++      expect(prompt).toContain('like');
++    });
++    
++    test('should include grammar instructions', () => {
++      const prompt = buildSimplePrompt('Test transcript');
++      
++      expect(prompt).toContain('Fix grammar');
++      expect(prompt).toContain('punctuation');
++    });
++    
++    test('should include preservation instructions', () => {
++      const prompt = buildSimplePrompt('Test transcript');
++      
++      expect(prompt).toContain('Do NOT add new information');
++      expect(prompt).toContain('Do NOT change numbers');
++    });
++  });
++
++  // ============================================================================
++  // getPromptStats Tests
++  // ============================================================================
++  
++  describe('getPromptStats', () => {
++    test('should return prompt statistics', () => {
++      const prompt = 'This is a test prompt with some content.';
++      const stats = getPromptStats(prompt);
++      
++      expect(stats.totalLength).toBe(prompt.length);
++      expect(stats.estimatedTokens).toBeGreaterThan(0);
++      expect(stats.sections).toBeInstanceOf(Array);
++    });
++    
++    test('should identify sections in prompt', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata(),
++        strategy: createTestStrategy(),
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      const stats = getPromptStats(prompt);
++      
++      expect(stats.sections).toContain('TRANSCRIPT CONTEXT');
++      expect(stats.sections).toContain('ENHANCEMENT INSTRUCTIONS');
++      expect(stats.sections).toContain('STYLE GUIDELINES');
++      expect(stats.sections).toContain('ORIGINAL TRANSCRIPT');
++      expect(stats.sections).toContain('ENHANCED TRANSCRIPT');
++    });
++    
++    test('should estimate tokens correctly', () => {
++      const shortPrompt = 'Short text.';
++      const longPrompt = 'A'.repeat(400); // ~100 tokens
++      
++      const shortStats = getPromptStats(shortPrompt);
++      const longStats = getPromptStats(longPrompt);
++      
++      expect(longStats.estimatedTokens).toBeGreaterThan(shortStats.estimatedTokens);
++    });
++  });
++
++  // ============================================================================
++  // Integration Tests
++  // ============================================================================
++  
++  describe('Prompt Integration', () => {
++    test('should produce coherent prompt for business meeting', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata({
++          contentType: 'business',
++          contentTypeConfidence: 'high',
++          fillerDensity: 'high',
++          segments: [
++            { index: 0, start: 0, end: 60, text: 'Um so basically the quarterly results show that revenue increased by 15 percent compared to last quarter.' },
++          ],
++        }),
++        strategy: createTestStrategy({
++          fillerRemoval: 'aggressive',
++          grammarCorrection: 'strict',
++          targetFormality: 'professional',
++        }),
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      
++      // Verify key elements are present
++      expect(prompt).toContain('BUSINESS MEETING');
++      expect(prompt).toContain('REMOVE ALL');
++      expect(prompt).toContain('professional');
++      expect(prompt).toContain('quarterly results');
++    });
++    
++    test('should produce coherent prompt for technical discussion', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata({
++          contentType: 'technical',
++          contentTypeConfidence: 'high',
++          keywords: {
++            topKeywords: [{ word: 'api', count: 5, frequency: 2.5 }],
++            technicalTerms: ['API', 'database', 'server'],
++            properNouns: [],
++            acronyms: ['API', 'REST', 'JSON'],
++          },
++          segments: [
++            { index: 0, start: 0, end: 60, text: 'The API endpoint is returning a 404 error when we POST JSON data to the server.' },
++          ],
++        }),
++        strategy: createTestStrategy({
++          preserveTechnicalTerms: true,
++          preserveAcronyms: true,
++          grammarCorrection: 'balanced',
++        }),
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      
++      expect(prompt).toContain('TECHNICAL');
++      expect(prompt).toContain('technical term');
++      expect(prompt).toContain('API');
++    });
++    
++    test('should produce coherent prompt for casual conversation', () => {
++      const config: PromptConfiguration = {
++        metadata: createTestMetadata({
++          contentType: 'casual',
++          contentTypeConfidence: 'high',
++          fillerDensity: 'high',
++          segments: [
++            { index: 0, start: 0, end: 60, text: 'Yeah so like we were gonna hang out at the park but then it started raining.' },
++          ],
++        }),
++        strategy: createTestStrategy({
++          fillerRemoval: 'light',
++          grammarCorrection: 'conservative',
++          targetFormality: 'casual',
++        }),
++      };
++      
++      const prompt = buildContextAwarePrompt(config);
++      
++      expect(prompt).toContain('CASUAL');
++      expect(prompt).toContain('REMOVE repetitive fillers'); // Light removal
++      expect(prompt).toContain('friendly, natural tone');
++    });
++  });
++});
++
+diff --git a/__tests__/unit/enhancement-types.test.ts b/__tests__/unit/enhancement-types.test.ts
+index 06b3e10..18f79bd 100644
+--- a/__tests__/unit/enhancement-types.test.ts
++++ b/__tests__/unit/enhancement-types.test.ts
+@@ -148,3 +148,5 @@ describe('Enhancement Types', () => {
+   });
+ });
+ 
++
++
+diff --git a/__tests__/unit/enhancementStrategyGenerator.test.ts b/__tests__/unit/enhancementStrategyGenerator.test.ts
+new file mode 100644
+index 0000000..8bb9cc5
+--- /dev/null
++++ b/__tests__/unit/enhancementStrategyGenerator.test.ts
+@@ -0,0 +1,479 @@
++/**
++ * Tests for Enhancement Strategy Generator
++ */
++
++import {
++  generateEnhancementStrategy,
++  determineFillerRemovalIntensity,
++  determineGrammarCorrectionLevel,
++  determineTargetFormality,
++  determineRestructuringLevel,
++  shouldPreserveTechnicalTerms,
++  explainStrategy,
++  getStrategySummary,
++} from '@/utils/enhancementStrategyGenerator';
++import type { WhisperMetadata, EnhancementStrategy } from '@/types/whisper-metadata';
++
++describe('EnhancementStrategyGenerator', () => {
++  // ============================================================================
++  // Test Metadata Factories
++  // ============================================================================
++  
++  const createBaseMetadata = (overrides: Partial<WhisperMetadata> = {}): WhisperMetadata => ({
++    duration: 60,
++    totalWords: 200,
++    totalCharacters: 1000,
++    language: 'en',
++    contentType: 'unknown',
++    contentTypeConfidence: 'medium',
++    contentTypeReasons: [],
++    speakingRate: 'normal',
++    wordsPerMinute: 130,
++    speakingRateCategory: 'normal',
++    fillerDensity: 'moderate',
++    fillerWordCount: 10,
++    fillerWordPercentage: 5,
++    fillerWordsByType: {
++      basic: 3,
++      discourse: 4,
++      hedging: 2,
++      starters: 1,
++      repetition: 0,
++    },
++    fillerWordInstances: [],
++    estimatedSentenceCount: 10,
++    averageWordsPerSentence: 20,
++    sentenceLengthVariation: 'consistent',
++    temporal: {
++      totalDuration: 60,
++      speakingDuration: 55,
++      silenceDuration: 5,
++      averagePauseDuration: 300,
++      longestPause: 2,
++      pauseCount: 5,
++    },
++    confidence: {
++      averageConfidence: 0.9,
++      minConfidence: 0.7,
++      maxConfidence: 1.0,
++      lowConfidenceCount: 0,
++      lowConfidenceSegments: [],
++    },
++    keywords: {
++      topKeywords: [{ word: 'test', count: 5, frequency: 2.5 }],
++      technicalTerms: [],
++      properNouns: ['John'],
++      acronyms: [],
++    },
++    segments: [],
++    ...overrides,
++  });
++
++  // ============================================================================
++  // generateEnhancementStrategy Tests
++  // ============================================================================
++  
++  describe('generateEnhancementStrategy', () => {
++    test('should generate a complete strategy object', () => {
++      const metadata = createBaseMetadata();
++      const strategy = generateEnhancementStrategy(metadata);
++      
++      expect(strategy.fillerRemoval).toBeDefined();
++      expect(strategy.grammarCorrection).toBeDefined();
++      expect(strategy.targetFormality).toBeDefined();
++      expect(strategy.restructureSentences).toBeDefined();
++      expect(strategy.preserveTechnicalTerms).toBeDefined();
++      expect(strategy.preserveAcronyms).toBeDefined();
++      expect(strategy.preserveProperNouns).toBeDefined();
++      expect(strategy.preserveSpeakerVoices).toBeDefined();
++      expect(strategy.maintainQuestionAnswerFormat).toBeDefined();
++      expect(strategy.flagLowConfidenceSegments).toBeDefined();
++      expect(strategy.conservativeOnLowConfidence).toBeDefined();
++    });
++    
++    test('should generate appropriate strategy for business content', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'business',
++        contentTypeConfidence: 'high',
++        fillerDensity: 'high',
++      });
++      
++      const strategy = generateEnhancementStrategy(metadata);
++      
++      expect(strategy.targetFormality).toBe('professional');
++      expect(['aggressive', 'moderate']).toContain(strategy.fillerRemoval);
++      expect(strategy.grammarCorrection).toBe('strict');
++    });
++    
++    test('should generate appropriate strategy for technical content', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'technical',
++        contentTypeConfidence: 'high',
++        keywords: {
++          topKeywords: [],
++          technicalTerms: ['API', 'database', 'function'],
++          properNouns: [],
++          acronyms: ['API', 'SDK', 'REST', 'HTTP'], // Need >3 acronyms for preserveAcronyms
++        },
++      });
++      
++      const strategy = generateEnhancementStrategy(metadata);
++      
++      expect(strategy.preserveTechnicalTerms).toBe(true);
++      expect(strategy.preserveAcronyms).toBe(true);
++      expect(strategy.grammarCorrection).toBe('balanced');
++    });
++    
++    test('should generate appropriate strategy for casual content', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'casual',
++        contentTypeConfidence: 'high',
++        fillerDensity: 'high',
++      });
++      
++      const strategy = generateEnhancementStrategy(metadata);
++      
++      expect(strategy.targetFormality).toBe('casual');
++      expect(strategy.fillerRemoval).toBe('light');
++      expect(strategy.grammarCorrection).toBe('conservative');
++    });
++    
++    test('should generate appropriate strategy for interview content', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'interview',
++        contentTypeConfidence: 'high',
++      });
++      
++      const strategy = generateEnhancementStrategy(metadata);
++      
++      expect(strategy.maintainQuestionAnswerFormat).toBe(true);
++      expect(strategy.targetFormality).toBe('professional');
++    });
++    
++    test('should generate appropriate strategy for lecture content', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'lecture',
++        contentTypeConfidence: 'high',
++        fillerDensity: 'high',
++      });
++      
++      const strategy = generateEnhancementStrategy(metadata);
++      
++      expect(strategy.targetFormality).toBe('formal');
++      expect(strategy.grammarCorrection).toBe('strict');
++      expect(['aggressive', 'moderate']).toContain(strategy.fillerRemoval);
++    });
++    
++    test('should preserve speaker voices for multiple speakers', () => {
++      const metadata = createBaseMetadata({
++        speakerCount: 3,
++      });
++      
++      const strategy = generateEnhancementStrategy(metadata);
++      
++      expect(strategy.preserveSpeakerVoices).toBe(true);
++    });
++    
++    test('should handle low confidence appropriately', () => {
++      const metadata = createBaseMetadata({
++        confidence: {
++          averageConfidence: 0.6,
++          minConfidence: 0.4,
++          maxConfidence: 0.8,
++          lowConfidenceCount: 5,
++          lowConfidenceSegments: [
++            { index: 0, confidence: 0.5, text: 'test', start: 0, end: 1 },
++          ],
++        },
++      });
++      
++      const strategy = generateEnhancementStrategy(metadata);
++      
++      expect(strategy.flagLowConfidenceSegments).toBe(true);
++      expect(strategy.conservativeOnLowConfidence).toBe(true);
++    });
++  });
++
++  // ============================================================================
++  // determineFillerRemovalIntensity Tests
++  // ============================================================================
++  
++  describe('determineFillerRemovalIntensity', () => {
++    test('should be aggressive for business with high fillers', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'business',
++        fillerDensity: 'very_high',
++      });
++      
++      expect(determineFillerRemovalIntensity(metadata)).toBe('aggressive');
++    });
++    
++    test('should be moderate for business with moderate fillers', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'business',
++        fillerDensity: 'moderate',
++      });
++      
++      expect(determineFillerRemovalIntensity(metadata)).toBe('moderate');
++    });
++    
++    test('should be light for casual content', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'casual',
++        fillerDensity: 'high',
++      });
++      
++      expect(determineFillerRemovalIntensity(metadata)).toBe('light');
++    });
++    
++    test('should be minimal for casual with low fillers', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'casual',
++        fillerDensity: 'low',
++      });
++      
++      expect(determineFillerRemovalIntensity(metadata)).toBe('minimal');
++    });
++    
++    test('should handle unknown content type', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'unknown',
++        fillerDensity: 'very_high',
++      });
++      
++      expect(determineFillerRemovalIntensity(metadata)).toBe('aggressive');
++    });
++  });
++
++  // ============================================================================
++  // determineGrammarCorrectionLevel Tests
++  // ============================================================================
++  
++  describe('determineGrammarCorrectionLevel', () => {
++    test('should be strict for business content', () => {
++      const metadata = createBaseMetadata({ contentType: 'business' });
++      expect(determineGrammarCorrectionLevel(metadata)).toBe('strict');
++    });
++    
++    test('should be strict for lecture content', () => {
++      const metadata = createBaseMetadata({ contentType: 'lecture' });
++      expect(determineGrammarCorrectionLevel(metadata)).toBe('strict');
++    });
++    
++    test('should be balanced for technical content', () => {
++      const metadata = createBaseMetadata({ contentType: 'technical' });
++      expect(determineGrammarCorrectionLevel(metadata)).toBe('balanced');
++    });
++    
++    test('should be conservative for casual content', () => {
++      const metadata = createBaseMetadata({ contentType: 'casual' });
++      expect(determineGrammarCorrectionLevel(metadata)).toBe('conservative');
++    });
++    
++    test('should be balanced for fast speaking', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'unknown',
++        speakingRateCategory: 'fast',
++      });
++      expect(determineGrammarCorrectionLevel(metadata)).toBe('balanced');
++    });
++  });
++
++  // ============================================================================
++  // determineTargetFormality Tests
++  // ============================================================================
++  
++  describe('determineTargetFormality', () => {
++    test('should return professional for business', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'business',
++        contentTypeConfidence: 'high',
++      });
++      expect(determineTargetFormality(metadata)).toBe('professional');
++    });
++    
++    test('should return formal for lecture', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'lecture',
++        contentTypeConfidence: 'high',
++      });
++      expect(determineTargetFormality(metadata)).toBe('formal');
++    });
++    
++    test('should return casual for casual content', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'casual',
++        contentTypeConfidence: 'high',
++      });
++      expect(determineTargetFormality(metadata)).toBe('casual');
++    });
++    
++    test('should return conversational for low confidence', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'business',
++        contentTypeConfidence: 'low',
++      });
++      expect(determineTargetFormality(metadata)).toBe('conversational');
++    });
++  });
++
++  // ============================================================================
++  // determineRestructuringLevel Tests
++  // ============================================================================
++  
++  describe('determineRestructuringLevel', () => {
++    test('should be extensive for very long sentences', () => {
++      const metadata = createBaseMetadata({
++        averageWordsPerSentence: 40,
++      });
++      expect(determineRestructuringLevel(metadata)).toBe('extensive');
++    });
++    
++    test('should be moderate for fast speakers with varied sentences', () => {
++      const metadata = createBaseMetadata({
++        speakingRateCategory: 'fast',
++        sentenceLengthVariation: 'varied',
++      });
++      expect(determineRestructuringLevel(metadata)).toBe('moderate');
++    });
++    
++    test('should be minimal for normal content', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'casual',
++        averageWordsPerSentence: 15,
++        speakingRateCategory: 'normal',
++      });
++      expect(determineRestructuringLevel(metadata)).toBe('minimal');
++    });
++    
++    test('should be moderate for business with long sentences', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'business',
++        averageWordsPerSentence: 28,
++      });
++      expect(determineRestructuringLevel(metadata)).toBe('moderate');
++    });
++  });
++
++  // ============================================================================
++  // shouldPreserveTechnicalTerms Tests
++  // ============================================================================
++  
++  describe('shouldPreserveTechnicalTerms', () => {
++    test('should return true for technical content', () => {
++      const metadata = createBaseMetadata({ contentType: 'technical' });
++      expect(shouldPreserveTechnicalTerms(metadata)).toBe(true);
++    });
++    
++    test('should return true when technical terms present', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'business',
++        keywords: {
++          topKeywords: [],
++          technicalTerms: ['API', 'database'],
++          properNouns: [],
++          acronyms: [],
++        },
++      });
++      expect(shouldPreserveTechnicalTerms(metadata)).toBe(true);
++    });
++    
++    test('should return true when many acronyms present', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'business',
++        keywords: {
++          topKeywords: [],
++          technicalTerms: [],
++          properNouns: [],
++          acronyms: ['API', 'SDK', 'REST', 'HTTP', 'JSON', 'XML'],
++        },
++      });
++      expect(shouldPreserveTechnicalTerms(metadata)).toBe(true);
++    });
++    
++    test('should return false for casual without technical content', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'casual',
++        keywords: {
++          topKeywords: [],
++          technicalTerms: [],
++          properNouns: [],
++          acronyms: [],
++        },
++      });
++      expect(shouldPreserveTechnicalTerms(metadata)).toBe(false);
++    });
++  });
++
++  // ============================================================================
++  // explainStrategy Tests
++  // ============================================================================
++  
++  describe('explainStrategy', () => {
++    test('should generate readable explanation', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'business',
++        contentTypeConfidence: 'high',
++      });
++      const strategy = generateEnhancementStrategy(metadata);
++      const explanation = explainStrategy(strategy, metadata);
++      
++      expect(typeof explanation).toBe('string');
++      expect(explanation.length).toBeGreaterThan(0);
++      expect(explanation).toContain('Content Type: BUSINESS');
++    });
++    
++    test('should include special handling indicators', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'technical',
++        contentTypeConfidence: 'high',
++        speakerCount: 2,
++        keywords: {
++          topKeywords: [],
++          technicalTerms: ['API'],
++          properNouns: [],
++          acronyms: ['API', 'SDK', 'REST', 'HTTP'],
++        },
++      });
++      const strategy = generateEnhancementStrategy(metadata);
++      const explanation = explainStrategy(strategy, metadata);
++      
++      expect(explanation).toContain('technical terminology');
++      expect(explanation).toContain('acronyms');
++    });
++  });
++
++  // ============================================================================
++  // getStrategySummary Tests
++  // ============================================================================
++  
++  describe('getStrategySummary', () => {
++    test('should return formatted summary object', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'business',
++        contentTypeConfidence: 'high',
++      });
++      const strategy = generateEnhancementStrategy(metadata);
++      const summary = getStrategySummary(strategy, metadata);
++      
++      expect(summary.contentType).toBeDefined();
++      expect(summary.fillerHandling).toBeDefined();
++      expect(summary.formality).toBeDefined();
++      expect(summary.specialFeatures).toBeInstanceOf(Array);
++    });
++    
++    test('should include special features when applicable', () => {
++      const metadata = createBaseMetadata({
++        contentType: 'interview',
++        contentTypeConfidence: 'high',
++        speakerCount: 2,
++      });
++      const strategy = generateEnhancementStrategy(metadata);
++      const summary = getStrategySummary(strategy, metadata);
++      
++      expect(summary.specialFeatures).toContain('Preserves Q&A structure');
++      expect(summary.specialFeatures.some(f => f.includes('speaker'))).toBe(true);
++    });
++  });
++});
++
+diff --git a/__tests__/unit/useHardwareCapabilities.test.ts b/__tests__/unit/useHardwareCapabilities.test.ts
+index 7c887c1..feffc9a 100644
+--- a/__tests__/unit/useHardwareCapabilities.test.ts
++++ b/__tests__/unit/useHardwareCapabilities.test.ts
+@@ -208,3 +208,5 @@ describe('useHardwareCapabilities', () => {
+   });
+ });
+ 
++
++
+diff --git a/__tests__/unit/whisperMetadataExtractor.test.ts b/__tests__/unit/whisperMetadataExtractor.test.ts
+new file mode 100644
+index 0000000..f1de866
+--- /dev/null
++++ b/__tests__/unit/whisperMetadataExtractor.test.ts
+@@ -0,0 +1,413 @@
++/**
++ * Tests for Whisper Metadata Extractor
++ */
++
++import {
++  extractWhisperMetadata,
++  countWords,
++  analyzeFillerWords,
++  detectContentType,
++  analyzeSpeakingRate,
++  analyzeConfidence,
++  analyzeTemporalPatterns,
++  extractKeywords,
++  analyzeSentences,
++} from '@/utils/whisperMetadataExtractor';
++import type { TranscriptionResult } from '@/contexts/TranscriberContext';
++
++describe('WhisperMetadataExtractor', () => {
++  // ============================================================================
++  // Test Data
++  // ============================================================================
++  
++  const businessTranscript: TranscriptionResult = {
++    text: 'So um basically we need to look at the quarterly results. The revenue was um pretty good. Client satisfaction is up by 15 percent. I think we should schedule another meeting to discuss the budget and strategy.',
++    chunks: [
++      { text: 'So um basically we need to look at the quarterly results.', timestamp: [0, 4] },
++      { text: 'The revenue was um pretty good.', timestamp: [4, 7] },
++      { text: 'Client satisfaction is up by 15 percent.', timestamp: [7, 11] },
++      { text: 'I think we should schedule another meeting to discuss the budget and strategy.', timestamp: [11, 17] },
++    ],
++  };
++  
++  const technicalTranscript: TranscriptionResult = {
++    text: 'So the API endpoint is returning a 404 error when we POST the data. We need to debug the server code and check the database connection. The function should handle the exception properly.',
++    chunks: [
++      { text: 'So the API endpoint is returning a 404 error when we POST the data.', timestamp: [0, 5] },
++      { text: 'We need to debug the server code and check the database connection.', timestamp: [5, 10] },
++      { text: 'The function should handle the exception properly.', timestamp: [10, 14] },
++    ],
++  };
++  
++  const casualTranscript: TranscriptionResult = {
++    text: 'So like we were just hanging out at the park and it was like really cool. Yeah gonna grab some food later, wanna come?',
++    chunks: [
++      { text: 'So like we were just hanging out at the park and it was like really cool.', timestamp: [0, 5] },
++      { text: 'Yeah gonna grab some food later, wanna come?', timestamp: [5, 8] },
++    ],
++  };
++  
++  const highFillerTranscript: TranscriptionResult = {
++    text: 'Um so like basically you know I mean we should um actually like you know consider this um option basically.',
++    chunks: [
++      { text: 'Um so like basically you know I mean we should um actually like you know consider this um option basically.', timestamp: [0, 8] },
++    ],
++  };
++
++  // ============================================================================
++  // Basic Extraction Tests
++  // ============================================================================
++  
++  describe('extractWhisperMetadata', () => {
++    test('should extract basic metrics correctly', () => {
++      const metadata = extractWhisperMetadata(businessTranscript, 17);
++      
++      expect(metadata.duration).toBe(17);
++      expect(metadata.totalWords).toBeGreaterThan(0);
++      expect(metadata.totalCharacters).toBeGreaterThan(0);
++      expect(metadata.language).toBe('en');
++    });
++    
++    test('should include all required properties', () => {
++      const metadata = extractWhisperMetadata(businessTranscript, 17);
++      
++      // Content classification
++      expect(metadata.contentType).toBeDefined();
++      expect(metadata.contentTypeConfidence).toBeDefined();
++      expect(metadata.contentTypeReasons).toBeInstanceOf(Array);
++      
++      // Speaking characteristics
++      expect(metadata.speakingRate).toBeDefined();
++      expect(metadata.wordsPerMinute).toBeDefined();
++      expect(metadata.speakingRateCategory).toBeDefined();
++      
++      // Filler analysis
++      expect(metadata.fillerDensity).toBeDefined();
++      expect(metadata.fillerWordCount).toBeDefined();
++      expect(metadata.fillerWordPercentage).toBeDefined();
++      expect(metadata.fillerWordsByType).toBeDefined();
++      expect(metadata.fillerWordInstances).toBeInstanceOf(Array);
++      
++      // Sentence analysis
++      expect(metadata.estimatedSentenceCount).toBeDefined();
++      expect(metadata.averageWordsPerSentence).toBeDefined();
++      expect(metadata.sentenceLengthVariation).toBeDefined();
++      
++      // Temporal analysis
++      expect(metadata.temporal).toBeDefined();
++      expect(metadata.temporal.totalDuration).toBeDefined();
++      
++      // Confidence
++      expect(metadata.confidence).toBeDefined();
++      expect(metadata.confidence.averageConfidence).toBeDefined();
++      
++      // Keywords
++      expect(metadata.keywords).toBeDefined();
++      expect(metadata.keywords.topKeywords).toBeInstanceOf(Array);
++      
++      // Segments
++      expect(metadata.segments).toBeInstanceOf(Array);
++      expect(metadata.segments.length).toBe(businessTranscript.chunks?.length);
++    });
++    
++    test('should handle empty transcript', () => {
++      const emptyTranscript: TranscriptionResult = {
++        text: '',
++        chunks: [],
++      };
++      
++      const metadata = extractWhisperMetadata(emptyTranscript, 0);
++      
++      expect(metadata.totalWords).toBe(0);
++      expect(metadata.duration).toBe(0);
++      expect(metadata.fillerWordCount).toBe(0);
++    });
++    
++    test('should estimate duration from chunks if not provided', () => {
++      const metadata = extractWhisperMetadata(businessTranscript);
++      
++      expect(metadata.duration).toBeGreaterThan(0);
++    });
++  });
++
++  // ============================================================================
++  // Helper Function Tests
++  // ============================================================================
++  
++  describe('countWords', () => {
++    test('should count words correctly', () => {
++      expect(countWords('Hello world')).toBe(2);
++      expect(countWords('One two three four five')).toBe(5);
++      expect(countWords('')).toBe(0);
++      expect(countWords('   ')).toBe(0);
++      expect(countWords('  multiple   spaces  ')).toBe(2);
++    });
++  });
++
++  describe('analyzeFillerWords', () => {
++    test('should detect basic fillers', () => {
++      const result = analyzeFillerWords('Um so like basically you know', 5);
++      
++      expect(result.count).toBeGreaterThan(0);
++      expect(result.byType.basic).toBeGreaterThan(0); // 'um'
++      expect(result.byType.discourse).toBeGreaterThan(0); // 'like', 'you know'
++    });
++    
++    test('should calculate correct density categories', () => {
++      // Very high filler density (>8%)
++      const veryHigh = analyzeFillerWords('Um um uh um like um', 6);
++      expect(veryHigh.density).toBe('very_high');
++      
++      // Low filler density (<2%)
++      const low = analyzeFillerWords('This is a normal sentence without many fillers and it continues with proper grammar', 15);
++      expect(['low', 'very_low']).toContain(low.density);
++    });
++    
++    test('should track filler word instances with positions', () => {
++      const result = analyzeFillerWords('Hello um world', 3);
++      
++      expect(result.instances.length).toBeGreaterThan(0);
++      expect(result.instances[0].word).toBeDefined();
++      expect(result.instances[0].position).toBeDefined();
++      expect(result.instances[0].category).toBeDefined();
++    });
++  });
++
++  describe('detectContentType', () => {
++    test('should detect business content', () => {
++      const result = detectContentType(
++        'We need to discuss the quarterly revenue, client budget, and sales strategy for the meeting.',
++        { density: 'low' }
++      );
++      
++      expect(result.type).toBe('business');
++      expect(result.reasons.length).toBeGreaterThan(0);
++    });
++    
++    test('should detect technical content', () => {
++      const result = detectContentType(
++        'The API endpoint needs debugging. Check the server code, database connection, and error handling.',
++        { density: 'low' }
++      );
++      
++      expect(result.type).toBe('technical');
++    });
++    
++    test('should detect casual content', () => {
++      const result = detectContentType(
++        'Hey dude, gonna hang out later? It would be cool and awesome to chill.',
++        { density: 'very_high' }
++      );
++      
++      expect(result.type).toBe('casual');
++    });
++    
++    test('should detect lecture content', () => {
++      const result = detectContentType(
++        'Today we will learn about the key concept. First, remember that this principle is important to understand. For example, let me explain the main idea.',
++        { density: 'low' }
++      );
++      
++      expect(result.type).toBe('lecture');
++    });
++    
++    test('should return unknown for ambiguous content', () => {
++      const result = detectContentType(
++        'Hello there.',
++        { density: 'low' }
++      );
++      
++      expect(result.type).toBe('unknown');
++      expect(result.confidence).toBe('low');
++    });
++    
++    test('should provide confidence levels', () => {
++      // High confidence
++      const highConf = detectContentType(
++        'We have a meeting about quarterly revenue, client budget, sales forecast, stakeholder ROI, and strategy proposals.',
++        { density: 'low' }
++      );
++      expect(highConf.confidence).toBe('high');
++      
++      // Low confidence
++      const lowConf = detectContentType(
++        'Something happened.',
++        { density: 'low' }
++      );
++      expect(lowConf.confidence).toBe('low');
++    });
++  });
++
++  describe('analyzeSpeakingRate', () => {
++    test('should categorize speaking rates correctly', () => {
++      // Very fast (180+ WPM)
++      expect(analyzeSpeakingRate(200, 60).category).toBe('very_fast');
++      expect(analyzeSpeakingRate(200, 60).simplifiedCategory).toBe('fast');
++      
++      // Fast (150-180 WPM)
++      expect(analyzeSpeakingRate(160, 60).category).toBe('fast');
++      
++      // Normal (120-150 WPM)
++      expect(analyzeSpeakingRate(135, 60).category).toBe('normal');
++      expect(analyzeSpeakingRate(135, 60).simplifiedCategory).toBe('normal');
++      
++      // Slow (90-120 WPM)
++      expect(analyzeSpeakingRate(100, 60).category).toBe('slow');
++      
++      // Very slow (<90 WPM)
++      expect(analyzeSpeakingRate(80, 60).category).toBe('very_slow');
++      expect(analyzeSpeakingRate(80, 60).simplifiedCategory).toBe('slow');
++    });
++    
++    test('should handle edge cases', () => {
++      expect(analyzeSpeakingRate(0, 60).wpm).toBe(0);
++      expect(analyzeSpeakingRate(100, 0).wpm).toBe(0);
++    });
++  });
++
++  describe('analyzeConfidence', () => {
++    test('should return defaults when no confidence data available', () => {
++      const result = analyzeConfidence([
++        { text: 'Hello', timestamp: [0, 1] },
++      ]);
++      
++      expect(result.averageConfidence).toBe(1.0);
++      expect(result.lowConfidenceCount).toBe(0);
++      expect(result.lowConfidenceSegments).toHaveLength(0);
++    });
++    
++    test('should handle empty chunks', () => {
++      const result = analyzeConfidence([]);
++      
++      expect(result.averageConfidence).toBe(1.0);
++    });
++  });
++
++  describe('analyzeTemporalPatterns', () => {
++    test('should calculate timing metrics from chunks', () => {
++      const chunks = [
++        { text: 'First sentence', timestamp: [0, 3] as [number, number | null] },
++        { text: 'Second sentence', timestamp: [4, 7] as [number, number | null] }, // 1s pause
++        { text: 'Third sentence', timestamp: [7.5, 10] as [number, number | null] }, // 0.5s pause
++      ];
++      
++      const result = analyzeTemporalPatterns(chunks, 10);
++      
++      expect(result.totalDuration).toBe(10);
++      expect(result.pauseCount).toBeGreaterThanOrEqual(0);
++    });
++    
++    test('should handle empty chunks', () => {
++      const result = analyzeTemporalPatterns([], 10);
++      
++      expect(result.totalDuration).toBe(10);
++      expect(result.speakingDuration).toBe(10);
++      expect(result.pauseCount).toBe(0);
++    });
++  });
++
++  describe('extractKeywords', () => {
++    test('should extract top keywords', () => {
++      const result = extractKeywords(
++        'The meeting was about revenue. Revenue is important. The company revenue grew.',
++        10
++      );
++      
++      expect(result.topKeywords.length).toBeGreaterThan(0);
++      // 'revenue' should be a top keyword
++      const revenueKeyword = result.topKeywords.find(k => k.word === 'revenue');
++      expect(revenueKeyword).toBeDefined();
++    });
++    
++    test('should detect acronyms', () => {
++      const result = extractKeywords(
++        'The API and SDK are important. Also check the ROI and KPI metrics.',
++        10
++      );
++      
++      expect(result.acronyms).toContain('API');
++      expect(result.acronyms).toContain('SDK');
++      expect(result.acronyms).toContain('ROI');
++    });
++    
++    test('should detect proper nouns', () => {
++      const result = extractKeywords(
++        'John spoke with Microsoft about the project. Sarah joined the call.',
++        10
++      );
++      
++      expect(result.properNouns.length).toBeGreaterThan(0);
++    });
++  });
++
++  describe('analyzeSentences', () => {
++    test('should count sentences correctly', () => {
++      const result = analyzeSentences('First sentence. Second sentence! Third question?');
++      
++      expect(result.count).toBe(3);
++    });
++    
++    test('should calculate average words per sentence', () => {
++      const result = analyzeSentences('Hello world. This is test. Short.');
++      
++      expect(result.avgWords).toBeGreaterThan(0);
++    });
++    
++    test('should detect sentence length variation', () => {
++      // Varied lengths
++      const varied = analyzeSentences(
++        'Short. This is a much longer sentence with many more words in it. Tiny.'
++      );
++      expect(varied.variation).toBe('varied');
++      
++      // Consistent lengths
++      const consistent = analyzeSentences(
++        'Three word sentence. Another three words. More three words.'
++      );
++      expect(consistent.variation).toBe('consistent');
++    });
++    
++    test('should handle empty text', () => {
++      const result = analyzeSentences('');
++      
++      expect(result.count).toBe(0);
++      expect(result.avgWords).toBe(0);
++    });
++  });
++
++  // ============================================================================
++  // Integration Tests
++  // ============================================================================
++  
++  describe('Full Extraction Integration', () => {
++    test('should extract business meeting metadata correctly', () => {
++      const metadata = extractWhisperMetadata(businessTranscript, 17);
++      
++      expect(metadata.contentType).toBe('business');
++      expect(metadata.fillerWordCount).toBeGreaterThan(0); // 'um', 'basically'
++      expect(metadata.segments.length).toBe(4);
++    });
++    
++    test('should extract technical discussion metadata correctly', () => {
++      const metadata = extractWhisperMetadata(technicalTranscript, 14);
++      
++      expect(metadata.contentType).toBe('technical');
++      expect(metadata.keywords.technicalTerms.length).toBeGreaterThan(0);
++    });
++    
++    test('should extract casual conversation metadata correctly', () => {
++      const metadata = extractWhisperMetadata(casualTranscript, 8);
++      
++      expect(metadata.contentType).toBe('casual');
++    });
++    
++    test('should correctly identify high filler density', () => {
++      const metadata = extractWhisperMetadata(highFillerTranscript, 8);
++      
++      expect(metadata.fillerDensity).toBe('very_high');
++      expect(metadata.fillerWordPercentage).toBeGreaterThan(8);
++    });
++  });
++});
++
++
+diff --git a/components/EnhancedTranscriptionViewer.tsx b/components/EnhancedTranscriptionViewer.tsx
+index a6dd348..f932ba3 100644
+--- a/components/EnhancedTranscriptionViewer.tsx
++++ b/components/EnhancedTranscriptionViewer.tsx
+@@ -444,3 +444,5 @@ export function EnhancedTranscriptionViewer({
+   );
+ }
+ 
++
++
+diff --git a/components/EnhancementProgress.tsx b/components/EnhancementProgress.tsx
+index 0d09262..500b073 100644
+--- a/components/EnhancementProgress.tsx
++++ b/components/EnhancementProgress.tsx
+@@ -249,3 +249,5 @@ export function EnhancementProgress({
+   );
+ }
+ 
++
++
+diff --git a/components/EnhancementToggle.tsx b/components/EnhancementToggle.tsx
+index dda97d3..34c3519 100644
+--- a/components/EnhancementToggle.tsx
++++ b/components/EnhancementToggle.tsx
+@@ -251,3 +251,5 @@ export function EnhancementToggle({
+   );
+ }
+ 
++
++
+diff --git a/components/states/DoneStateView.tsx b/components/states/DoneStateView.tsx
+index 952d62a..307fb50 100644
+--- a/components/states/DoneStateView.tsx
++++ b/components/states/DoneStateView.tsx
+@@ -199,9 +199,23 @@ export function DoneStateView({
+           await enhancer.loadModel();
+         }
+         
+-        // Run enhancement
+-        const enhancementResult = await enhancer.enhance(result.transcription.text);
++        // Run enhancement with Whisper result for context-aware prompting (Phase 2)
++        // Pass the full transcription result and audio duration for metadata extraction
++        const enhancementResult = await enhancer.enhance(
++          result.transcription.text,
++          result.transcription,  // Pass full Whisper result for metadata extraction
++          metrics?.duration       // Pass audio duration
++        );
+         setEnhancedResult(enhancementResult);
++        
++        // Log Phase 2 metadata if available
++        if (enhancer.lastMetadata) {
++          console.log('[DoneStateView] Phase 2 Enhancement used:', {
++            contentType: enhancer.lastMetadata.contentType,
++            fillerDensity: enhancer.lastMetadata.fillerDensity,
++            speakingRate: enhancer.lastMetadata.speakingRateCategory,
++          });
++        }
+       } catch (error) {
+         console.error('[DoneStateView] Enhancement failed:', error);
+         // Error is handled by the enhancer context
+diff --git a/contexts/EnhancerContext.tsx b/contexts/EnhancerContext.tsx
+index 58bac31..69b9bcd 100644
+--- a/contexts/EnhancerContext.tsx
++++ b/contexts/EnhancerContext.tsx
+@@ -18,6 +18,11 @@ import type {
+ } from "@/types/enhancement";
+ import { DEFAULT_MODEL } from "@/types/enhancement";
+ import { logEnhancementMetrics, type EnhancementTelemetry } from "@/utils/enhancementTelemetry";
++import type { TranscriptionResult } from "@/contexts/TranscriberContext";
++import type { WhisperMetadata, EnhancementStrategy } from "@/types/whisper-metadata";
++import { extractWhisperMetadata } from "@/utils/whisperMetadataExtractor";
++import { generateEnhancementStrategy, getStrategySummary } from "@/utils/enhancementStrategyGenerator";
++import { buildContextAwarePrompt, buildSimplePrompt } from "@/utils/contextAwarePromptBuilder";
+ 
+ // ============================================================================
+ // Download State Persistence
+@@ -57,6 +62,11 @@ interface EnhancerContextType {
+   // Results
+   lastResult: EnhancementResult | null;
+   
++  // Phase 2: Metadata and Strategy
++  lastMetadata: WhisperMetadata | null;
++  lastStrategy: EnhancementStrategy | null;
++  useContextAwarePrompts: boolean;
++  
+   // Download state
+   totalDownloadMB: number;
+   showResumePrompt: boolean;
+@@ -65,7 +75,7 @@ interface EnhancerContextType {
+   
+   // Actions
+   loadModel: (modelId?: string) => Promise<void>;
+-  enhance: (transcript: string) => Promise<EnhancementResult>;
++  enhance: (transcript: string, whisperResult?: TranscriptionResult, audioDuration?: number) => Promise<EnhancementResult>;
+   cancelEnhancement: () => void;
+   reset: () => void;
+   clearError: () => void;
+@@ -131,6 +141,11 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
+   // Results
+   const [lastResult, setLastResult] = useState<EnhancementResult | null>(null);
+   
++  // Phase 2: Metadata and Strategy
++  const [lastMetadata, setLastMetadata] = useState<WhisperMetadata | null>(null);
++  const [lastStrategy, setLastStrategy] = useState<EnhancementStrategy | null>(null);
++  const [useContextAwarePrompts, setUseContextAwarePrompts] = useState(true);
++  
+   // Download state persistence
+   const [totalDownloadMB, setTotalDownloadMB] = useState(0);
+   const [showResumePrompt, setShowResumePrompt] = useState(false);
+@@ -358,8 +373,13 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
+ 
+   /**
+    * Enhance a transcript using the loaded model
++   * Phase 2: Now accepts optional Whisper result for context-aware prompting
+    */
+-  const enhance = useCallback(async (transcript: string): Promise<EnhancementResult> => {
++  const enhance = useCallback(async (
++    transcript: string,
++    whisperResult?: TranscriptionResult,
++    audioDuration?: number
++  ): Promise<EnhancementResult> => {
+     // Validate model is loaded
+     if (!isModelLoaded || !workerRef.current) {
+       const errorMsg = 'Model not loaded. Please load the model first.';
+@@ -389,12 +409,75 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
+     setProgress({
+       stage: 'processing',
+       progress: 0,
+-      message: 'Starting enhancement...',
++      message: 'Analyzing transcript...',
+     });
+ 
++    // Phase 2: Extract metadata and generate strategy
++    let metadata: WhisperMetadata | null = null;
++    let strategy: EnhancementStrategy | null = null;
++    let promptText: string;
++    
++    if (useContextAwarePrompts && whisperResult) {
++      try {
++        console.log('[EnhancerContext] Phase 2: Extracting metadata from Whisper result...');
++        metadata = extractWhisperMetadata(whisperResult, audioDuration);
++        setLastMetadata(metadata);
++        
++        console.log('[EnhancerContext] Metadata extracted:', {
++          contentType: metadata.contentType,
++          contentTypeConfidence: metadata.contentTypeConfidence,
++          fillerDensity: metadata.fillerDensity,
++          fillerWordPercentage: `${metadata.fillerWordPercentage.toFixed(1)}%`,
++          wordsPerMinute: Math.round(metadata.wordsPerMinute),
++          speakingRate: metadata.speakingRateCategory,
++          speakerCount: metadata.speakerCount,
++          topKeywords: metadata.keywords.topKeywords.slice(0, 5).map(k => k.word),
++        });
++        
++        strategy = generateEnhancementStrategy(metadata);
++        setLastStrategy(strategy);
++        
++        const strategySummary = getStrategySummary(strategy, metadata);
++        console.log('[EnhancerContext] Strategy generated:', strategySummary);
++        
++        // Build context-aware prompt
++        promptText = buildContextAwarePrompt({
++          metadata,
++          strategy,
++        });
++        
++        console.log('[EnhancerContext] Using context-aware prompt for', metadata.contentType, 'content');
++        
++        setProgress({
++          stage: 'processing',
++          progress: 5,
++          message: `Detected ${metadata.contentType} content. Preparing tailored enhancement...`,
++        });
++        
++      } catch (metadataErr) {
++        console.warn('[EnhancerContext] Failed to extract metadata, falling back to simple prompt:', metadataErr);
++        // Fall back to simple prompt
++        promptText = buildSimplePrompt(transcript.trim());
++        setLastMetadata(null);
++        setLastStrategy(null);
++      }
++    } else {
++      // Use simple prompt when no Whisper result provided or context-aware disabled
++      console.log('[EnhancerContext] Using simple prompt (Phase 1 mode)');
++      promptText = buildSimplePrompt(transcript.trim());
++      setLastMetadata(null);
++      setLastStrategy(null);
++    }
++
+     try {
+       const result = await workerRef.current.sendRequest<EnhancementResult>('enhance', {
+         transcript: transcript.trim(),
++        prompt: promptText, // Pass the generated prompt to the worker
++        metadata: metadata ? {
++          contentType: metadata.contentType,
++          fillerDensity: metadata.fillerDensity,
++          speakingRate: metadata.speakingRateCategory,
++        } : undefined,
+       }, {
+         timeoutMs: 300000, // 5 minutes for processing
+         onProgress: (prog, msg) => {
+@@ -423,8 +506,19 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
+ 
+       console.log('[EnhancerContext] Enhancement complete');
+       console.log('[EnhancerContext] Improvements:', enhancementResult.improvements);
++      
++      if (metadata) {
++        console.log('[EnhancerContext] Phase 2 enhancement used:', {
++          contentType: metadata.contentType,
++          strategy: strategy ? {
++            fillerRemoval: strategy.fillerRemoval,
++            grammarCorrection: strategy.grammarCorrection,
++            targetFormality: strategy.targetFormality,
++          } : null,
++        });
++      }
+ 
+-      // Log telemetry
++      // Log telemetry with Phase 2 data
+       if (capabilities) {
+         const telemetry: EnhancementTelemetry = {
+           modelId: currentModelId || 'unknown',
+@@ -460,7 +554,7 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
+       setIsEnhancing(false);
+       currentRequestIdRef.current = null;
+     }
+-  }, [isModelLoaded, isEnhancing]);
++  }, [isModelLoaded, isEnhancing, useContextAwarePrompts, capabilities, currentModelId]);
+ 
+   // ============================================================================
+   // Cancellation
+@@ -557,6 +651,11 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
+     // Results
+     lastResult,
+     
++    // Phase 2: Metadata and Strategy
++    lastMetadata,
++    lastStrategy,
++    useContextAwarePrompts,
++    
+     // Download state
+     totalDownloadMB,
+     showResumePrompt,
+diff --git a/jest.setup.js b/jest.setup.js
+index 7e670c9..793b326 100644
+--- a/jest.setup.js
++++ b/jest.setup.js
+@@ -2,3 +2,5 @@
+ // Extends expect with custom matchers for DOM testing
+ require('@testing-library/jest-dom');
+ 
++
++
+diff --git a/public/enhancer.worker.js b/public/enhancer.worker.js
+index 7d471e5..babfc91 100644
+--- a/public/enhancer.worker.js
++++ b/public/enhancer.worker.js
+@@ -226,8 +226,10 @@ async function initEngine(modelId, requestId) {
+  * Enhance a transcript using the loaded model
+  * @param {string} transcript - Raw transcript text
+  * @param {string} requestId - Request ID for response tracking
++ * @param {string} [customPrompt] - Optional custom prompt (Phase 2 context-aware)
++ * @param {Object} [metadata] - Optional metadata about the content
+  */
+-async function enhanceTranscript(transcript, requestId) {
++async function enhanceTranscript(transcript, requestId, customPrompt = null, metadata = null) {
+   if (!engine || !isReady) {
+     self.postMessage({
+       requestId,
+@@ -283,12 +285,29 @@ async function enhanceTranscript(transcript, requestId) {
+     const estimatedInputTokens = Math.ceil(trimmedTranscript.split(/\s+/).length * 1.3);
+     const estimatedOutputTokens = Math.ceil(estimatedInputTokens * 0.9);
+     
+-    // Create streaming completion
+-    const stream = await engine.chat.completions.create({
+-      messages: [
++    // Build messages based on whether we have a custom prompt (Phase 2)
++    let messages;
++    if (customPrompt) {
++      // Phase 2: Context-aware prompt - use the full custom prompt as user message
++      console.log('[EnhancerWorker] Using Phase 2 context-aware prompt');
++      if (metadata) {
++        console.log('[EnhancerWorker] Content metadata:', metadata);
++      }
++      messages = [
++        { role: 'user', content: customPrompt },
++      ];
++    } else {
++      // Phase 1: Simple prompt - use system prompt + transcript
++      console.log('[EnhancerWorker] Using Phase 1 simple prompt');
++      messages = [
+         { role: 'system', content: ENHANCEMENT_SYSTEM_PROMPT },
+         { role: 'user', content: trimmedTranscript },
+-      ],
++      ];
++    }
++    
++    // Create streaming completion
++    const stream = await engine.chat.completions.create({
++      messages,
+       temperature: 0.2,  // Low temperature for consistent output
+       top_p: 0.9,
+       max_tokens: Math.max(estimatedOutputTokens * 2, 2048),
+@@ -459,7 +478,7 @@ self.addEventListener('message', async (event) => {
+         break;
+         
+       case 'enhance':
+-        await enhanceTranscript(data?.transcript, requestId);
++        await enhanceTranscript(data?.transcript, requestId, data?.prompt, data?.metadata);
+         break;
+         
+       case 'cancel':
+@@ -491,3 +510,4 @@ self.addEventListener('message', async (event) => {
+ 
+ console.log('[EnhancerWorker] AI Enhancement worker initialized');
+ 
++
+diff --git a/types/enhancement.ts b/types/enhancement.ts
+index faeb770..f6d27ab 100644
+--- a/types/enhancement.ts
++++ b/types/enhancement.ts
+@@ -283,3 +283,5 @@ export const ENHANCEMENT_MODELS: Record<string, ModelConfig> = {
+  */
+ export const DEFAULT_MODEL = ENHANCEMENT_MODELS['llama-3.2-3b'];
+ 
++
++
+diff --git a/types/whisper-metadata.ts b/types/whisper-metadata.ts
+new file mode 100644
+index 0000000..c846c88
+--- /dev/null
++++ b/types/whisper-metadata.ts
+@@ -0,0 +1,272 @@
++/**
++ * Whisper Transcription Metadata Types
++ * 
++ * Type definitions for metadata extracted from Whisper output
++ * Used for context-aware enhancement prompting
++ */
++
++// ============================================================================
++// Content Type Detection
++// ============================================================================
++
++/**
++ * Detected content type based on language patterns and keywords
++ */
++export type ContentType = 
++  | 'business'      // Meetings, presentations, sales calls
++  | 'technical'     // Engineering, coding, IT discussions
++  | 'casual'        // Personal conversations, informal chats
++  | 'interview'     // Job interviews, podcasts, Q&A
++  | 'lecture'       // Educational content, tutorials
++  | 'unknown';      // Cannot determine
++
++/**
++ * Confidence level for content type detection
++ */
++export type DetectionConfidence = 'high' | 'medium' | 'low';
++
++// ============================================================================
++// Speaking Characteristics
++// ============================================================================
++
++/**
++ * Speaking rate category
++ */
++export type SpeakingRate = 
++  | 'very_fast'  // 180+ WPM
++  | 'fast'       // 150-180 WPM
++  | 'normal'     // 120-150 WPM
++  | 'slow'       // 90-120 WPM
++  | 'very_slow'; // <90 WPM
++
++/**
++ * Filler word density category
++ */
++export type FillerDensity =
++  | 'very_high'  // >8%
++  | 'high'       // 5-8%
++  | 'moderate'   // 2-5%
++  | 'low'        // 1-2%
++  | 'very_low';  // <1%
++
++// ============================================================================
++// Filler Word Analysis
++// ============================================================================
++
++/**
++ * Common filler word patterns
++ */
++export const FILLER_PATTERNS = {
++  // Basic fillers
++  basic: ['um', 'uh', 'er', 'ah', 'mm', 'hmm'],
++  
++  // Discourse markers
++  discourse: ['like', 'you know', 'i mean', 'sort of', 'kind of'],
++  
++  // Hedging
++  hedging: ['basically', 'actually', 'literally', 'honestly', 'technically'],
++  
++  // Sentence starters
++  starters: ['so', 'well', 'okay', 'right', 'now'],
++  
++  // Repetition indicators
++  repetition: ['and and', 'the the', 'but but', 'or or'],
++} as const;
++
++/**
++ * Filler word instance with location
++ */
++export interface FillerWordInstance {
++  word: string;
++  category: keyof typeof FILLER_PATTERNS;
++  position: number;        // Character position in transcript
++  segment?: number;        // Segment/chunk index
++  timestamp?: number;      // Time in seconds
++}
++
++// ============================================================================
++// Speaker Information
++// ============================================================================
++
++/**
++ * Speaker segment information (if diarization available)
++ */
++export interface SpeakerSegment {
++  speaker: string;         // "Speaker A", "Speaker B", etc.
++  start: number;           // Start time in seconds
++  end: number;             // End time in seconds
++  duration: number;        // Segment duration
++  wordCount: number;       // Words spoken in segment
++  dominance: number;       // Percentage of total speaking time (0-100)
++  avgConfidence?: number;  // Average confidence for this speaker
++}
++
++// ============================================================================
++// Temporal Analysis
++// ============================================================================
++
++/**
++ * Pause and timing information
++ */
++export interface TemporalAnalysis {
++  totalDuration: number;           // Total audio duration (seconds)
++  speakingDuration: number;        // Time with speech (seconds)
++  silenceDuration: number;         // Total silence (seconds)
++  averagePauseDuration: number;    // Average pause between words (ms)
++  longestPause: number;            // Longest pause (seconds)
++  pauseCount: number;              // Number of significant pauses (>500ms)
++}
++
++// ============================================================================
++// Confidence Analysis
++// ============================================================================
++
++/**
++ * Transcription confidence metrics
++ */
++export interface ConfidenceAnalysis {
++  averageConfidence: number;       // 0-1, overall transcript confidence
++  minConfidence: number;           // Lowest segment confidence
++  maxConfidence: number;           // Highest segment confidence
++  lowConfidenceCount: number;      // Segments with confidence <0.7
++  lowConfidenceSegments: Array<{
++    index: number;
++    confidence: number;
++    text: string;
++    start: number;
++    end: number;
++  }>;
++}
++
++// ============================================================================
++// Keyword & Topic Analysis
++// ============================================================================
++
++/**
++ * Topic keyword extraction
++ */
++export interface KeywordAnalysis {
++  topKeywords: Array<{
++    word: string;
++    count: number;
++    frequency: number;      // Percentage of total words
++  }>;
++  technicalTerms: string[];  // Detected technical/domain terms
++  properNouns: string[];     // Names, places, companies
++  acronyms: string[];        // Detected acronyms (all caps)
++}
++
++// ============================================================================
++// Main Metadata Interface
++// ============================================================================
++
++/**
++ * Complete Whisper transcription metadata
++ */
++export interface WhisperMetadata {
++  // Basic info
++  duration: number;              // Total duration in seconds
++  totalWords: number;            // Word count
++  totalCharacters: number;       // Character count
++  language: string;              // Detected language
++  
++  // Content classification
++  contentType: ContentType;
++  contentTypeConfidence: DetectionConfidence;
++  contentTypeReasons: string[];  // Why this type was detected
++  
++  // Speaking characteristics
++  speakingRate: SpeakingRate;
++  wordsPerMinute: number;
++  speakingRateCategory: 'fast' | 'normal' | 'slow';
++  
++  // Filler word analysis
++  fillerDensity: FillerDensity;
++  fillerWordCount: number;
++  fillerWordPercentage: number;
++  fillerWordsByType: Record<keyof typeof FILLER_PATTERNS, number>;
++  fillerWordInstances: FillerWordInstance[];
++  
++  // Sentence analysis
++  estimatedSentenceCount: number;
++  averageWordsPerSentence: number;
++  sentenceLengthVariation: 'varied' | 'consistent';
++  
++  // Speaker information (optional)
++  speakerCount?: number;
++  speakers?: SpeakerSegment[];
++  dominantSpeaker?: string;
++  
++  // Temporal analysis
++  temporal: TemporalAnalysis;
++  
++  // Confidence metrics
++  confidence: ConfidenceAnalysis;
++  
++  // Keywords & topics
++  keywords: KeywordAnalysis;
++  
++  // Segments (from Whisper chunks)
++  segments: Array<{
++    index: number;
++    start: number;
++    end: number;
++    text: string;
++    confidence?: number;
++    speaker?: string;
++  }>;
++}
++
++// ============================================================================
++// Enhancement Strategy
++// ============================================================================
++
++/**
++ * Enhancement strategy based on metadata
++ */
++export interface EnhancementStrategy {
++  // Filler removal intensity
++  fillerRemoval: 'aggressive' | 'moderate' | 'light' | 'minimal';
++  
++  // Grammar correction level
++  grammarCorrection: 'strict' | 'balanced' | 'conservative';
++  
++  // Formality adjustment
++  targetFormality: 'formal' | 'professional' | 'conversational' | 'casual';
++  
++  // Sentence restructuring
++  restructureSentences: 'extensive' | 'moderate' | 'minimal';
++  
++  // Technical term handling
++  preserveTechnicalTerms: boolean;
++  preserveAcronyms: boolean;
++  preserveProperNouns: boolean;
++  
++  // Structure preservation
++  preserveSpeakerVoices: boolean;
++  maintainQuestionAnswerFormat: boolean;
++  
++  // Confidence handling
++  flagLowConfidenceSegments: boolean;
++  conservativeOnLowConfidence: boolean;
++}
++
++// ============================================================================
++// Prompt Configuration
++// ============================================================================
++
++/**
++ * Configuration for prompt generation
++ */
++export interface PromptConfiguration {
++  metadata: WhisperMetadata;
++  strategy: EnhancementStrategy;
++  customInstructions?: string;
++  examples?: Array<{
++    before: string;
++    after: string;
++    explanation: string;
++  }>;
++}
++
++
+diff --git a/utils/contextAwarePromptBuilder.ts b/utils/contextAwarePromptBuilder.ts
+new file mode 100644
+index 0000000..3fe7773
+--- /dev/null
++++ b/utils/contextAwarePromptBuilder.ts
+@@ -0,0 +1,512 @@
++/**
++ * Context-Aware Prompt Builder
++ * 
++ * Generates tailored prompts based on Whisper metadata and enhancement strategy.
++ * Produces optimized prompts for different content types and speaking styles.
++ */
++
++import type { 
++  WhisperMetadata, 
++  EnhancementStrategy, 
++  PromptConfiguration 
++} from '@/types/whisper-metadata';
++
++// ============================================================================
++// Main Prompt Building Functions
++// ============================================================================
++
++/**
++ * Build context-aware enhancement prompt
++ */
++export function buildContextAwarePrompt(config: PromptConfiguration): string {
++  const { metadata, strategy, customInstructions, examples } = config;
++  
++  // Build each section
++  const systemPrompt = buildSystemPrompt(strategy);
++  const contextSection = buildContextSection(metadata);
++  const strategySection = buildStrategySection(strategy, metadata);
++  const styleGuidance = buildStyleGuidance(metadata, strategy);
++  const specialInstructions = buildSpecialInstructions(metadata, strategy);
++  // Always include examples - either custom or default based on content type
++  const examplesSection = examples && examples.length > 0 
++    ? buildExamplesSection(examples, metadata.contentType) 
++    : buildDefaultExamples(metadata.contentType);
++  const customSection = customInstructions ? `\nCUSTOM INSTRUCTIONS:\n${customInstructions}\n` : '';
++  
++  // Get the transcript text from segments
++  const transcriptText = metadata.segments.map(s => s.text).join(' ').trim();
++  
++  // Assemble final prompt
++  return `${systemPrompt}
++
++${contextSection}
++
++${strategySection}
++
++${styleGuidance}
++
++${specialInstructions}
++${customSection}
++${examplesSection}
++ORIGINAL TRANSCRIPT:
++---
++${transcriptText}
++---
++
++ENHANCED TRANSCRIPT (output only the improved text, no preamble or explanation):`;
++}
++
++/**
++ * Build simple prompt (fallback when no metadata available)
++ */
++export function buildSimplePrompt(transcript: string): string {
++  return `You are a professional transcript editor. Clean up this raw speech-to-text transcript.
++
++Instructions:
++1. Remove filler words: um, uh, like, you know, I mean, basically, actually, literally
++2. Fix grammar and sentence structure
++3. Add proper punctuation and capitalization
++4. Improve readability while preserving original meaning
++5. Do NOT add new information
++6. Do NOT change numbers, names, or technical terms
++
++Output only the enhanced transcript with no explanation.
++
++ORIGINAL TRANSCRIPT:
++${transcript}
++
++ENHANCED TRANSCRIPT:`;
++}
++
++// ============================================================================
++// Section Building Functions
++// ============================================================================
++
++/**
++ * Build base system prompt based on strategy
++ */
++function buildSystemPrompt(strategy: EnhancementStrategy): string {
++  const preservationRules: string[] = [
++    '- Original meaning and intent',
++    '- All numbers and numerical values exactly',
++  ];
++  
++  if (strategy.preserveTechnicalTerms) {
++    preservationRules.push('- Technical terminology and jargon');
++  }
++  if (strategy.preserveAcronyms) {
++    preservationRules.push('- Acronyms and abbreviations');
++  }
++  if (strategy.preserveProperNouns) {
++    preservationRules.push('- Proper nouns, names, and places');
++  }
++  if (strategy.preserveSpeakerVoices) {
++    preservationRules.push('- Distinct speaker voices and perspectives');
++  }
++  if (strategy.maintainQuestionAnswerFormat) {
++    preservationRules.push('- Question and answer structure');
++  }
++  
++  return `You are a professional transcript editor specializing in converting conversational speech to clear, readable text.
++
++Your task is to enhance raw speech-to-text transcripts while PRESERVING:
++${preservationRules.join('\n')}
++
++You must NOT:
++- Add information not present in the original
++- Change numerical values or statistics
++- Alter the speaker's intended message
++- Over-formalize casual content
++- Remove content that adds meaning`;
++}
++
++/**
++ * Build context section from metadata
++ */
++function buildContextSection(metadata: WhisperMetadata): string {
++  const durationMin = Math.floor(metadata.duration / 60);
++  const durationSec = Math.round(metadata.duration % 60);
++  const durationStr = durationMin > 0 
++    ? `${durationMin}m ${durationSec}s` 
++    : `${durationSec}s`;
++  
++  const speakerInfo = metadata.speakerCount 
++    ? `${metadata.speakerCount} speaker${metadata.speakerCount > 1 ? 's' : ''}`
++    : 'Speaker count unknown';
++  
++  const confidenceLevel = metadata.confidence.averageConfidence >= 0.9 ? 'high' 
++    : metadata.confidence.averageConfidence >= 0.7 ? 'medium' 
++    : 'low';
++  
++  let section = `TRANSCRIPT CONTEXT:
++- Content Type: ${formatContentType(metadata.contentType)} ${metadata.contentTypeConfidence === 'high' ? '(confident)' : ''}
++- Duration: ${durationStr}
++- Word Count: ${metadata.totalWords.toLocaleString()} words
++- Speakers: ${speakerInfo}
++- Speaking Rate: ${Math.round(metadata.wordsPerMinute)} words/minute (${metadata.speakingRateCategory})
++- Filler Word Density: ${metadata.fillerWordPercentage.toFixed(1)}% (${metadata.fillerDensity})`;
++
++  if (confidenceLevel !== 'high') {
++    section += `\n- Transcription Confidence: ${confidenceLevel}`;
++  }
++  
++  if (metadata.contentTypeReasons.length > 0 && metadata.contentTypeConfidence === 'high') {
++    section += `\n- Classification Reasons: ${metadata.contentTypeReasons.slice(0, 2).join('; ')}`;
++  }
++  
++  return section;
++}
++
++/**
++ * Build strategy section
++ */
++function buildStrategySection(
++  strategy: EnhancementStrategy, 
++  metadata: WhisperMetadata
++): string {
++  const instructions: string[] = [];
++  
++  // Filler removal instructions
++  const fillerInstructions = {
++    aggressive: `REMOVE ALL filler words and verbal tics including: um, uh, like, you know, I mean, basically, actually, literally, sort of, kind of, right, okay, so (at sentence starts)`,
++    moderate: `REMOVE most filler words (um, uh, like, you know, I mean) but keep occasional natural markers`,
++    light: `REMOVE repetitive fillers (um, uh) but preserve conversational markers (like, you know) that add rhythm`,
++    minimal: `ONLY REMOVE excessive repetitions and obvious mistakes, preserve natural speech flow`,
++  };
++  instructions.push(fillerInstructions[strategy.fillerRemoval]);
++  
++  // Grammar instructions
++  const grammarInstructions = {
++    strict: `Apply formal grammar rules: complete sentences, proper subject-verb agreement, clear punctuation`,
++    balanced: `Fix clear grammatical errors while allowing some conversational constructions`,
++    conservative: `Only fix obvious grammatical mistakes that impede understanding`,
++  };
++  instructions.push(grammarInstructions[strategy.grammarCorrection]);
++  
++  // Sentence restructuring
++  if (strategy.restructureSentences === 'extensive') {
++    instructions.push(`Break long run-on sentences into clear, digestible sentences (target 15-25 words per sentence)`);
++  } else if (strategy.restructureSentences === 'moderate') {
++    instructions.push(`Improve sentence structure where clarity would benefit, split very long sentences`);
++  }
++  
++  // Technical term handling
++  if (strategy.preserveTechnicalTerms && metadata.keywords.technicalTerms.length > 0) {
++    instructions.push(`PRESERVE technical terms: ${metadata.keywords.technicalTerms.slice(0, 8).join(', ')}`);
++  }
++  
++  // Acronym handling
++  if (strategy.preserveAcronyms && metadata.keywords.acronyms.length > 0) {
++    instructions.push(`PRESERVE acronyms exactly: ${metadata.keywords.acronyms.slice(0, 10).join(', ')}`);
++  }
++  
++  // Low confidence handling
++  if (strategy.conservativeOnLowConfidence && metadata.confidence.lowConfidenceCount > 0) {
++    instructions.push(`${metadata.confidence.lowConfidenceCount} segments have low transcription confidence - be conservative with those sections`);
++  }
++  
++  return `ENHANCEMENT INSTRUCTIONS:
++${instructions.map((inst, i) => `${i + 1}. ${inst}`).join('\n')}`;
++}
++
++/**
++ * Build style guidance based on content type
++ */
++function buildStyleGuidance(
++  metadata: WhisperMetadata, 
++  strategy: EnhancementStrategy
++): string {
++  const contentGuidelines = getContentTypeGuidelines(metadata.contentType);
++  const formalityGuidelines = getFormalityGuidelines(strategy.targetFormality);
++  
++  return `STYLE GUIDELINES:
++${contentGuidelines}
++
++${formalityGuidelines}`;
++}
++
++/**
++ * Get content type specific guidelines
++ */
++function getContentTypeGuidelines(contentType: string): string {
++  const guidelines: Record<string, string> = {
++    business: `For BUSINESS content:
++- Focus on clarity and actionable information
++- Ensure decisions and action items are clear
++- Maintain professional terminology
++- Numbers and metrics must be exact`,
++
++    technical: `For TECHNICAL content:
++- Preserve all code references, commands, and syntax exactly
++- Keep technical explanations intact
++- Don't simplify technical concepts
++- Maintain precision in technical descriptions`,
++
++    casual: `For CASUAL content:
++- Maintain friendly, natural tone
++- Keep colloquialisms that add character
++- Don't over-professionalize the language
++- Preserve humor and personality`,
++
++    interview: `For INTERVIEW content:
++- Clearly distinguish questions from answers
++- Maintain interviewer/interviewee dynamic
++- Preserve the Q&A flow
++- Keep personal stories and examples intact`,
++
++    lecture: `For LECTURE content:
++- Maintain educational, instructional tone
++- Preserve clear explanations and examples
++- Keep topic transitions visible
++- Ensure key concepts remain clear`,
++
++    unknown: `For GENERAL content:
++- Balanced, neutral tone
++- Clear and readable output
++- Professional but not overly formal
++- Preserve the original voice`,
++  };
++  
++  return guidelines[contentType] || guidelines.unknown;
++}
++
++/**
++ * Get formality guidelines
++ */
++function getFormalityGuidelines(formality: string): string {
++  const guidelines: Record<string, string> = {
++    formal: `Formality: FORMAL
++- Use complete, well-structured sentences
++- Third-person where appropriate
++- Avoid contractions
++- Professional vocabulary throughout`,
++
++    professional: `Formality: PROFESSIONAL
++- Clear, direct statements
++- Active voice preferred
++- Contractions acceptable
++- Industry-appropriate language`,
++
++    conversational: `Formality: CONVERSATIONAL
++- Natural, flowing sentences
++- First-person preserved
++- Contractions welcome
++- Accessible, friendly language`,
++
++    casual: `Formality: CASUAL
++- Keep relaxed, informal tone
++- Personality and voice preserved
++- Contractions and colloquialisms okay
++- Don't make it sound corporate`,
++  };
++  
++  return guidelines[formality] || guidelines.conversational;
++}
++
++/**
++ * Build special instructions for edge cases
++ */
++function buildSpecialInstructions(
++  metadata: WhisperMetadata, 
++  strategy: EnhancementStrategy
++): string {
++  const instructions: string[] = [];
++  
++  // Speaking rate considerations
++  if (metadata.speakingRateCategory === 'fast') {
++    instructions.push('⚡ Fast speaking pace - expect run-on sentences that may need breaking up');
++  } else if (metadata.speakingRateCategory === 'slow') {
++    instructions.push('🐢 Slow speaking pace - sentences may be naturally shorter');
++  }
++  
++  // Very high filler density
++  if (metadata.fillerDensity === 'very_high') {
++    instructions.push('🎤 Very high filler density (>8%) - significant cleanup needed while preserving meaning');
++  } else if (metadata.fillerDensity === 'high') {
++    instructions.push('🎤 High filler density - moderate cleanup needed');
++  }
++  
++  // Multiple speakers
++  if (metadata.speakerCount && metadata.speakerCount > 2) {
++    instructions.push(`👥 ${metadata.speakerCount} speakers detected - maintain distinct voices and perspectives`);
++  }
++  
++  // Sentence structure
++  if (metadata.averageWordsPerSentence > 30) {
++    instructions.push(`📝 Long average sentence length (${Math.round(metadata.averageWordsPerSentence)} words) - consider breaking up for readability`);
++  } else if (metadata.averageWordsPerSentence < 8) {
++    instructions.push(`📝 Short average sentence length - may need combining short fragments`);
++  }
++  
++  // Low confidence segments
++  if (metadata.confidence.lowConfidenceCount > 0 && strategy.flagLowConfidenceSegments) {
++    const examples = metadata.confidence.lowConfidenceSegments
++      .slice(0, 2)
++      .map(s => `"${s.text.substring(0, 40)}..."`)
++      .join(', ');
++    instructions.push(`⚠️ ${metadata.confidence.lowConfidenceCount} low-confidence segment(s) - be conservative: ${examples}`);
++  }
++  
++  // Key topics hint
++  if (metadata.keywords.topKeywords.length > 0) {
++    const topWords = metadata.keywords.topKeywords
++      .slice(0, 6)
++      .map(k => k.word)
++      .join(', ');
++    instructions.push(`💡 Key topics: ${topWords}`);
++  }
++  
++  // Proper nouns
++  if (metadata.keywords.properNouns.length > 0) {
++    const names = metadata.keywords.properNouns.slice(0, 5).join(', ');
++    instructions.push(`📛 Preserve names/proper nouns: ${names}`);
++  }
++  
++  if (instructions.length === 0) {
++    return '';
++  }
++  
++  return `SPECIAL CONSIDERATIONS:
++${instructions.map(i => `- ${i}`).join('\n')}`;
++}
++
++/**
++ * Build examples section with content-appropriate examples
++ */
++function buildExamplesSection(
++  examples: Array<{ before: string; after: string; explanation: string }>,
++  contentType: string
++): string {
++  if (examples.length === 0) {
++    // Use default examples based on content type
++    return buildDefaultExamples(contentType);
++  }
++  
++  let section = '\nEXAMPLES:\n';
++  
++  examples.forEach((ex, i) => {
++    section += `\nExample ${i + 1}:\n`;
++    section += `Before: "${ex.before}"\n`;
++    section += `After: "${ex.after}"\n`;
++    section += `Why: ${ex.explanation}\n`;
++  });
++  
++  return section;
++}
++
++/**
++ * Build default examples based on content type
++ */
++function buildDefaultExamples(contentType: string): string {
++  const examples: Record<string, string> = {
++    business: `
++EXAMPLES:
++Before: "So um we need to like look at the Q3 numbers and uh basically the revenue was um pretty good"
++After: "We need to look at the Q3 numbers. The revenue was strong."
++Why: Removed fillers, split into clear sentences, professional tone
++
++Before: "I think what we should do is you know maybe consider the the option of expanding"
++After: "We should consider the option of expanding."
++Why: Removed hedging and repetition, direct statement`,
++
++    technical: `
++EXAMPLES:
++Before: "So um the API endpoint is like returning a 404 error when you try to uh POST the data"
++After: "The API endpoint is returning a 404 error when you try to POST the data."
++Why: Removed fillers while preserving technical terms exactly
++
++Before: "We need to basically refactor the the authentication middleware to um handle JWT tokens"
++After: "We need to refactor the authentication middleware to handle JWT tokens."
++Why: Cleaned up fillers, preserved technical terminology`,
++
++    casual: `
++EXAMPLES:
++Before: "So like we were just um hanging out at the the park and it was like really nice"
++After: "We were just hanging out at the park and it was really nice."
++Why: Light cleanup of fillers while keeping casual tone
++
++Before: "I was gonna say that um the movie was actually pretty good you know"
++After: "I was gonna say that the movie was actually pretty good."
++Why: Minimal changes to preserve natural casual speech`,
++
++    interview: `
++EXAMPLES:
++Before: "Can you um tell me about your experience with um project management?"
++After: "Can you tell me about your experience with project management?"
++
++Before: "So basically I've been um working in like software development for um five years"
++After: "I've been working in software development for five years."
++Why: Clean up fillers while maintaining Q&A format`,
++
++    lecture: `
++EXAMPLES:
++Before: "So um today we're going to like talk about um the French Revolution"
++After: "Today we're going to talk about the French Revolution."
++
++Before: "The key point here is that um basically the economy was um in trouble"
++After: "The key point here is that the economy was in trouble."
++Why: Clear educational content without verbal fillers`,
++
++    unknown: `
++EXAMPLES:
++Before: "So um I think that like basically we should consider this option"
++After: "I think we should consider this option."
++Why: Removed fillers while preserving meaning`,
++  };
++  
++  return examples[contentType] || examples.unknown;
++}
++
++// ============================================================================
++// Utility Functions
++// ============================================================================
++
++/**
++ * Format content type for display
++ */
++function formatContentType(type: string): string {
++  const formats: Record<string, string> = {
++    business: 'BUSINESS MEETING',
++    technical: 'TECHNICAL DISCUSSION',
++    casual: 'CASUAL CONVERSATION',
++    interview: 'INTERVIEW/Q&A',
++    lecture: 'LECTURE/EDUCATIONAL',
++    unknown: 'GENERAL',
++  };
++  return formats[type] || 'GENERAL';
++}
++
++/**
++ * Get prompt statistics for debugging/telemetry
++ */
++export function getPromptStats(prompt: string): {
++  totalLength: number;
++  estimatedTokens: number;
++  sections: string[];
++} {
++  // Rough token estimation (1 token ≈ 4 chars for English)
++  const estimatedTokens = Math.ceil(prompt.length / 4);
++  
++  // Identify sections
++  const sectionHeaders = [
++    'TRANSCRIPT CONTEXT',
++    'ENHANCEMENT INSTRUCTIONS',
++    'STYLE GUIDELINES',
++    'SPECIAL CONSIDERATIONS',
++    'EXAMPLES',
++    'ORIGINAL TRANSCRIPT',
++    'ENHANCED TRANSCRIPT',
++  ];
++  
++  const foundSections = sectionHeaders.filter(header => 
++    prompt.includes(header)
++  );
++  
++  return {
++    totalLength: prompt.length,
++    estimatedTokens,
++    sections: foundSections,
++  };
++}
++
++
+diff --git a/utils/enhancementStrategyGenerator.ts b/utils/enhancementStrategyGenerator.ts
+new file mode 100644
+index 0000000..8f3019a
+--- /dev/null
++++ b/utils/enhancementStrategyGenerator.ts
+@@ -0,0 +1,368 @@
++/**
++ * Enhancement Strategy Generator
++ * 
++ * Determines optimal enhancement approach based on extracted metadata.
++ * Generates tailored strategies for different content types and speaking styles.
++ */
++
++import type { WhisperMetadata, EnhancementStrategy } from '@/types/whisper-metadata';
++
++// ============================================================================
++// Main Strategy Generation
++// ============================================================================
++
++/**
++ * Generate enhancement strategy from metadata
++ */
++export function generateEnhancementStrategy(
++  metadata: WhisperMetadata
++): EnhancementStrategy {
++  // Determine filler removal intensity
++  const fillerRemoval = determineFillerRemovalIntensity(metadata);
++  
++  // Determine grammar correction level
++  const grammarCorrection = determineGrammarCorrectionLevel(metadata);
++  
++  // Determine target formality
++  const targetFormality = determineTargetFormality(metadata);
++  
++  // Determine restructuring level
++  const restructureSentences = determineRestructuringLevel(metadata);
++  
++  // Technical term preservation
++  const preserveTechnicalTerms = shouldPreserveTechnicalTerms(metadata);
++  const preserveAcronyms = metadata.keywords.acronyms.length > 3;
++  const preserveProperNouns = metadata.keywords.properNouns.length > 0;
++  
++  // Structure preservation
++  const preserveSpeakerVoices = (metadata.speakerCount ?? 0) > 1;
++  const maintainQuestionAnswerFormat = metadata.contentType === 'interview';
++  
++  // Confidence handling
++  const flagLowConfidenceSegments = metadata.confidence.lowConfidenceCount > 3;
++  const conservativeOnLowConfidence = metadata.confidence.averageConfidence < 0.8;
++  
++  return {
++    fillerRemoval,
++    grammarCorrection,
++    targetFormality,
++    restructureSentences,
++    preserveTechnicalTerms,
++    preserveAcronyms,
++    preserveProperNouns,
++    preserveSpeakerVoices,
++    maintainQuestionAnswerFormat,
++    flagLowConfidenceSegments,
++    conservativeOnLowConfidence,
++  };
++}
++
++// ============================================================================
++// Strategy Determination Functions
++// ============================================================================
++
++/**
++ * Determine filler removal intensity based on density and content type
++ */
++export function determineFillerRemovalIntensity(
++  metadata: WhisperMetadata
++): EnhancementStrategy['fillerRemoval'] {
++  const { fillerDensity, contentType } = metadata;
++  
++  // Business and technical content: more aggressive filler removal
++  if (contentType === 'business' || contentType === 'technical') {
++    if (fillerDensity === 'very_high' || fillerDensity === 'high') {
++      return 'aggressive';
++    } else if (fillerDensity === 'moderate') {
++      return 'moderate';
++    } else {
++      return 'light';
++    }
++  }
++  
++  // Casual content: preserve more natural speech patterns
++  if (contentType === 'casual') {
++    if (fillerDensity === 'very_high') {
++      return 'moderate'; // Still remove excessive fillers
++    } else if (fillerDensity === 'high') {
++      return 'light';
++    } else {
++      return 'minimal';
++    }
++  }
++  
++  // Lecture content: balanced approach for clarity
++  if (contentType === 'lecture') {
++    if (fillerDensity === 'very_high' || fillerDensity === 'high') {
++      return 'aggressive';
++    } else if (fillerDensity === 'moderate') {
++      return 'moderate';
++    } else {
++      return 'light';
++    }
++  }
++  
++  // Interview: maintain some natural speech while cleaning up
++  if (contentType === 'interview') {
++    if (fillerDensity === 'very_high') {
++      return 'moderate';
++    } else if (fillerDensity === 'high') {
++      return 'light';
++    } else {
++      return 'minimal';
++    }
++  }
++  
++  // Default (unknown content): balanced approach
++  if (fillerDensity === 'very_high') {
++    return 'aggressive';
++  } else if (fillerDensity === 'high') {
++    return 'moderate';
++  } else if (fillerDensity === 'moderate') {
++    return 'light';
++  } else {
++    return 'minimal';
++  }
++}
++
++/**
++ * Determine grammar correction level based on content type and speaking rate
++ */
++export function determineGrammarCorrectionLevel(
++  metadata: WhisperMetadata
++): EnhancementStrategy['grammarCorrection'] {
++  const { contentType, speakingRateCategory } = metadata;
++  
++  // Business and lecture: strict grammar for professional output
++  if (contentType === 'business' || contentType === 'lecture') {
++    return 'strict';
++  }
++  
++  // Technical: balanced (preserve technical phrasing that may look unusual)
++  if (contentType === 'technical') {
++    return 'balanced';
++  }
++  
++  // Casual: conservative (keep natural speech patterns)
++  if (contentType === 'casual') {
++    return 'conservative';
++  }
++  
++  // Interview: balanced for readability while maintaining voice
++  if (contentType === 'interview') {
++    return 'balanced';
++  }
++  
++  // Fast speaking often has more grammatical shortcuts - be lenient
++  if (speakingRateCategory === 'fast') {
++    return 'balanced';
++  }
++  
++  // Default
++  return 'balanced';
++}
++
++/**
++ * Determine target formality level based on content type
++ */
++export function determineTargetFormality(
++  metadata: WhisperMetadata
++): EnhancementStrategy['targetFormality'] {
++  const { contentType, contentTypeConfidence } = metadata;
++  
++  // Only apply strong formality changes with high confidence
++  if (contentTypeConfidence === 'low') {
++    return 'conversational';
++  }
++  
++  switch (contentType) {
++    case 'business':
++      return 'professional';
++    case 'technical':
++      return 'professional';
++    case 'lecture':
++      return 'formal';
++    case 'interview':
++      return 'professional';
++    case 'casual':
++      return 'casual';
++    default:
++      return 'conversational';
++  }
++}
++
++/**
++ * Determine sentence restructuring level
++ */
++export function determineRestructuringLevel(
++  metadata: WhisperMetadata
++): EnhancementStrategy['restructureSentences'] {
++  const { 
++    speakingRateCategory, 
++    sentenceLengthVariation, 
++    averageWordsPerSentence,
++    contentType 
++  } = metadata;
++  
++  // Very long sentences need extensive restructuring
++  if (averageWordsPerSentence > 35) {
++    return 'extensive';
++  }
++  
++  // Very short choppy sentences might need moderate restructuring
++  if (averageWordsPerSentence < 6 && sentenceLengthVariation === 'varied') {
++    return 'moderate';
++  }
++  
++  // Fast speaking often produces run-on sentences
++  if (speakingRateCategory === 'fast' && sentenceLengthVariation === 'varied') {
++    return 'moderate';
++  }
++  
++  // Business and technical: clarity is important
++  if (contentType === 'business' || contentType === 'technical') {
++    if (averageWordsPerSentence > 25) {
++      return 'moderate';
++    }
++    return 'minimal';
++  }
++  
++  // Lecture: restructure for educational clarity
++  if (contentType === 'lecture' && averageWordsPerSentence > 20) {
++    return 'moderate';
++  }
++  
++  // Default: minimal restructuring to preserve voice
++  return 'minimal';
++}
++
++/**
++ * Determine if technical terms should be preserved
++ */
++export function shouldPreserveTechnicalTerms(
++  metadata: WhisperMetadata
++): boolean {
++  // Always preserve for technical content
++  if (metadata.contentType === 'technical') {
++    return true;
++  }
++  
++  // Preserve if we detected technical terms
++  if (metadata.keywords.technicalTerms.length > 0) {
++    return true;
++  }
++  
++  // Preserve if many acronyms detected
++  if (metadata.keywords.acronyms.length > 5) {
++    return true;
++  }
++  
++  return false;
++}
++
++// ============================================================================
++// Strategy Explanation Functions
++// ============================================================================
++
++/**
++ * Generate human-readable explanation of the strategy
++ */
++export function explainStrategy(
++  strategy: EnhancementStrategy,
++  metadata: WhisperMetadata
++): string {
++  const lines: string[] = [];
++  
++  // Content type
++  lines.push(`Content Type: ${metadata.contentType.toUpperCase()} (${metadata.contentTypeConfidence} confidence)`);
++  
++  // Filler removal
++  const fillerDesc = {
++    aggressive: 'Aggressively removing fillers for professional output',
++    moderate: 'Removing most fillers while maintaining some natural flow',
++    light: 'Lightly cleaning up obvious fillers',
++    minimal: 'Preserving natural speech patterns with minimal filler removal',
++  };
++  lines.push(`Filler Removal: ${fillerDesc[strategy.fillerRemoval]}`);
++  
++  // Grammar
++  const grammarDesc = {
++    strict: 'Applying strict grammar rules for formal output',
++    balanced: 'Balanced grammar correction for clarity',
++    conservative: 'Conservative grammar - preserving speech patterns',
++  };
++  lines.push(`Grammar: ${grammarDesc[strategy.grammarCorrection]}`);
++  
++  // Formality
++  lines.push(`Target Tone: ${strategy.targetFormality}`);
++  
++  // Special handling
++  if (strategy.preserveTechnicalTerms) {
++    lines.push('⚙️ Preserving technical terminology');
++  }
++  if (strategy.preserveAcronyms) {
++    lines.push(`📝 Preserving acronyms: ${metadata.keywords.acronyms.slice(0, 5).join(', ')}`);
++  }
++  if (strategy.preserveSpeakerVoices) {
++    lines.push(`👥 Maintaining ${metadata.speakerCount} distinct speaker voices`);
++  }
++  if (strategy.conservativeOnLowConfidence) {
++    lines.push('⚠️ Being conservative due to low transcription confidence');
++  }
++  
++  return lines.join('\n');
++}
++
++/**
++ * Get strategy summary for UI display
++ */
++export function getStrategySummary(
++  strategy: EnhancementStrategy,
++  metadata: WhisperMetadata
++): {
++  contentType: string;
++  fillerHandling: string;
++  formality: string;
++  specialFeatures: string[];
++} {
++  const specialFeatures: string[] = [];
++  
++  if (strategy.preserveTechnicalTerms) {
++    specialFeatures.push('Preserves technical terms');
++  }
++  if (strategy.preserveAcronyms && metadata.keywords.acronyms.length > 0) {
++    specialFeatures.push(`Preserves ${metadata.keywords.acronyms.length} acronyms`);
++  }
++  if (strategy.preserveSpeakerVoices && metadata.speakerCount && metadata.speakerCount > 1) {
++    specialFeatures.push(`Maintains ${metadata.speakerCount} speaker voices`);
++  }
++  if (strategy.maintainQuestionAnswerFormat) {
++    specialFeatures.push('Preserves Q&A structure');
++  }
++  if (strategy.conservativeOnLowConfidence) {
++    specialFeatures.push('Conservative on uncertain segments');
++  }
++  
++  const fillerDescMap: Record<string, string> = {
++    aggressive: 'Aggressive cleanup',
++    moderate: 'Moderate cleanup',
++    light: 'Light cleanup',
++    minimal: 'Minimal changes',
++  };
++  
++  const formalityDescMap: Record<string, string> = {
++    formal: 'Formal',
++    professional: 'Professional',
++    conversational: 'Conversational',
++    casual: 'Casual',
++  };
++  
++  return {
++    contentType: `${metadata.contentType} (${metadata.contentTypeConfidence})`,
++    fillerHandling: fillerDescMap[strategy.fillerRemoval],
++    formality: formalityDescMap[strategy.targetFormality],
++    specialFeatures,
++  };
++}
++
++
+diff --git a/utils/enhancementTelemetry.ts b/utils/enhancementTelemetry.ts
+index 2a7c094..3a93930 100644
+--- a/utils/enhancementTelemetry.ts
++++ b/utils/enhancementTelemetry.ts
+@@ -298,3 +298,5 @@ export function exportTelemetry(): string {
+   }, null, 2);
+ }
+ 
++
++
+diff --git a/utils/whisperMetadataExtractor.ts b/utils/whisperMetadataExtractor.ts
+new file mode 100644
+index 0000000..2c5907e
+--- /dev/null
++++ b/utils/whisperMetadataExtractor.ts
+@@ -0,0 +1,668 @@
++/**
++ * Whisper Metadata Extractor
++ * 
++ * Analyzes Whisper transcription output to extract rich metadata
++ * for context-aware enhancement prompting.
++ */
++
++import type { TranscriptionResult } from '@/contexts/TranscriberContext';
++import type {
++  WhisperMetadata,
++  ContentType,
++  DetectionConfidence,
++  SpeakingRate,
++  FillerDensity,
++  FillerWordInstance,
++  SpeakerSegment,
++  TemporalAnalysis,
++  ConfidenceAnalysis,
++  KeywordAnalysis,
++} from '@/types/whisper-metadata';
++import { FILLER_PATTERNS } from '@/types/whisper-metadata';
++
++// ============================================================================
++// Main Extraction Function
++// ============================================================================
++
++/**
++ * Extract comprehensive metadata from Whisper transcription
++ */
++export function extractWhisperMetadata(
++  result: TranscriptionResult,
++  audioDuration?: number
++): WhisperMetadata {
++  const text = result.text;
++  const chunks = result.chunks || [];
++  
++  // Calculate basic metrics
++  const totalWords = countWords(text);
++  const totalCharacters = text.length;
++  const duration = audioDuration || estimateDuration(chunks);
++  
++  // Extract filler words
++  const fillerAnalysis = analyzeFillerWords(text, totalWords);
++  
++  // Detect content type
++  const contentAnalysis = detectContentType(text, fillerAnalysis);
++  
++  // Analyze speaking rate
++  const speakingAnalysis = analyzeSpeakingRate(totalWords, duration);
++  
++  // Analyze confidence (if available)
++  const confidenceAnalysis = analyzeConfidence(chunks);
++  
++  // Extract temporal information
++  const temporalAnalysis = analyzeTemporalPatterns(chunks, duration);
++  
++  // Extract keywords
++  const keywordAnalysis = extractKeywords(text, totalWords);
++  
++  // Analyze sentence structure
++  const sentenceAnalysis = analyzeSentences(text);
++  
++  // Detect speakers (if available)
++  const speakerAnalysis = analyzeSpeakers(chunks);
++  
++  return {
++    // Basic info
++    duration,
++    totalWords,
++    totalCharacters,
++    language: 'en', // Could be extracted from Whisper if multilingual
++    
++    // Content classification
++    contentType: contentAnalysis.type,
++    contentTypeConfidence: contentAnalysis.confidence,
++    contentTypeReasons: contentAnalysis.reasons,
++    
++    // Speaking characteristics
++    speakingRate: speakingAnalysis.category,
++    wordsPerMinute: speakingAnalysis.wpm,
++    speakingRateCategory: speakingAnalysis.simplifiedCategory,
++    
++    // Filler word analysis
++    fillerDensity: fillerAnalysis.density,
++    fillerWordCount: fillerAnalysis.count,
++    fillerWordPercentage: fillerAnalysis.percentage,
++    fillerWordsByType: fillerAnalysis.byType,
++    fillerWordInstances: fillerAnalysis.instances,
++    
++    // Sentence analysis
++    estimatedSentenceCount: sentenceAnalysis.count,
++    averageWordsPerSentence: sentenceAnalysis.avgWords,
++    sentenceLengthVariation: sentenceAnalysis.variation,
++    
++    // Speaker information
++    speakerCount: speakerAnalysis.count,
++    speakers: speakerAnalysis.speakers,
++    dominantSpeaker: speakerAnalysis.dominant,
++    
++    // Temporal analysis
++    temporal: temporalAnalysis,
++    
++    // Confidence metrics
++    confidence: confidenceAnalysis,
++    
++    // Keywords
++    keywords: keywordAnalysis,
++    
++    // Segments
++    segments: chunks.map((chunk, index) => ({
++      index,
++      start: chunk.timestamp[0],
++      end: chunk.timestamp[1] ?? duration,
++      text: chunk.text,
++      confidence: undefined, // Add if Whisper provides confidence scores
++      speaker: undefined, // Add if using diarization
++    })),
++  };
++}
++
++// ============================================================================
++// Helper Functions
++// ============================================================================
++
++/**
++ * Count words in text
++ */
++export function countWords(text: string): number {
++  return text.trim().split(/\s+/).filter(Boolean).length;
++}
++
++/**
++ * Estimate duration from chunks if not provided
++ */
++function estimateDuration(chunks: TranscriptionResult['chunks']): number {
++  if (!chunks || chunks.length === 0) return 0;
++  const lastChunk = chunks[chunks.length - 1];
++  return lastChunk.timestamp[1] ?? (lastChunk.timestamp[0] + 5);
++}
++
++/**
++ * Analyze filler words in transcript
++ */
++export function analyzeFillerWords(text: string, totalWords: number): {
++  count: number;
++  percentage: number;
++  density: FillerDensity;
++  byType: Record<keyof typeof FILLER_PATTERNS, number>;
++  instances: FillerWordInstance[];
++} {
++  const lowerText = text.toLowerCase();
++  const instances: FillerWordInstance[] = [];
++  const byType: Record<keyof typeof FILLER_PATTERNS, number> = {
++    basic: 0,
++    discourse: 0,
++    hedging: 0,
++    starters: 0,
++    repetition: 0,
++  };
++  
++  // Search for each filler pattern
++  for (const [category, patterns] of Object.entries(FILLER_PATTERNS)) {
++    for (const pattern of patterns) {
++      // Use word boundaries for accurate matching
++      const escapedPattern = pattern.replace(/\s+/g, '\\s+');
++      const regex = new RegExp(`\\b${escapedPattern}\\b`, 'gi');
++      let match;
++      
++      while ((match = regex.exec(lowerText)) !== null) {
++        instances.push({
++          word: pattern,
++          category: category as keyof typeof FILLER_PATTERNS,
++          position: match.index,
++        });
++        byType[category as keyof typeof FILLER_PATTERNS]++;
++      }
++    }
++  }
++  
++  const count = instances.length;
++  const percentage = totalWords > 0 ? (count / totalWords) * 100 : 0;
++  
++  // Determine density category
++  let density: FillerDensity;
++  if (percentage > 8) density = 'very_high';
++  else if (percentage > 5) density = 'high';
++  else if (percentage > 2) density = 'moderate';
++  else if (percentage > 1) density = 'low';
++  else density = 'very_low';
++  
++  return {
++    count,
++    percentage,
++    density,
++    byType,
++    instances,
++  };
++}
++
++/**
++ * Detect content type from text patterns and keywords
++ */
++export function detectContentType(
++  text: string, 
++  fillerAnalysis: { density: FillerDensity }
++): {
++  type: ContentType;
++  confidence: DetectionConfidence;
++  reasons: string[];
++} {
++  const lowerText = text.toLowerCase();
++  const reasons: string[] = [];
++  const scores: Record<ContentType, number> = {
++    business: 0,
++    technical: 0,
++    casual: 0,
++    interview: 0,
++    lecture: 0,
++    unknown: 0,
++  };
++  
++  // Business indicators
++  const businessTerms = [
++    'meeting', 'quarter', 'revenue', 'sales', 'client', 'customer',
++    'strategy', 'budget', 'forecast', 'stakeholder', 'roi', 'kpi',
++    'proposal', 'deadline', 'deliverable', 'milestone', 'agenda',
++    'project', 'team', 'manager', 'executive', 'report', 'analysis',
++    'growth', 'market', 'business', 'company', 'corporate', 'profit'
++  ];
++  const businessCount = businessTerms.filter(term => 
++    lowerText.includes(term)
++  ).length;
++  if (businessCount >= 3) {
++    scores.business += businessCount * 2;
++    reasons.push(`Found ${businessCount} business terms`);
++  }
++  
++  // Technical indicators
++  const technicalTerms = [
++    'code', 'function', 'variable', 'api', 'database', 'server',
++    'algorithm', 'debug', 'compile', 'deploy', 'repository', 'git',
++    'framework', 'library', 'syntax', 'error', 'exception', 'method',
++    'class', 'object', 'array', 'string', 'integer', 'boolean',
++    'component', 'module', 'package', 'npm', 'python', 'javascript',
++    'typescript', 'react', 'node', 'docker', 'kubernetes', 'aws'
++  ];
++  const technicalCount = technicalTerms.filter(term =>
++    lowerText.includes(term)
++  ).length;
++  if (technicalCount >= 3) {
++    scores.technical += technicalCount * 2;
++    reasons.push(`Found ${technicalCount} technical terms`);
++  }
++  
++  // Casual indicators
++  const casualPhrases = [
++    'hang out', 'chill', 'cool', 'awesome', 'dude', 'hey',
++    'gonna', 'wanna', 'kinda', 'sorta', 'yeah', 'nah',
++    'fun', 'crazy', 'weird', 'stuff', 'things', 'hanging',
++    'weekend', 'party', 'friends', 'movie', 'game', 'food'
++  ];
++  const casualCount = casualPhrases.filter(phrase =>
++    lowerText.includes(phrase)
++  ).length;
++  if (casualCount >= 2 || fillerAnalysis.density === 'very_high') {
++    scores.casual += casualCount * 2;
++    if (fillerAnalysis.density === 'very_high') {
++      scores.casual += 3;
++      reasons.push('Very high filler word density suggests casual speech');
++    }
++    if (casualCount >= 2) {
++      reasons.push(`Found ${casualCount} casual phrases`);
++    }
++  }
++  
++  // Interview indicators
++  const interviewPatterns = [
++    'can you tell me', 'walk me through', 'experience with',
++    'strengths and weaknesses', 'why do you', 'how would you',
++    'what is your', 'describe a time', 'tell me about',
++    'background', 'resume', 'position', 'role', 'opportunity',
++    'qualified', 'skills', 'career', 'goals', 'achievements'
++  ];
++  const interviewCount = interviewPatterns.filter(pattern =>
++    lowerText.includes(pattern)
++  ).length;
++  if (interviewCount >= 2) {
++    scores.interview += interviewCount * 3;
++    reasons.push(`Found ${interviewCount} interview question patterns`);
++  }
++  
++  // Lecture indicators
++  const lectureTerms = [
++    'today we', "let me explain", 'important to understand',
++    'for example', 'in other words', 'to summarize', 'remember that',
++    'key point', 'main idea', 'first', 'second', 'third', 'finally',
++    'concept', 'definition', 'theory', 'principle', 'chapter',
++    'lesson', 'topic', 'understand', 'learn', 'study', 'course'
++  ];
++  const lectureCount = lectureTerms.filter(term =>
++    lowerText.includes(term)
++  ).length;
++  if (lectureCount >= 3) {
++    scores.lecture += lectureCount * 2;
++    reasons.push(`Found ${lectureCount} educational/lecture patterns`);
++  }
++  
++  // Determine winner
++  let maxScore = 0;
++  let detectedType: ContentType = 'unknown';
++  
++  for (const [type, score] of Object.entries(scores)) {
++    if (score > maxScore) {
++      maxScore = score;
++      detectedType = type as ContentType;
++    }
++  }
++  
++  // Determine confidence
++  let confidence: DetectionConfidence;
++  if (maxScore >= 10) confidence = 'high';
++  else if (maxScore >= 5) confidence = 'medium';
++  else confidence = 'low';
++  
++  if (detectedType === 'unknown') {
++    reasons.push('No strong indicators for any specific content type');
++  }
++  
++  return {
++    type: detectedType,
++    confidence,
++    reasons,
++  };
++}
++
++/**
++ * Analyze speaking rate
++ */
++export function analyzeSpeakingRate(totalWords: number, duration: number): {
++  wpm: number;
++  category: SpeakingRate;
++  simplifiedCategory: 'fast' | 'normal' | 'slow';
++} {
++  const wpm = duration > 0 ? (totalWords / duration) * 60 : 0;
++  
++  let category: SpeakingRate;
++  let simplifiedCategory: 'fast' | 'normal' | 'slow';
++  
++  if (wpm >= 180) {
++    category = 'very_fast';
++    simplifiedCategory = 'fast';
++  } else if (wpm >= 150) {
++    category = 'fast';
++    simplifiedCategory = 'fast';
++  } else if (wpm >= 120) {
++    category = 'normal';
++    simplifiedCategory = 'normal';
++  } else if (wpm >= 90) {
++    category = 'slow';
++    simplifiedCategory = 'slow';
++  } else {
++    category = 'very_slow';
++    simplifiedCategory = 'slow';
++  }
++  
++  return {
++    wpm,
++    category,
++    simplifiedCategory,
++  };
++}
++
++/**
++ * Analyze confidence scores from chunks
++ */
++export function analyzeConfidence(
++  chunks: TranscriptionResult['chunks']
++): ConfidenceAnalysis {
++  // Note: Whisper doesn't always provide confidence scores
++  // This handles the case when confidence data is available
++  
++  if (!chunks || chunks.length === 0) {
++    return {
++      averageConfidence: 1.0,
++      minConfidence: 1.0,
++      maxConfidence: 1.0,
++      lowConfidenceCount: 0,
++      lowConfidenceSegments: [],
++    };
++  }
++  
++  const confidences = chunks
++    .map(chunk => (chunk as any).confidence)
++    .filter((c): c is number => typeof c === 'number');
++  
++  if (confidences.length === 0) {
++    return {
++      averageConfidence: 1.0,
++      minConfidence: 1.0,
++      maxConfidence: 1.0,
++      lowConfidenceCount: 0,
++      lowConfidenceSegments: [],
++    };
++  }
++  
++  const avg = confidences.reduce((sum, c) => sum + c, 0) / confidences.length;
++  const min = Math.min(...confidences);
++  const max = Math.max(...confidences);
++  
++  const lowConfidenceSegments = chunks
++    .map((chunk, index) => ({
++      index,
++      confidence: (chunk as any).confidence ?? 1.0,
++      text: chunk.text,
++      start: chunk.timestamp[0],
++      end: chunk.timestamp[1] ?? 0,
++    }))
++    .filter(seg => seg.confidence < 0.7);
++  
++  return {
++    averageConfidence: avg,
++    minConfidence: min,
++    maxConfidence: max,
++    lowConfidenceCount: lowConfidenceSegments.length,
++    lowConfidenceSegments,
++  };
++}
++
++/**
++ * Analyze temporal patterns (pauses, timing)
++ */
++export function analyzeTemporalPatterns(
++  chunks: TranscriptionResult['chunks'],
++  totalDuration: number
++): TemporalAnalysis {
++  if (!chunks || chunks.length === 0) {
++    return {
++      totalDuration,
++      speakingDuration: totalDuration,
++      silenceDuration: 0,
++      averagePauseDuration: 0,
++      longestPause: 0,
++      pauseCount: 0,
++    };
++  }
++  
++  // Calculate pauses between chunks
++  const pauses: number[] = [];
++  let longestPause = 0;
++  
++  for (let i = 1; i < chunks.length; i++) {
++    const prevEnd = chunks[i - 1].timestamp[1] ?? chunks[i - 1].timestamp[0];
++    const currStart = chunks[i].timestamp[0];
++    const pause = currStart - prevEnd;
++    
++    if (pause > 0.5) { // Significant pause (>500ms)
++      pauses.push(pause);
++      if (pause > longestPause) {
++        longestPause = pause;
++      }
++    }
++  }
++  
++  const totalSilence = pauses.reduce((sum, p) => sum + p, 0);
++  const speakingDuration = totalDuration - totalSilence;
++  const avgPause = pauses.length > 0 
++    ? (pauses.reduce((sum, p) => sum + p, 0) / pauses.length) * 1000 
++    : 0;
++  
++  return {
++    totalDuration,
++    speakingDuration,
++    silenceDuration: totalSilence,
++    averagePauseDuration: avgPause,
++    longestPause,
++    pauseCount: pauses.length,
++  };
++}
++
++/**
++ * Extract keywords and topics
++ */
++export function extractKeywords(text: string, totalWords: number): KeywordAnalysis {
++  // Simple keyword extraction (can be improved with NLP libraries)
++  const words = text.toLowerCase()
++    .replace(/[^\w\s]/g, '')
++    .split(/\s+/)
++    .filter(w => w.length > 3); // Skip short words
++  
++  // Stop words to ignore
++  const stopWords = new Set([
++    'this', 'that', 'these', 'those', 'with', 'from', 'have', 'been',
++    'were', 'will', 'would', 'could', 'should', 'about', 'which', 'their',
++    'there', 'where', 'when', 'what', 'who', 'how', 'why', 'also',
++    'just', 'only', 'more', 'some', 'very', 'than', 'then', 'into',
++    'over', 'after', 'before', 'being', 'each', 'most', 'such', 'through'
++  ]);
++  
++  // Count word frequency
++  const wordCounts = new Map<string, number>();
++  for (const word of words) {
++    if (!stopWords.has(word)) {
++      wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
++    }
++  }
++  
++  // Get top keywords
++  const topKeywords = Array.from(wordCounts.entries())
++    .map(([word, count]) => ({
++      word,
++      count,
++      frequency: (count / totalWords) * 100,
++    }))
++    .sort((a, b) => b.count - a.count)
++    .slice(0, 10);
++  
++  // Detect acronyms (all caps, 2+ chars)
++  const acronyms = Array.from(
++    text.matchAll(/\b[A-Z]{2,}\b/g)
++  ).map(m => m[0]);
++  const uniqueAcronyms = [...new Set(acronyms)];
++  
++  // Detect proper nouns (capitalized words not at sentence start)
++  const properNouns = Array.from(
++    text.matchAll(/(?<![.!?]\s)[A-Z][a-z]+/g)
++  ).map(m => m[0]);
++  const uniqueProperNouns = [...new Set(properNouns)].slice(0, 20);
++  
++  // Detect technical terms (common programming/technical vocabulary)
++  const technicalDictionary = new Set([
++    'api', 'sdk', 'framework', 'database', 'server', 'client', 'backend',
++    'frontend', 'middleware', 'endpoint', 'authentication', 'authorization',
++    'encryption', 'algorithm', 'interface', 'implementation', 'repository',
++    'deployment', 'infrastructure', 'container', 'microservice', 'webhook'
++  ]);
++  
++  const technicalTerms = words.filter(w => technicalDictionary.has(w));
++  const uniqueTechnicalTerms = [...new Set(technicalTerms)];
++  
++  return {
++    topKeywords,
++    technicalTerms: uniqueTechnicalTerms,
++    properNouns: uniqueProperNouns,
++    acronyms: uniqueAcronyms,
++  };
++}
++
++/**
++ * Analyze sentence structure
++ */
++export function analyzeSentences(text: string): {
++  count: number;
++  avgWords: number;
++  variation: 'varied' | 'consistent';
++} {
++  // Simple sentence detection (can be improved)
++  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
++  const count = sentences.length;
++  
++  if (count === 0) {
++    return {
++      count: 0,
++      avgWords: 0,
++      variation: 'consistent',
++    };
++  }
++  
++  const sentenceLengths = sentences.map(s => countWords(s));
++  const totalWords = sentenceLengths.reduce((sum, len) => sum + len, 0);
++  const avgWords = totalWords / count;
++  
++  // Calculate variation (standard deviation)
++  const variance = sentenceLengths.reduce(
++    (sum, len) => sum + Math.pow(len - avgWords, 2),
++    0
++  ) / count;
++  const stdDev = Math.sqrt(variance);
++  
++  const variation = stdDev > avgWords * 0.5 ? 'varied' : 'consistent';
++  
++  return {
++    count,
++    avgWords,
++    variation,
++  };
++}
++
++/**
++ * Analyze speaker information (if available from diarization)
++ */
++export function analyzeSpeakers(chunks: TranscriptionResult['chunks']): {
++  count?: number;
++  speakers?: SpeakerSegment[];
++  dominant?: string;
++} {
++  if (!chunks || chunks.length === 0) {
++    return {};
++  }
++  
++  // Check if any chunks have speaker information
++  const speakerChunks = chunks.filter(c => (c as any).speaker);
++  
++  if (speakerChunks.length === 0) {
++    return {};
++  }
++  
++  // Count unique speakers
++  const speakerSet = new Set(speakerChunks.map(c => (c as any).speaker));
++  const count = speakerSet.size;
++  
++  if (count === 0) {
++    return {};
++  }
++  
++  // Calculate speaking time and word count per speaker
++  const speakerStats = new Map<string, {
++    duration: number;
++    wordCount: number;
++    segments: Array<{ start: number; end: number }>;
++  }>();
++  
++  for (const chunk of speakerChunks) {
++    const speaker = (chunk as any).speaker;
++    const start = chunk.timestamp[0];
++    const end = chunk.timestamp[1] ?? start;
++    const duration = end - start;
++    const wordCount = countWords(chunk.text);
++    
++    const existing = speakerStats.get(speaker);
++    if (existing) {
++      existing.duration += duration;
++      existing.wordCount += wordCount;
++      existing.segments.push({ start, end });
++    } else {
++      speakerStats.set(speaker, {
++        duration,
++        wordCount,
++        segments: [{ start, end }],
++      });
++    }
++  }
++  
++  // Calculate total duration
++  const totalDuration = Array.from(speakerStats.values())
++    .reduce((sum, s) => sum + s.duration, 0);
++  
++  // Build speaker segments
++  const speakers: SpeakerSegment[] = Array.from(speakerStats.entries())
++    .map(([speaker, stats]) => ({
++      speaker,
++      start: Math.min(...stats.segments.map(s => s.start)),
++      end: Math.max(...stats.segments.map(s => s.end)),
++      duration: stats.duration,
++      wordCount: stats.wordCount,
++      dominance: totalDuration > 0 ? (stats.duration / totalDuration) * 100 : 0,
++    }));
++  
++  // Find dominant speaker
++  const dominant = speakers.sort((a, b) => b.dominance - a.dominance)[0]?.speaker;
++  
++  return {
++    count,
++    speakers,
++    dominant,
++  };
++}
++
++

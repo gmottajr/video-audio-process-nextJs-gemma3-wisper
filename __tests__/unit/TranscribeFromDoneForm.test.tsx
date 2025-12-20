@@ -22,16 +22,12 @@ jest.mock('@/components/ModelSelector', () => ({
       <option value="tiny">Tiny</option>
       <option value="base">Base</option>
       <option value="small">Small</option>
-      <option value="medium">Medium</option>
-      <option value="large">Large</option>
     </select>
   ),
   WHISPER_MODELS: {
     tiny: { name: 'Whisper Tiny', size: '75 MB' },
     base: { name: 'Whisper Base', size: '142 MB' },
     small: { name: 'Whisper Small', size: '466 MB' },
-    medium: { name: 'Whisper Medium', size: '1.5 GB' },
-    large: { name: 'Whisper Large', size: '2.9 GB' },
   },
 }));
 
@@ -230,9 +226,9 @@ describe('TranscribeFromDoneForm', () => {
       render(<TranscribeFromDoneForm {...defaultProps} onModelSelect={onModelSelect} />);
 
       const modelSelector = screen.getByTestId('model-selector');
-      fireEvent.change(modelSelector, { target: { value: 'large' } });
+      fireEvent.change(modelSelector, { target: { value: 'base' } });
 
-      expect(onModelSelect).toHaveBeenCalledWith('large');
+      expect(onModelSelect).toHaveBeenCalledWith('base');
     });
 
     test('should not call onTranscribe when button is disabled', () => {
@@ -304,10 +300,10 @@ describe('TranscribeFromDoneForm', () => {
       expect(modelSelector).toHaveValue('small');
 
       // Update prop
-      rerender(<TranscribeFromDoneForm {...defaultProps} selectedModelKey="large" />);
+      rerender(<TranscribeFromDoneForm {...defaultProps} selectedModelKey="base" />);
 
       await waitFor(() => {
-        expect(modelSelector).toHaveValue('large');
+        expect(modelSelector).toHaveValue('base');
       });
     });
 
@@ -317,11 +313,11 @@ describe('TranscribeFromDoneForm', () => {
 
       // Change model
       const modelSelector = screen.getByTestId('model-selector');
-      fireEvent.change(modelSelector, { target: { value: 'large' } });
+      fireEvent.change(modelSelector, { target: { value: 'base' } });
 
       // Resource warning should reflect the new model
       const warning = screen.getByTestId('resource-warning');
-      expect(warning).toHaveAttribute('data-model', 'large');
+      expect(warning).toHaveAttribute('data-model', 'base');
     });
 
     test('should pass local model key to onTranscribe callback', () => {
@@ -329,16 +325,16 @@ describe('TranscribeFromDoneForm', () => {
       const onModelSelect = jest.fn();
       render(<TranscribeFromDoneForm {...defaultProps} onTranscribe={onTranscribe} onModelSelect={onModelSelect} />);
 
-      // Change model to 'medium'
+      // Change model to 'tiny'
       const modelSelector = screen.getByTestId('model-selector');
-      fireEvent.change(modelSelector, { target: { value: 'medium' } });
+      fireEvent.change(modelSelector, { target: { value: 'tiny' } });
 
       // Click transcribe
       const button = screen.getByRole('button', { name: /Transcribe to Text/i });
       fireEvent.click(button);
 
       // Should use the newly selected model
-      expect(onTranscribe).toHaveBeenCalledWith('none', false, 'medium');
+      expect(onTranscribe).toHaveBeenCalledWith('none', false, 'tiny');
     });
   });
 
@@ -407,7 +403,7 @@ describe('TranscribeFromDoneForm', () => {
 
       const modelSelector = screen.getByTestId('model-selector');
       expect(() => {
-        fireEvent.change(modelSelector, { target: { value: 'large' } });
+        fireEvent.change(modelSelector, { target: { value: 'base' } });
       }).not.toThrow();
     });
 

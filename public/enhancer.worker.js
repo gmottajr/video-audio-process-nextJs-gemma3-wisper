@@ -474,7 +474,9 @@ self.addEventListener('message', async (event) => {
   try {
     switch (type) {
       case 'init':
-        await initEngine(data?.modelId || 'Llama-3.2-3B-Instruct-q4f16_1-MLC', requestId);
+        // Use f32 (32-bit float) models for maximum WebGPU compatibility
+        // f16 models require the WebGPU f16 extension which isn't universally supported
+        await initEngine(data?.modelId || 'Llama-3.2-1B-Instruct-q4f32_1-MLC', requestId);
         break;
         
       case 'enhance':

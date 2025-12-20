@@ -250,38 +250,50 @@ export interface ModelConfig {
 
 /**
  * Available models for enhancement
+ * 
+ * NOTE: All models use q4f32 (32-bit float) quantization for maximum compatibility.
+ * The f16 (half-precision) variants require the WebGPU f16 extension which is not
+ * universally supported. f32 models work on all WebGPU-capable devices.
  */
 export const ENHANCEMENT_MODELS: Record<string, ModelConfig> = {
   'llama-3.2-3b': {
-    id: 'Llama-3.2-3B-Instruct-q4f16_1-MLC',
+    id: 'Llama-3.2-3B-Instruct-q4f32_1-MLC',
     name: 'Llama 3.2 3B',
-    size: '~1.7GB',
+    size: '~1.8GB',
     description: 'Best quality, recommended for most users',
     minVRAM: 4,
     recommendedTier: 'medium',
   },
-  'gemma-2-2b': {
-    id: 'gemma-2-2b-it-q4f16_1-MLC',
-    name: 'Gemma 2 2B',
-    size: '~1.2GB',
-    description: 'Faster, good for basic enhancement',
-    minVRAM: 3,
+  'llama-3.2-1b': {
+    id: 'Llama-3.2-1B-Instruct-q4f32_1-MLC',
+    name: 'Llama 3.2 1B',
+    size: '~0.7GB',
+    description: 'Good balance of quality and speed',
+    minVRAM: 2,
     recommendedTier: 'low',
   },
   'qwen-0.5b': {
-    id: 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',
+    id: 'Qwen2.5-0.5B-Instruct-q4f32_1-MLC',
     name: 'Qwen 0.5B',
-    size: '~0.3GB',
-    description: 'Fastest, minimal enhancement',
+    size: '~0.4GB',
+    description: 'Fastest, good for basic enhancement',
+    minVRAM: 1,
+    recommendedTier: 'low',
+  },
+  'smollm2-360m': {
+    id: 'SmolLM2-360M-Instruct-q4f32_1-MLC',
+    name: 'SmolLM2 360M',
+    size: '~0.25GB',
+    description: 'Ultra-fast, minimal model for quick fixes',
     minVRAM: 1,
     recommendedTier: 'low',
   },
 } as const;
 
 /**
- * Default model to use
+ * Default model to use (smaller default for better compatibility)
  */
-export const DEFAULT_MODEL = ENHANCEMENT_MODELS['llama-3.2-3b'];
+export const DEFAULT_MODEL = ENHANCEMENT_MODELS['llama-3.2-1b'];
 
 
 

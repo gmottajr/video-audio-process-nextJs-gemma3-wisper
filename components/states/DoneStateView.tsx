@@ -27,6 +27,8 @@ import { calculateEnhancementQualityMetrics } from "@/utils/qualityMetricsCalcul
 import { recordEnhancement } from "@/utils/enhancementHistoryManager";
 import { saveFeedback } from "@/utils/feedbackManager";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
+import { TranscriptFormattingControls } from "@/components/TranscriptFormattingControls";
+import { formatEnhancedTranscriptWithSpeakers, formatTranscriptWithSpeakers, type FormattingOptions } from "@/utils/speakerFormatter";
 
 interface DoneStateViewProps {
   result: ProcessingResult;
@@ -94,8 +96,30 @@ export function DoneStateView({
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   
+  // Transcript formatting options
+  const [formattingOptions, setFormattingOptions] = useState<FormattingOptions>({
+    includeTimestamps: false,
+    includeSpeakerLabels: true,
+    speakerDetectionSensitivity: 'medium',
+  });
+  
   // Get enhancer context (optional - may not be available)
   const enhancer = useEnhancerContextOptional();
+  
+  // Debug logging for enhancement capability
+  useEffect(() => {
+    if (result.type === "transcription") {
+      console.log('[DoneStateView] Enhancement Debug:', {
+        enhancerExists: !!enhancer,
+        isCheckingHardware: enhancer?.isCheckingHardware,
+        capabilities: enhancer?.capabilities,
+        isCapable: enhancer?.capabilities?.isCapable,
+        webGpuSupported: enhancer?.capabilities?.webGpuSupported,
+        gpuTier: enhancer?.capabilities?.gpuTier,
+        hardwareError: enhancer?.hardwareError,
+      });
+    }
+  }, [result.type, enhancer]);
   
   const format =
     result.type === "audio"
@@ -208,8 +232,9 @@ export function DoneStateView({
       
       try {
         // Load model if not already loaded
+        // Force Llama 3.2 1B for better context window size
         if (!enhancer.isModelLoaded && !enhancer.isModelLoading) {
-          await enhancer.loadModel();
+          await enhancer.loadModel('Llama-3.2-1B-Instruct-q4f32_1-MLC');
         }
         
         // Run enhancement with Whisper result for context-aware prompting (Phase 2)
@@ -532,20 +557,36 @@ export function DoneStateView({
           <>
             {/* Phase 4: Tabbed Transcription View (shown when enhancement is complete) */}
             {enhancedResult ? (
-              <TabbedTranscriptionView
-                originalText={result.transcription.text}
-                enhancedText={enhancedResult.enhancedText}
-                qualityMetrics={qualityMetrics}
-                processingTime={enhancedResult.processingTime}
-                chunks={result.transcription.chunks}
-                metadata={{
-                  contentType: enhancer?.lastMetadata?.contentType,
-                  duration: metrics?.duration,
-                  modelName: currentModel ? WHISPER_MODELS[selectedModelKey].name : undefined,
-                  filename: file.name.split(".")[0],
-                }}
-                onReEnhance={handleReEnhance}
-              />
+              <div className="space-y-4">
+                {/* Formatting Controls */}
+                <TranscriptFormattingControls
+                  options={formattingOptions}
+                  onChange={setFormattingOptions}
+                />
+                
+                <TabbedTranscriptionView
+                  originalText={
+                    formattingOptions.includeSpeakerLabels || formattingOptions.includeTimestamps
+                      ? formatTranscriptWithSpeakers(result.transcription.text, result.transcription, formattingOptions)
+                      : result.transcription.text
+                  }
+                  enhancedText={
+                    formattingOptions.includeSpeakerLabels || formattingOptions.includeTimestamps
+                      ? formatEnhancedTranscriptWithSpeakers(enhancedResult.enhancedText, result.transcription, formattingOptions)
+                      : enhancedResult.enhancedText
+                  }
+                  qualityMetrics={qualityMetrics}
+                  processingTime={enhancedResult.processingTime}
+                  chunks={result.transcription.chunks}
+                  metadata={{
+                    contentType: enhancer?.lastMetadata?.contentType,
+                    duration: metrics?.duration,
+                    modelName: currentModel ? WHISPER_MODELS[selectedModelKey].name : undefined,
+                    filename: file.name.split(".")[0],
+                  }}
+                  onReEnhance={handleReEnhance}
+                />
+              </div>
             ) : (
               /* Show basic transcription view before enhancement */
               <TranscriptionViewer result={result.transcription} />
@@ -561,6 +602,26 @@ export function DoneStateView({
                 isModelLoaded={enhancer.isModelLoaded}
                 isModelLoading={enhancer.isModelLoading}
               />
+            )}
+            
+            {/* Show why enhancement is unavailable */}
+            {enhancer && !enhancer.isCheckingHardware && enhancer.capabilities && !enhancer.capabilities.isCapable && (
+              <div className="mt-4 p-4 bg-zinc-800/50 border border-zinc-700 rounded-lg">
+                <p className="text-sm text-zinc-400 flex items-center gap-2">
+                  <span>ℹ️</span>
+                  AI Enhancement unavailable: {enhancer.capabilities.recommendation.warnings.join(' ')}
+                </p>
+              </div>
+            )}
+            
+            {/* Hardware check in progress */}
+            {enhancer?.isCheckingHardware && (
+              <div className="mt-4 p-4 bg-zinc-800/50 border border-zinc-700 rounded-lg animate-pulse">
+                <p className="text-sm text-zinc-400 flex items-center gap-2">
+                  <span className="animate-spin">⚙️</span>
+                  Checking hardware for AI Enhancement...
+                </p>
+              </div>
             )}
             
             {/* Phase 3: Feedback Panel */}

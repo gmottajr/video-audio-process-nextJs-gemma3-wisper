@@ -1,0 +1,437 @@
+﻿
+> video-audio-process-poc-nextjs@0.1.0 test
+> jest __tests__/unit/enhancement-types.test.ts __tests__/unit/useHardwareCapabilities.test.ts __tests__/unit/EnhancerContext.test.tsx __tests__/unit/EnhancementToggle.test.tsx __tests__/unit/EnhancementProgress.test.tsx __tests__/unit/EnhancedTranscriptionViewer.test.tsx __tests__/unit/whisperMetadataExtractor.test.ts __tests__/unit/enhancementStrategyGenerator.test.ts __tests__/unit/contextAwarePromptBuilder.test.ts
+
+node.exe : PASS __tests__/unit/EnhancementProgress.test.tsx
+At C:\Users\jrmot\Downloads\nodejs\npm.ps1:29 char:3
++   & $NODE_EXE $NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/...ogress.test.tsx:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  EnhancementProgress
+    Downloading Stage
+      ΓêÜ should display downloading title (26 ms)
+      ΓêÜ should display download progress percentage (3 ms)
+      ΓêÜ should display download size info when available (3 ms)
+      ΓêÜ should show one-time download tip (2 ms)
+    Loading Stage
+      ΓêÜ should display loading title (2 ms)
+    Processing Stage
+      ΓêÜ should display enhancing title for processing stage (2 ms)
+      ΓêÜ should display enhancing title for streaming stage (2 ms)
+      ΓêÜ should show token count when available (2 ms)
+      ΓêÜ should show AI processing tip (3 ms)
+    Complete Stage
+      ΓêÜ should display complete title (1 ms)
+    Error Stage
+      ΓêÜ should display error title (1 ms)
+      ΓêÜ should show error message (1 ms)
+    Cancelled Stage
+      ΓêÜ should display cancelled title (1 ms)
+    Cancel Button
+      ΓêÜ should show cancel button during downloading (2 ms)
+      ΓêÜ should show cancel button during processing (2 ms)
+      ΓêÜ should call onCancel when clicked (5 ms)
+      ΓêÜ should not show cancel button on complete (1 ms)
+      ΓêÜ should not show cancel button on error (2 ms)
+      ΓêÜ should not show cancel button if onCancel not provided (1 ms)
+    Elapsed Time
+      ΓêÜ should show elapsed time during processing (2 ms)
+      ΓêÜ should update elapsed time (4 ms)
+      ΓêÜ should format elapsed time with minutes (2 ms)
+      ΓêÜ should not show elapsed time on terminal states (1 ms)
+    Progress Bar
+      ΓêÜ should display progress bar with correct percentage (2 ms)
+    Model Size Display
+      ΓêÜ should show default model size (2 ms)
+      ΓêÜ should show custom model size when provided (1 ms)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:185:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:185:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:185:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:185:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:185:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:185:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:185:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:185:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:185:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:185:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:185:17
+          at Array.forEach (<anonymous>)
+
+PASS __tests__/unit/EnhancerContext.test.tsx
+  EnhancerContext
+    Context Provider
+      ΓêÜ should provide context to children (3 ms)
+      ΓêÜ should throw error when used outside provider (24 ms)
+      ΓêÜ useEnhancerContextOptional should return null outside provider (1 ms)
+    Initial State
+      ΓêÜ should have correct initial state (1 ms)
+      ΓêÜ should have hardware capabilities from hook (1 ms)
+    loadModel
+      ΓêÜ should set loading state when loading model (13 ms)
+      ΓêÜ should set loaded state after successful load (3 ms)
+      ΓêÜ should set error state on load failure (4 ms)
+      ΓêÜ should use suggested model from capabilities (2 ms)
+      ΓêÜ should skip loading if model already loaded with same ID (2 ms)
+    enhance
+      ΓêÜ should throw error if model not loaded (2 ms)
+      ΓêÜ should throw error if transcript is empty (2 ms)
+      ΓêÜ should set enhancing state during enhancement (2 ms)
+      ΓêÜ should store result after successful enhancement (2 ms)
+    clearError
+      ΓêÜ should clear error state (1 ms)
+    clearResult
+      ΓêÜ should clear last result (2 ms)
+    reset
+      ΓêÜ should reset all state (2 ms)
+
+  console.error
+    Warning: An update to EnhancedTranscriptionViewer inside a test was not wrapped in act(...).
+    
+    When testing, code that causes React state updates should be wrapped into act(...):
+    
+    act(() => {
+      /* fire events that update state */
+    });
+    /* assert on the output */
+    
+    This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+        at EnhancedTranscriptionViewer (D:\Dev\React\video-audio-process-nextJs-gemma3-wisper\components\EnhancedTranscriptionViewer.tsx:42:3)
+
+      81 |     try {
+      82 |       await navigator.clipboard.writeText(currentText);
+    > 83 |       setCopied(true);
+         |       ^
+      84 |       setTimeout(() => setCopied(false), 2000);
+      85 |     } catch (error) {
+      86 |       console.error("Failed to copy:", error);
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/EnhancedTranscriptionViewer.tsx:83:7
+      at fulfilled (components/EnhancedTranscriptionViewer.tsx:6:58)
+
+  console.error
+    Warning: An update to EnhancedTranscriptionViewer inside a test was not wrapped in act(...).
+    
+    When testing, code that causes React state updates should be wrapped into act(...):
+    
+    act(() => {
+      /* fire events that update state */
+    });
+    /* assert on the output */
+    
+    This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+        at EnhancedTranscriptionViewer (D:\Dev\React\video-audio-process-nextJs-gemma3-wisper\components\EnhancedTranscriptionViewer.tsx:42:3)
+
+      81 |     try {
+      82 |       await navigator.clipboard.writeText(currentText);
+    > 83 |       setCopied(true);
+         |       ^
+      84 |       setTimeout(() => setCopied(false), 2000);
+      85 |     } catch (error) {
+      86 |       console.error("Failed to copy:", error);
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/EnhancedTranscriptionViewer.tsx:83:7
+      at fulfilled (components/EnhancedTranscriptionViewer.tsx:6:58)
+
+PASS __tests__/unit/EnhancedTranscriptionViewer.test.tsx
+  EnhancedTranscriptionViewer
+    Basic Rendering
+      ΓêÜ should render raw transcription (10 ms)
+      ΓêÜ should display character count (2 ms)
+      ΓêÜ should display model name when provided (2 ms)
+    Without Enhancement
+      ΓêÜ should not show version toggle without enhancement (3 ms)
+      ΓêÜ should show timestamps when available (2 ms)
+    With Enhancement
+      ΓêÜ should show version toggle with enhancement (4 ms)
+      ΓêÜ should default to enhanced view when available (5 ms)
+      ΓêÜ should show improvement metrics (4 ms)
+      ΓêÜ should show removed filler words (3 ms)
+    View Mode Toggle
+      ΓêÜ should switch to raw view when clicked (5 ms)
+      ΓêÜ should switch to comparison view when clicked (4 ms)
+      ΓêÜ should show both texts in comparison view (4 ms)
+    Copy Functionality
+      ΓêÜ should copy raw text when in raw view (9 ms)
+      ΓêÜ should copy enhanced text when in enhanced view (4 ms)
+      ΓêÜ should show "Copied!" feedback after copying (7 ms)
+    Download Functionality
+      ΓêÜ should download TXT file (3 ms)
+      ΓêÜ should download JSON file (3 ms)
+      ΓêÜ should include suffix for enhanced downloads (2 ms)
+      ΓêÜ should include suffix for raw downloads (6 ms)
+    SRT Download
+      ΓêÜ should show SRT button when chunks available and in raw view (2 ms)
+      ΓêÜ should not show SRT button when no chunks (1 ms)
+      ΓêÜ should not show SRT button in enhanced view (2 ms)
+    Timestamped Segments
+      ΓêÜ should display timestamps in raw view (1 ms)
+      ΓêÜ should not display timestamps in enhanced view (3 ms)
+    Footer Stats
+      ΓêÜ should show segment count in raw view (2 ms)
+      ΓêÜ should show model name in enhanced view (2 ms)
+      ΓêÜ should show estimated read time (2 ms)
+    Custom Filename
+      ΓêÜ should use custom filename for downloads (2 ms)
+
+PASS __tests__/unit/EnhancementToggle.test.tsx
+  EnhancementToggle
+    Rendering
+      ΓêÜ should render when hardware is capable (3 ms)
+      ΓêÜ should not render when hardware is incapable (1 ms)
+      ΓêÜ should show "Ready" badge when model is loaded (1 ms)
+      ΓêÜ should show "Loading..." badge when model is loading (1 ms)
+    Toggle Interaction
+      ΓêÜ should call onToggle when clicked (19 ms)
+      ΓêÜ should toggle off when enabled (3 ms)
+      ΓêÜ should be disabled when disabled prop is true (2 ms)
+      ΓêÜ should be disabled when model is loading (1 ms)
+    Details Panel
+      ΓêÜ should show performance tier when enabled (1 ms)
+      ΓêÜ should show processing time estimate when enabled (1 ms)
+      ΓêÜ should show "Show Details" button when enabled (3 ms)
+      ΓêÜ should expand details when "Show Details" is clicked (4 ms)
+      ΓêÜ should show warnings when present (3 ms)
+    Performance Tier Display
+      ΓêÜ should show correct label for high tier (1 ms)
+      ΓêÜ should show correct label for medium tier (1 ms)
+      ΓêÜ should show correct label for low tier (1 ms)
+    Feature List
+      ΓêÜ should show what AI enhancement does when details expanded (4 ms)
+    Accessibility
+      ΓêÜ should have accessible toggle button (2 ms)
+      ΓêÜ should update aria-checked when enabled (2 ms)
+
+PASS __tests__/unit/useHardwareCapabilities.test.ts
+  useHardwareCapabilities
+    WebGPU Not Supported
+      ΓêÜ should return unsupported when navigator.gpu is undefined (2 ms)
+    GPU Tier Detection Logic
+      ΓêÜ should detect high-tier NVIDIA RTX GPUs
+      ΓêÜ should detect medium-tier GPUs
+      ΓêÜ should detect Apple Silicon GPUs (3 ms)
+      ΓêÜ should detect Intel integrated GPUs as low tier
+    VRAM Estimation
+      ΓêÜ should calculate VRAM from adapter limits
+      ΓêÜ should use larger of buffer sizes for VRAM estimate (1 ms)
+    Capability Determination
+      ΓêÜ should mark as incapable when WebGPU not supported
+      ΓêÜ should mark as capable when WebGPU supported and good GPU
+    Time Estimates
+      ΓêÜ should provide faster estimates for high-tier GPUs (1 ms)
+      ΓêÜ should provide slower estimates for low-tier GPUs
+    Warning Generation
+      ΓêÜ should generate warning for low GPU tier
+      ΓêÜ should generate warning for low VRAM
+      ΓêÜ should generate warning for low system RAM (1 ms)
+
+PASS __tests__/unit/whisperMetadataExtractor.test.ts
+  WhisperMetadataExtractor
+    extractWhisperMetadata
+      ΓêÜ should extract basic metrics correctly (2 ms)
+      ΓêÜ should include all required properties (1 ms)
+      ΓêÜ should handle empty transcript
+      ΓêÜ should estimate duration from chunks if not provided
+    countWords
+      ΓêÜ should count words correctly (1 ms)
+    analyzeFillerWords
+      ΓêÜ should detect basic fillers
+      ΓêÜ should calculate correct density categories
+      ΓêÜ should track filler word instances with positions
+    detectContentType
+      ΓêÜ should detect business content
+      ΓêÜ should detect technical content
+      ΓêÜ should detect casual content
+      ΓêÜ should detect lecture content
+      ΓêÜ should return unknown for ambiguous content
+      ΓêÜ should provide confidence levels
+    analyzeSpeakingRate
+      ΓêÜ should categorize speaking rates correctly (1 ms)
+      ΓêÜ should handle edge cases
+    analyzeConfidence
+      ΓêÜ should return defaults when no confidence data available
+      ΓêÜ should handle empty chunks
+    analyzeTemporalPatterns
+      ΓêÜ should calculate timing metrics from chunks (1 ms)
+      ΓêÜ should handle empty chunks
+    extractKeywords
+      ΓêÜ should extract top keywords
+      ΓêÜ should detect acronyms
+      ΓêÜ should detect proper nouns
+    analyzeSentences
+      ΓêÜ should count sentences correctly (1 ms)
+      ΓêÜ should calculate average words per sentence (1 ms)
+      ΓêÜ should detect sentence length variation (1 ms)
+      ΓêÜ should handle empty text
+    Full Extraction Integration
+      ΓêÜ should extract business meeting metadata correctly
+      ΓêÜ should extract technical discussion metadata correctly
+      ΓêÜ should extract casual conversation metadata correctly
+      ΓêÜ should correctly identify high filler density
+
+PASS __tests__/unit/contextAwarePromptBuilder.test.ts
+  ContextAwarePromptBuilder
+    buildContextAwarePrompt
+      ΓêÜ should build a complete prompt with all sections (9 ms)
+      ΓêÜ should include content type in context section
+      ΓêÜ should include filler density information
+      ΓêÜ should include speaking rate
+      ΓêÜ should include transcript text from segments
+      ΓêÜ should include appropriate filler removal instructions
+      ΓêÜ should include preservation rules in system prompt (1 ms)
+      ΓêÜ should include custom instructions when provided
+      ΓêÜ should include examples when provided (2 ms)
+      ΓêÜ should include default examples based on content type
+      ΓêÜ should handle different content types with appropriate style guidance (1 ms)
+      ΓêÜ should include special considerations for fast speaking
+      ΓêÜ should include special considerations for high filler density
+      ΓêÜ should include key topics
+      ΓêÜ should include proper nouns to preserve (1 ms)
+    buildSimplePrompt
+      ΓêÜ should build a simple fallback prompt
+      ΓêÜ should include filler word removal instructions
+      ΓêÜ should include grammar instructions (1 ms)
+      ΓêÜ should include preservation instructions
+    getPromptStats
+      ΓêÜ should return prompt statistics
+      ΓêÜ should identify sections in prompt
+      ΓêÜ should estimate tokens correctly (1 ms)
+    Prompt Integration
+      ΓêÜ should produce coherent prompt for business meeting
+      ΓêÜ should produce coherent prompt for technical discussion
+      ΓêÜ should produce coherent prompt for casual conversation
+
+PASS __tests__/unit/enhancementStrategyGenerator.test.ts
+  EnhancementStrategyGenerator
+    generateEnhancementStrategy
+      ΓêÜ should generate a complete strategy object (1 ms)
+      ΓêÜ should generate appropriate strategy for business content
+      ΓêÜ should generate appropriate strategy for technical content
+      ΓêÜ should generate appropriate strategy for casual content
+      ΓêÜ should generate appropriate strategy for interview content (1 ms)
+      ΓêÜ should generate appropriate strategy for lecture content
+      ΓêÜ should preserve speaker voices for multiple speakers
+      ΓêÜ should handle low confidence appropriately
+    determineFillerRemovalIntensity
+      ΓêÜ should be aggressive for business with high fillers (1 ms)
+      ΓêÜ should be moderate for business with moderate fillers
+      ΓêÜ should be light for casual content
+      ΓêÜ should be minimal for casual with low fillers
+      ΓêÜ should handle unknown content type
+    determineGrammarCorrectionLevel
+      ΓêÜ should be strict for business content
+      ΓêÜ should be strict for lecture content
+      ΓêÜ should be balanced for technical content (1 ms)
+      ΓêÜ should be conservative for casual content
+      ΓêÜ should be balanced for fast speaking
+    determineTargetFormality
+      ΓêÜ should return professional for business
+      ΓêÜ should return formal for lecture
+      ΓêÜ should return casual for casual content
+      ΓêÜ should return conversational for low confidence
+    determineRestructuringLevel
+      ΓêÜ should be extensive for very long sentences (1 ms)
+      ΓêÜ should be moderate for fast speakers with varied sentences
+      ΓêÜ should be minimal for normal content
+      ΓêÜ should be moderate for business with long sentences
+    shouldPreserveTechnicalTerms
+      ΓêÜ should return true for technical content
+      ΓêÜ should return true when technical terms present
+      ΓêÜ should return true when many acronyms present
+      ΓêÜ should return false for casual without technical content (1 ms)
+    explainStrategy
+      ΓêÜ should generate readable explanation (1 ms)
+      ΓêÜ should include special handling indicators
+    getStrategySummary
+      ΓêÜ should return formatted summary object
+      ΓêÜ should include special features when applicable
+
+PASS __tests__/unit/enhancement-types.test.ts
+  Enhancement Types
+    ENHANCEMENT_MODELS
+      ΓêÜ should contain llama-3.2-3b model
+      ΓêÜ should contain gemma-2-2b model (1 ms)
+      ΓêÜ should contain qwen-0.5b model
+      ΓêÜ all models should have required properties (3 ms)
+    DEFAULT_MODEL
+      ΓêÜ should be Llama 3.2 3B
+      ΓêÜ should have correct ID
+    Type Structure Validation
+      ΓêÜ HardwareCapabilities should have expected shape
+      ΓêÜ EnhancementProgress should have expected shape
+      ΓêÜ EnhancementResult should have expected shape
+      ΓêÜ EnhancementStage should include all expected values
+
+Test Suites: 9 passed, 9 total
+Tests:       204 passed, 204 total
+Snapshots:   0 total
+Time:        1.331 s
+Ran all test suites matching __tests__/unit/enhancement-types.test.ts|__tests__/unit/useHardwareCapabilities.test.ts|__
+tests__/unit/EnhancerContext.test.tsx|__tests__/unit/EnhancementToggle.test.tsx|__tests__/unit/EnhancementProgress.test
+.tsx|__tests__/unit/EnhancedTranscriptionViewer.test.tsx|__tests__/unit/whisperMetadataExtractor.test.ts|__tests__/unit
+/enhancementStrategyGenerator.test.ts|__tests__/unit/contextAwarePromptBuilder.test.ts.

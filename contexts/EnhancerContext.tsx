@@ -23,6 +23,7 @@ import type { WhisperMetadata, EnhancementStrategy } from "@/types/whisper-metad
 import { extractWhisperMetadata } from "@/utils/whisperMetadataExtractor";
 import { generateEnhancementStrategy, getStrategySummary } from "@/utils/enhancementStrategyGenerator";
 import { buildContextAwarePrompt, buildSimplePrompt } from "@/utils/contextAwarePromptBuilder";
+import { chunkTranscript, mergeChunks, getChunkingInfo } from "@/utils/transcriptChunker";
 
 // ============================================================================
 // Download State Persistence
@@ -470,24 +471,114 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
     }
 
     try {
-      const result = await workerRef.current.sendRequest<EnhancementResult>('enhance', {
-        transcript: transcript.trim(),
-        prompt: promptText, // Pass the generated prompt to the worker
-        metadata: metadata ? {
-          contentType: metadata.contentType,
-          fillerDensity: metadata.fillerDensity,
-          speakingRate: metadata.speakingRateCategory,
-        } : undefined,
-      }, {
-        timeoutMs: 300000, // 5 minutes for processing
-        onProgress: (prog, msg) => {
+      // Check if we need to chunk the transcript
+      const chunkingInfo = getChunkingInfo(transcript.trim(), 3000);
+      console.log('[EnhancerContext] Chunking info:', chunkingInfo);
+      
+      let result: EnhancementResult;
+      
+      if (chunkingInfo.needsChunking) {
+        // Handle long transcripts with chunking
+        console.log('[EnhancerContext] Transcript is too long, chunking into', chunkingInfo.estimatedChunks, 'parts');
+        
+        const chunks = chunkTranscript(transcript.trim(), 3000);
+        const enhancedChunks: string[] = [];
+        let totalTokens = 0;
+        let totalFillerWords = 0;
+        
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i];
+          console.log(`[EnhancerContext] Processing chunk ${i + 1}/${chunks.length} (${chunk.text.length} chars)`);
+          
           setProgress({
-            stage: prog < 100 ? 'streaming' : 'complete',
-            progress: prog,
-            message: msg || 'Processing...',
+            stage: 'streaming',
+            progress: Math.round((i / chunks.length) * 90), // Reserve last 10% for merging
+            message: `Processing chunk ${i + 1}/${chunks.length}...`,
           });
-        },
-      });
+          
+          const chunkResult = await workerRef.current.sendRequest<EnhancementResult>('enhance', {
+            transcript: chunk.text,
+            prompt: promptText, // Pass the generated prompt to the worker
+            metadata: metadata ? {
+              contentType: metadata.contentType,
+              fillerDensity: metadata.fillerDensity,
+              speakingRate: metadata.speakingRateCategory,
+            } : undefined,
+          }, {
+            timeoutMs: 300000, // 5 minutes for processing
+            onProgress: (prog, msg) => {
+              const overallProgress = Math.round(((i + prog / 100) / chunks.length) * 90);
+              setProgress({
+                stage: 'streaming',
+                progress: overallProgress,
+                message: `Chunk ${i + 1}/${chunks.length}: ${msg || 'Processing...'}`,
+              });
+            },
+          });
+          
+          enhancedChunks.push(chunkResult.enhancedText);
+          totalTokens += chunkResult.tokensGenerated || 0;
+          totalFillerWords += chunkResult.improvements?.fillerCount || 0;
+        }
+        
+        // Merge chunks
+        console.log('[EnhancerContext] Merging', chunks.length, 'enhanced chunks');
+        setProgress({
+          stage: 'streaming',
+          progress: 95,
+          message: 'Combining enhanced chunks...',
+        });
+        
+        const mergedText = mergeChunks(enhancedChunks);
+        
+        // Calculate combined improvements
+        const originalWords = transcript.trim().split(/\s+/).length;
+        const enhancedWords = mergedText.split(/\s+/).length;
+        const originalChars = transcript.trim().length;
+        const enhancedChars = mergedText.length;
+        const compressionRatio = enhancedChars / originalChars;
+        const reductionPercentage = ((originalChars - enhancedChars) / originalChars) * 100;
+        
+        result = {
+          originalText: transcript.trim(),
+          enhancedText: mergedText,
+          improvements: {
+            fillerWordsRemoved: [],
+            fillerCount: totalFillerWords,
+            grammarFixes: Math.max(0, Math.floor(Math.abs(originalWords - enhancedWords) * 0.3)),
+            originalWordCount: originalWords,
+            enhancedWordCount: enhancedWords,
+            originalCharCount: originalChars,
+            enhancedCharCount: enhancedChars,
+            compressionRatio,
+            reductionPercentage: Math.max(0, reductionPercentage),
+          },
+          processingTime: 0, // Will be calculated below
+          tokensGenerated: totalTokens,
+          modelUsed: currentModelId || 'unknown',
+          timestamp: new Date(),
+        };
+      } else {
+        // Single request for short transcripts
+        result = await workerRef.current.sendRequest<EnhancementResult>('enhance', {
+          transcript: transcript.trim(),
+          prompt: promptText, // Pass the generated prompt to the worker
+          metadata: metadata ? {
+            contentType: metadata.contentType,
+            fillerDensity: metadata.fillerDensity,
+            speakingRate: metadata.speakingRateCategory,
+          } : undefined,
+        }, {
+          timeoutMs: 300000, // 5 minutes for processing
+          onProgress: (prog, msg) => {
+            setProgress({
+              stage: prog < 100 ? 'streaming' : 'complete',
+              progress: prog,
+              message: msg || 'Processing...',
+            });
+          },
+        });
+      }
 
       // Convert timestamp string to Date if needed
       const enhancementResult: EnhancementResult = {

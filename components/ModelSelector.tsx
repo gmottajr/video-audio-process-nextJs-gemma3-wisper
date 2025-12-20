@@ -18,6 +18,7 @@ export const WHISPER_MODELS = {
     color: "text-green-600",
     bgColor: "bg-green-50",
     borderColor: "border-green-300",
+    badge: null,
   },
   base: {
     id: "Xenova/whisper-base",
@@ -29,6 +30,7 @@ export const WHISPER_MODELS = {
     color: "text-blue-600",
     bgColor: "bg-blue-50",
     borderColor: "border-blue-300",
+    badge: "Popular",
   },
   small: {
     id: "Xenova/whisper-small",
@@ -40,6 +42,7 @@ export const WHISPER_MODELS = {
     color: "text-purple-600",
     bgColor: "bg-purple-50",
     borderColor: "border-purple-300",
+    badge: "Best",
   },
 } as const;
 
@@ -132,7 +135,7 @@ export default function ModelSelector({
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {(Object.keys(WHISPER_MODELS) as ModelKey[]).map((modelKey) => {
           const model = WHISPER_MODELS[modelKey];
           const isSelected = selectedModel === modelKey;
@@ -151,6 +154,19 @@ export default function ModelSelector({
                 ${!disabled && !isLoading && isSelected ? "shadow-md" : ""}
               `}
             >
+              {/* Badge (Popular, Best) */}
+              {model.badge && (
+                <div className="absolute -top-2 -right-2">
+                  <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                    model.badge === 'Best' 
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
+                      : 'bg-blue-500 text-white'
+                  }`}>
+                    {model.badge}
+                  </span>
+                </div>
+              )}
+
               {/* Active Indicator */}
               {isCurrentlyLoaded && (
                 <div className="absolute top-2 right-2">

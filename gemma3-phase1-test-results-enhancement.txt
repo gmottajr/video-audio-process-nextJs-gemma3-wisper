@@ -1,0 +1,2160 @@
+﻿
+> video-audio-process-poc-nextjs@0.1.0 test
+> jest __tests__/unit/enhancement-types.test.ts __tests__/unit/useHardwareCapabilities.test.ts __tests__/unit/EnhancerContext.test.tsx __tests__/unit/EnhancementToggle.test.tsx __tests__/unit/EnhancementProgress.test.tsx __tests__/unit/EnhancedTranscriptionViewer.test.tsx __tests__/unit/ErrorHandlingService.test.ts __tests__/unit/WorkerManager.test.ts
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052244908 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_2_1766052244910 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 2
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_3_1766052244911 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 3
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052244908: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052244908 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_2_1766052244910: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_2_1766052244910 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_3_1766052244911: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_3_1766052244911 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052244927 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052244927: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052244927 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052244937 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052244937: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052244937 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052244942 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052244942: [ready] Model loaded
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052244942 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052244957 (transcribe)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052244957: [complete] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052244957 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052244973 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052244973: [error] Model not found
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052244996 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052244996: [progress] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052244996: [progress] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052244996: [progress] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052244996: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052244996 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245013 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245013: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052245013 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245028 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245028: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052245028 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245042 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245097 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245097: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052245097 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245111 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245164 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_2_1766052245165 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 2
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245164: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+          at Map.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052245164 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+          at Map.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_2_1766052245165: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+          at Map.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_2_1766052245165 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+          at Map.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245170 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245170: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052245170 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245183 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245183: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052245183 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245191 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_2_1766052245192 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 2
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 2 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245197 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_2_1766052245198 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 2
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 2 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245213 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_2_1766052245214 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 2
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245228 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245231 (init)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245231: [ready] Model loaded
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052245231 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245246 (enhance)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245246: [complete] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052245246 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245261 (reset)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245261: [reset] Reset complete
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052245261 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245275 (init)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245275: [downloading] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245275: [downloading] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245275: [downloading] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245275: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052245275 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245290 (enhance)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245290: [processing] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245290: [streaming] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245290: [complete] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052245290 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245304 (enhance)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245304: [cancelled] Operation cancelled
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ΓÜá∩╕Å Request req_1_1766052245304 was cancelled
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:125:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245318 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_2_1766052245319 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 2
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_3_1766052245319 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 3
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_2_1766052245319: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_2_1766052245319 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245318: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052245318 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_3_1766052245319: [ready] (no message)
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_3_1766052245319 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+  console.log
+    [WorkerManager] ≡ƒÜÇ Initializing worker from: /test-worker.js
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:58:15)
+
+  console.log
+    [WorkerManager] Γ£à Worker initialized successfully
+
+      at WorkerManager.initialize (lib/WorkerManager.ts:70:15)
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_1_1766052245336 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 1
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒôñ Sending request req_2_1766052245337 (load)
+
+      at WorkerManager.<anonymous> (lib/WorkerManager.ts:170:13)
+
+  console.log
+    [WorkerManager] ≡ƒôï Request queued. Pending: 2
+
+      at lib/WorkerManager.ts:202:15
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_1_1766052245336: [ready] Loaded model1
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_1_1766052245336 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒô¿ Response for req_2_1766052245337: [ready] Loaded model2
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:94:13)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] Γ£à Request req_2_1766052245337 completed successfully
+
+      at WorkerManager.handleMessage (lib/WorkerManager.ts:115:15)
+          at Set.forEach (<anonymous>)
+
+  console.log
+    [WorkerManager] ≡ƒº╣ Disposing worker...
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:260:13)
+
+  console.log
+    [WorkerManager] Rejecting 0 pending requests
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:261:13)
+
+  console.log
+    [WorkerManager] Γ£à Worker disposed
+
+      at WorkerManager.dispose (lib/WorkerManager.ts:286:13)
+
+node.exe : PASS __tests__/unit/WorkerManager.test.ts
+At C:\Users\jrmot\Downloads\nodejs\npm.ps1:29 char:3
++   & $NODE_EXE $NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/...Manager.test.ts 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  WorkerManager
+    Initialization
+      ΓêÜ should create worker with correct path (23 ms)
+      ΓêÜ should attach message and error listeners (3 ms)
+      ΓêÜ should report healthy status initially (3 ms)
+      ΓêÜ should have zero pending requests initially (2 ms)
+    Request Sending
+      ΓêÜ should assign unique request IDs (18 ms)
+      ΓêÜ should track pending requests (11 ms)
+      ΓêÜ should include timeout in request options (4 ms)
+    Response Handling
+      ΓêÜ should resolve promise on "ready" status (14 ms)
+      ΓêÜ should resolve promise on "complete" status (17 ms)
+      ΓêÜ should reject promise on "error" status (23 ms)
+      ΓêÜ should call progress callback for progress messages (17 ms)
+      ΓêÜ should ignore messages without requestId (14 ms)
+      ΓêÜ should ignore messages for unknown requestId (14 ms)
+    Timeout Handling
+      ΓêÜ should reject after timeout (55 ms)
+      ΓêÜ should clear timeout on successful response (14 ms)
+      ΓêÜ should remove pending request after timeout (53 ms)
+    Statistics
+      ΓêÜ should return correct pending request count (5 ms)
+      ΓêÜ should calculate oldest request age (9 ms)
+      ΓêÜ should report active status (2 ms)
+    Health Check
+      ΓêÜ should be healthy with no pending requests (2 ms)
+      ΓêÜ should be healthy with recent pending requests (6 ms)
+      ΓêÜ should be unhealthy after disposal (2 ms)
+    Cleanup and Disposal
+      ΓêÜ should reject all pending requests on dispose (7 ms)
+      ΓêÜ should clear all pending requests on dispose (4 ms)
+      ΓêÜ should terminate worker on dispose (5 ms)
+      ΓêÜ should remove event listeners on dispose (2 ms)
+      ΓêÜ should throw error when sending request after disposal (3 ms)
+    Error Handling
+      ΓêÜ should reject all pending requests on worker error (15 ms)
+      ΓêÜ should clear pending requests after worker error (3 ms)
+    Enhancement Message Types
+      ΓêÜ should handle "init" message type for enhancement (15 ms)
+      ΓêÜ should handle "enhance" message type (15 ms)
+      ΓêÜ should handle "reset" message type (13 ms)
+      ΓêÜ should call progress callback for downloading status (16 ms)
+      ΓêÜ should call progress callback for streaming status (14 ms)
+      ΓêÜ should handle cancelled status (14 ms)
+    Concurrent Requests
+      ΓêÜ should handle multiple concurrent requests independently (18 ms)
+      ΓêÜ should not mix up responses from concurrent requests (15 ms)
+
+PASS __tests__/unit/EnhancementProgress.test.tsx
+  EnhancementProgress
+    Downloading Stage
+      ΓêÜ should display downloading title (20 ms)
+      ΓêÜ should display download progress percentage (3 ms)
+      ΓêÜ should display download size info when available (3 ms)
+      ΓêÜ should show one-time download tip (2 ms)
+    Loading Stage
+      ΓêÜ should display loading title (5 ms)
+    Processing Stage
+      ΓêÜ should display enhancing title for processing stage (2 ms)
+      ΓêÜ should display enhancing title for streaming stage (2 ms)
+      ΓêÜ should show token count when available (2 ms)
+      ΓêÜ should show AI processing tip (2 ms)
+    Complete Stage
+      ΓêÜ should display complete title (1 ms)
+    Error Stage
+      ΓêÜ should display error title (1 ms)
+      ΓêÜ should show error message (1 ms)
+    Cancelled Stage
+      ΓêÜ should display cancelled title (1 ms)
+    Cancel Button
+      ΓêÜ should show cancel button during downloading (2 ms)
+      ΓêÜ should show cancel button during processing (1 ms)
+      ΓêÜ should call onCancel when clicked (4 ms)
+      ΓêÜ should not show cancel button on complete (2 ms)
+      ΓêÜ should not show cancel button on error (1 ms)
+      ΓêÜ should not show cancel button if onCancel not provided (1 ms)
+    Elapsed Time
+      ΓêÜ should show elapsed time during processing (4 ms)
+      ΓêÜ should update elapsed time (4 ms)
+      ΓêÜ should format elapsed time with minutes (2 ms)
+      ΓêÜ should not show elapsed time on terminal states (1 ms)
+    Progress Bar
+      ΓêÜ should display progress bar with correct percentage (2 ms)
+    Model Size Display
+      ΓêÜ should show default model size (1 ms)
+      ΓêÜ should show custom model size when provided (2 ms)
+
+  console.error
+    Warning: An update to EnhancedTranscriptionViewer inside a test was not wrapped in act(...).
+    
+    When testing, code that causes React state updates should be wrapped into act(...):
+    
+    act(() => {
+      /* fire events that update state */
+    });
+    /* assert on the output */
+    
+    This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+        at EnhancedTranscriptionViewer (D:\Dev\React\video-audio-process-nextJs-gemma3-wisper\components\EnhancedTranscriptionViewer.tsx:42:3)
+
+    [0m [90m 81 |[39m     [36mtry[39m {
+     [90m 82 |[39m       [36mawait[39m navigator[33m.[39mclipboard[33m.[39mwriteText(currentText)[33m;[39m
+    [31m[1m>[22m[39m[90m 83 |[39m       setCopied([36mtrue[39m)[33m;[39m
+     [90m    |[39m       [31m[1m^[22m[39m
+     [90m 84 |[39m       setTimeout(() [33m=>[39m setCopied([36mfalse[39m)[33m,[39m [35m2000[39m)[33m;[39m
+     [90m 85 |[39m     } [36mcatch[39m (error) {
+     [90m 86 |[39m       console[33m.[39merror([32m"Failed to copy:"[39m[33m,[39m error)[33m;[39m[0m
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/EnhancedTranscriptionViewer.tsx:83:7
+      at fulfilled (components/EnhancedTranscriptionViewer.tsx:6:58)
+
+  console.error
+    Warning: An update to EnhancedTranscriptionViewer inside a test was not wrapped in act(...).
+    
+    When testing, code that causes React state updates should be wrapped into act(...):
+    
+    act(() => {
+      /* fire events that update state */
+    });
+    /* assert on the output */
+    
+    This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+        at EnhancedTranscriptionViewer (D:\Dev\React\video-audio-process-nextJs-gemma3-wisper\components\EnhancedTranscriptionViewer.tsx:42:3)
+
+    [0m [90m 81 |[39m     [36mtry[39m {
+     [90m 82 |[39m       [36mawait[39m navigator[33m.[39mclipboard[33m.[39mwriteText(currentText)[33m;[39m
+    [31m[1m>[22m[39m[90m 83 |[39m       setCopied([36mtrue[39m)[33m;[39m
+     [90m    |[39m       [31m[1m^[22m[39m
+     [90m 84 |[39m       setTimeout(() [33m=>[39m setCopied([36mfalse[39m)[33m,[39m [35m2000[39m)[33m;[39m
+     [90m 85 |[39m     } [36mcatch[39m (error) {
+     [90m 86 |[39m       console[33m.[39merror([32m"Failed to copy:"[39m[33m,[39m error)[33m;[39m[0m
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/EnhancedTranscriptionViewer.tsx:83:7
+      at fulfilled (components/EnhancedTranscriptionViewer.tsx:6:58)
+
+PASS __tests__/unit/EnhancedTranscriptionViewer.test.tsx
+  EnhancedTranscriptionViewer
+    Basic Rendering
+      ΓêÜ should render raw transcription (8 ms)
+      ΓêÜ should display character count (2 ms)
+      ΓêÜ should display model name when provided (3 ms)
+    Without Enhancement
+      ΓêÜ should not show version toggle without enhancement (5 ms)
+      ΓêÜ should show timestamps when available (3 ms)
+    With Enhancement
+      ΓêÜ should show version toggle with enhancement (4 ms)
+      ΓêÜ should default to enhanced view when available (3 ms)
+      ΓêÜ should show improvement metrics (4 ms)
+      ΓêÜ should show removed filler words (4 ms)
+    View Mode Toggle
+      ΓêÜ should switch to raw view when clicked (7 ms)
+      ΓêÜ should switch to comparison view when clicked (5 ms)
+      ΓêÜ should show both texts in comparison view (5 ms)
+    Copy Functionality
+      ΓêÜ should copy raw text when in raw view (16 ms)
+      ΓêÜ should copy enhanced text when in enhanced view (7 ms)
+      ΓêÜ should show "Copied!" feedback after copying (8 ms)
+    Download Functionality
+      ΓêÜ should download TXT file (3 ms)
+      ΓêÜ should download JSON file (3 ms)
+      ΓêÜ should include suffix for enhanced downloads (3 ms)
+      ΓêÜ should include suffix for raw downloads (5 ms)
+    SRT Download
+      ΓêÜ should show SRT button when chunks available and in raw view (2 ms)
+      ΓêÜ should not show SRT button when no chunks (2 ms)
+      ΓêÜ should not show SRT button in enhanced view (2 ms)
+    Timestamped Segments
+      ΓêÜ should display timestamps in raw view (3 ms)
+      ΓêÜ should not display timestamps in enhanced view (3 ms)
+    Footer Stats
+      ΓêÜ should show segment count in raw view (2 ms)
+      ΓêÜ should show model name in enhanced view (2 ms)
+      ΓêÜ should show estimated read time (2 ms)
+    Custom Filename
+      ΓêÜ should use custom filename for downloads (3 ms)
+
+PASS __tests__/unit/EnhancementToggle.test.tsx
+  EnhancementToggle
+    Rendering
+      ΓêÜ should render when hardware is capable (3 ms)
+      ΓêÜ should not render when hardware is incapable
+      ΓêÜ should show "Ready" badge when model is loaded
+      ΓêÜ should show "Loading..." badge when model is loading
+    Toggle Interaction
+      ΓêÜ should call onToggle when clicked (22 ms)
+      ΓêÜ should toggle off when enabled (6 ms)
+      ΓêÜ should be disabled when disabled prop is true (2 ms)
+      ΓêÜ should be disabled when model is loading (2 ms)
+    Details Panel
+      ΓêÜ should show performance tier when enabled (1 ms)
+      ΓêÜ should show processing time estimate when enabled (2 ms)
+      ΓêÜ should show "Show Details" button when enabled (1 ms)
+      ΓêÜ should expand details when "Show Details" is clicked (5 ms)
+      ΓêÜ should show warnings when present (4 ms)
+    Performance Tier Display
+      ΓêÜ should show correct label for high tier (1 ms)
+      ΓêÜ should show correct label for medium tier (2 ms)
+      ΓêÜ should show correct label for low tier (1 ms)
+    Feature List
+      ΓêÜ should show what AI enhancement does when details expanded (6 ms)
+    Accessibility
+      ΓêÜ should have accessible toggle button (2 ms)
+      ΓêÜ should update aria-checked when enabled (2 ms)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:144:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:144:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:144:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:144:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:144:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:144:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:144:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:144:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:144:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:144:17
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [EnhancerContext] Disposing worker on unmount
+
+      at contexts/EnhancerContext.tsx:144:17
+          at Array.forEach (<anonymous>)
+
+PASS __tests__/unit/EnhancerContext.test.tsx
+  EnhancerContext
+    Context Provider
+      ΓêÜ should provide context to children (2 ms)
+      ΓêÜ should throw error when used outside provider (13 ms)
+      ΓêÜ useEnhancerContextOptional should return null outside provider
+    Initial State
+      ΓêÜ should have correct initial state (1 ms)
+      ΓêÜ should have hardware capabilities from hook (1 ms)
+    loadModel
+      ΓêÜ should set loading state when loading model (5 ms)
+      ΓêÜ should set loaded state after successful load (2 ms)
+      ΓêÜ should set error state on load failure (2 ms)
+      ΓêÜ should use suggested model from capabilities (2 ms)
+      ΓêÜ should skip loading if model already loaded with same ID (2 ms)
+    enhance
+      ΓêÜ should throw error if model not loaded (1 ms)
+      ΓêÜ should throw error if transcript is empty (2 ms)
+      ΓêÜ should set enhancing state during enhancement (2 ms)
+      ΓêÜ should store result after successful enhancement (2 ms)
+    clearError
+      ΓêÜ should clear error state (1 ms)
+    clearResult
+      ΓêÜ should clear last result (1 ms)
+    reset
+      ΓêÜ should reset all state (2 ms)
+
+PASS __tests__/unit/ErrorHandlingService.test.ts
+  ErrorHandlingService
+    Custom Error Types
+      ΓêÜ BlobURLError should have correct name (1 ms)
+      ΓêÜ ValidationError should store field name
+      ΓêÜ ModelError should have correct name
+      ΓêÜ ProcessingError should store original error (1 ms)
+      ΓêÜ EnhancementError should have correct name
+      ΓêÜ EnhancementError should store stage
+      ΓêÜ HardwareError should have correct name
+    getUserFriendlyMessage
+      ΓêÜ should handle BlobURLError (1 ms)
+      ΓêÜ should handle ValidationError with field
+      ΓêÜ should handle ValidationError without field
+      ΓêÜ should handle ModelError (2 ms)
+      ΓêÜ should handle ProcessingError
+      ΓêÜ should handle EnhancementError
+      ΓêÜ should handle EnhancementError with downloading stage
+      ΓêÜ should handle EnhancementError with loading stage
+      ΓêÜ should handle HardwareError
+      ΓêÜ should detect network errors
+      ΓêÜ should detect timeout errors
+      ΓêÜ should detect memory errors
+      ΓêÜ should detect not found errors
+      ΓêÜ should return original message if user-friendly (1 ms)
+      ΓêÜ should handle unknown error types
+    logError
+      ΓêÜ should log error with context (3 ms)
+      ΓêÜ should log stack trace if available
+    handleError
+      ΓêÜ should log and return user message
+    validateNotNull
+      ΓêÜ should return value if not null (1 ms)
+      ΓêÜ should throw ValidationError if null (1 ms)
+      ΓêÜ should throw ValidationError if undefined (1 ms)
+      ΓêÜ should include field name in error
+    validate
+      ΓêÜ should not throw if condition is true
+      ΓêÜ should throw ValidationError if condition is false
+      ΓêÜ should include field if provided (1 ms)
+
+PASS __tests__/unit/useHardwareCapabilities.test.ts
+  useHardwareCapabilities
+    WebGPU Not Supported
+      ΓêÜ should return unsupported when navigator.gpu is undefined (2 ms)
+    GPU Tier Detection Logic
+      ΓêÜ should detect high-tier NVIDIA RTX GPUs (1 ms)
+      ΓêÜ should detect medium-tier GPUs
+      ΓêÜ should detect Apple Silicon GPUs
+      ΓêÜ should detect Intel integrated GPUs as low tier (1 ms)
+    VRAM Estimation
+      ΓêÜ should calculate VRAM from adapter limits
+      ΓêÜ should use larger of buffer sizes for VRAM estimate
+    Capability Determination
+      ΓêÜ should mark as incapable when WebGPU not supported (1 ms)
+      ΓêÜ should mark as capable when WebGPU supported and good GPU
+    Time Estimates
+      ΓêÜ should provide faster estimates for high-tier GPUs
+      ΓêÜ should provide slower estimates for low-tier GPUs (1 ms)
+    Warning Generation
+      ΓêÜ should generate warning for low GPU tier
+      ΓêÜ should generate warning for low VRAM
+      ΓêÜ should generate warning for low system RAM
+
+PASS __tests__/unit/enhancement-types.test.ts
+  Enhancement Types
+    ENHANCEMENT_MODELS
+      ΓêÜ should contain llama-3.2-3b model (1 ms)
+      ΓêÜ should contain gemma-2-2b model
+      ΓêÜ should contain qwen-0.5b model
+      ΓêÜ all models should have required properties (2 ms)
+    DEFAULT_MODEL
+      ΓêÜ should be Llama 3.2 3B (2 ms)
+      ΓêÜ should have correct ID
+    Type Structure Validation
+      ΓêÜ HardwareCapabilities should have expected shape
+      ΓêÜ EnhancementProgress should have expected shape (1 ms)
+      ΓêÜ EnhancementResult should have expected shape
+      ΓêÜ EnhancementStage should include all expected values
+
+Test Suites: 8 passed, 8 total
+Tests:       183 passed, 183 total
+Snapshots:   0 total
+Time:        1.812 s
+Ran all test suites matching __tests__/unit/enhancement-types.test.ts|__tests__
+/unit/useHardwareCapabilities.test.ts|__tests__/unit/EnhancerContext.test.tsx|_
+_tests__/unit/EnhancementToggle.test.tsx|__tests__/unit/EnhancementProgress.tes
+t.tsx|__tests__/unit/EnhancedTranscriptionViewer.test.tsx|__tests__/unit/ErrorH
+andlingService.test.ts|__tests__/unit/WorkerManager.test.ts.

@@ -1,0 +1,716 @@
+diff --git a/README.md b/README.md
+index 6890102..34b7688 100644
+--- a/README.md
++++ b/README.md
+@@ -25,7 +25,7 @@ A powerful browser-based application for video/audio processing and AI-powered t
+ - **Combinable Effects** - Apply compression + normalization together
+ 
+ ### 🤖 AI Transcription
+-- **Whisper AI Models** (tiny, base, small, medium, large, turbo)
++- **Whisper AI Models** (tiny, base, small)
+ - **Browser-Based** - No data sent to servers, complete privacy
+ - **Word-Level Timestamps** for precise transcription
+ - **Multiple Export Formats** (TXT, JSON, SRT subtitles)
+@@ -35,6 +35,22 @@ A powerful browser-based application for video/audio processing and AI-powered t
+   - Smart recommendations guide you to the best settings
+ - **Transcribe from Results** - Transcribe audio directly from extraction/conversion results
+ 
++### ✨ AI Transcript Enhancement (Beta)
++- **Optional AI Enhancement** - Clean up transcripts using local LLMs
++- **WebGPU Acceleration** - Fast processing using your GPU
++- **Privacy First** - All processing happens in your browser
++- **Multiple Models**:
++  - 🚀 **Llama 3.2 3B** - Best quality, ~1.7GB download
++  - ⚡ **Gemma 2 2B** - Good balance, ~1.2GB download
++  - 🔋 **Qwen 0.5B** - Fastest, ~300MB download
++- **Automatic Hardware Detection** - Model selected based on your GPU
++- **One-Time Download** - Models cached in browser for instant future use
++- **Features**:
++  - Remove filler words (um, uh, like, you know)
++  - Fix grammar and punctuation
++  - Improve sentence structure
++  - Preserve original meaning
++
+ ### ✂️ Audio Segment Selection & Transcription (NEW!)
+ - **Interactive Waveform Selection** - Click and drag to select audio segments
+ - **Smart Segment Transcription** - Transcribe only selected portions of large files
+@@ -214,6 +230,58 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
+ 
+ ---
+ 
++## 🤖 AI Enhancement (Beta)
++
++MediaForge can optionally enhance transcripts using AI to:
++- Remove filler words (um, uh, like, you know)
++- Fix grammar and punctuation
++- Improve readability and sentence structure
++
++### Requirements
++
++| Requirement | Minimum |
++|-------------|---------|
++| **Browser** | Chrome 113+, Edge 113+, or Safari 18+ |
++| **RAM** | 8GB+ system memory |
++| **GPU** | Any WebGPU-compatible GPU |
++| **Disk Space** | 2GB free (for model cache) |
++
++### How to Use
++
++1. **Complete transcription** - Transcribe your audio/video file
++2. **Toggle "AI Enhancement"** - If your hardware is compatible, you'll see the option
++3. **Wait for model download** - One-time download (~300MB-1.7GB depending on model)
++4. **View enhanced result** - Compare raw vs enhanced transcript
++5. **Export either version** - Download raw, enhanced, or both
++
++### Model Performance
++
++| Model | Download Size | Processing Time* | Quality | Best For |
++|-------|--------------|------------------|---------|----------|
++| **Qwen 0.5B** | ~300MB | ~30 seconds | Basic | Quick edits, testing |
++| **Gemma 2 2B** | ~1.2GB | ~1-2 minutes | Good | Balanced quality/speed |
++| **Llama 3.2 3B** | ~1.7GB | ~2-3 minutes | Best | Production quality |
++
++*Processing time varies by hardware and transcript length. Model is auto-selected based on your GPU.
++
++### Hardware Tiers
++
++| GPU Tier | Examples | Recommended Model |
++|----------|----------|-------------------|
++| 🚀 **High** | RTX 3060+, RX 7600+, M1 Pro+ | Llama 3.2 3B |
++| ⚡ **Medium** | GTX 1060+, RX 6600, M1 | Llama 3.2 3B |
++| 🔋 **Low** | Intel Integrated, older GPUs | Qwen 0.5B |
++
++### Important Notes
++
++- **First use downloads model** - Subsequent uses are instant (cached in browser)
++- **Model cached in IndexedDB** - Survives browser restarts
++- **All processing local** - No data sent to servers
++- **Cancel anytime** - Stop enhancement mid-process if needed
++- **Falls back gracefully** - If enhancement fails, raw transcript is preserved
++
++---
++
+ ## ⚠️ Resource Requirements
+ 
+ ### Transcription RAM Usage (Real-World Data)
+diff --git a/contexts/EnhancerContext.tsx b/contexts/EnhancerContext.tsx
+index f4352f4..58bac31 100644
+--- a/contexts/EnhancerContext.tsx
++++ b/contexts/EnhancerContext.tsx
+@@ -17,6 +17,21 @@ import type {
+   HardwareCapabilities 
+ } from "@/types/enhancement";
+ import { DEFAULT_MODEL } from "@/types/enhancement";
++import { logEnhancementMetrics, type EnhancementTelemetry } from "@/utils/enhancementTelemetry";
++
++// ============================================================================
++// Download State Persistence
++// ============================================================================
++
++const DOWNLOAD_STATE_KEY = 'mediaforge_model_download_state';
++
++interface DownloadState {
++  modelId: string;
++  startedAt: number;
++  progress: number;
++  totalMB: number;
++  completed: boolean;
++}
+ 
+ // ============================================================================
+ // Context Type Definition
+@@ -42,6 +57,12 @@ interface EnhancerContextType {
+   // Results
+   lastResult: EnhancementResult | null;
+   
++  // Download state
++  totalDownloadMB: number;
++  showResumePrompt: boolean;
++  savedDownloadState: DownloadState | null;
++  dismissResumePrompt: () => void;
++  
+   // Actions
+   loadModel: (modelId?: string) => Promise<void>;
+   enhance: (transcript: string) => Promise<EnhancementResult>;
+@@ -110,6 +131,11 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
+   // Results
+   const [lastResult, setLastResult] = useState<EnhancementResult | null>(null);
+   
++  // Download state persistence
++  const [totalDownloadMB, setTotalDownloadMB] = useState(0);
++  const [showResumePrompt, setShowResumePrompt] = useState(false);
++  const [savedDownloadState, setSavedDownloadState] = useState<DownloadState | null>(null);
++  
+   // Request tracking for cancellation
+   const currentRequestIdRef = useRef<string | null>(null);
+ 
+@@ -148,6 +174,85 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
+     };
+   }, []);
+ 
++  /**
++   * Check for interrupted downloads on mount
++   */
++  useEffect(() => {
++    try {
++      const savedState = localStorage.getItem(DOWNLOAD_STATE_KEY);
++      if (savedState) {
++        const state: DownloadState = JSON.parse(savedState);
++        // Only show resume prompt if download wasn't completed and was recent (< 24 hours)
++        const isRecent = Date.now() - state.startedAt < 24 * 60 * 60 * 1000;
++        if (!state.completed && isRecent && state.progress > 0 && state.progress < 100) {
++          console.log('[EnhancerContext] Found interrupted download:', state);
++          setShowResumePrompt(true);
++          setSavedDownloadState(state);
++        } else if (state.completed) {
++          // Clear completed download state
++          localStorage.removeItem(DOWNLOAD_STATE_KEY);
++        }
++      }
++    } catch (err) {
++      console.warn('[EnhancerContext] Failed to read download state:', err);
++    }
++  }, []);
++
++  /**
++   * Save download progress to localStorage
++   */
++  useEffect(() => {
++    if (isModelLoading && modelLoadProgress > 0 && currentModelId) {
++      try {
++        const state: DownloadState = {
++          modelId: currentModelId,
++          startedAt: Date.now(),
++          progress: modelLoadProgress,
++          totalMB: totalDownloadMB,
++          completed: false,
++        };
++        localStorage.setItem(DOWNLOAD_STATE_KEY, JSON.stringify(state));
++      } catch (err) {
++        console.warn('[EnhancerContext] Failed to save download state:', err);
++      }
++    }
++  }, [isModelLoading, modelLoadProgress, currentModelId, totalDownloadMB]);
++
++  /**
++   * Mark download as completed
++   */
++  useEffect(() => {
++    if (isModelLoaded && currentModelId) {
++      try {
++        const state: DownloadState = {
++          modelId: currentModelId,
++          startedAt: Date.now(),
++          progress: 100,
++          totalMB: totalDownloadMB,
++          completed: true,
++        };
++        localStorage.setItem(DOWNLOAD_STATE_KEY, JSON.stringify(state));
++        setShowResumePrompt(false);
++        setSavedDownloadState(null);
++      } catch (err) {
++        console.warn('[EnhancerContext] Failed to save completed state:', err);
++      }
++    }
++  }, [isModelLoaded, currentModelId, totalDownloadMB]);
++
++  /**
++   * Dismiss resume prompt
++   */
++  const dismissResumePrompt = useCallback(() => {
++    setShowResumePrompt(false);
++    setSavedDownloadState(null);
++    try {
++      localStorage.removeItem(DOWNLOAD_STATE_KEY);
++    } catch (err) {
++      console.warn('[EnhancerContext] Failed to clear download state:', err);
++    }
++  }, []);
++
+   // ============================================================================
+   // Model Loading
+   // ============================================================================
+@@ -195,9 +300,14 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
+ 
+       await worker.sendRequest('init', { modelId: targetModelId }, {
+         timeoutMs: 600000, // 10 minutes for download
+-        onProgress: (prog, msg) => {
++        onProgress: (prog, msg, extra) => {
+           setModelLoadProgress(prog);
+           
++          // Track total download size if available
++          if (extra?.totalMB) {
++            setTotalDownloadMB(extra.totalMB);
++          }
++          
+           // Determine stage based on message
+           let stage: EnhancementStage = 'downloading';
+           if (msg?.toLowerCase().includes('loading')) {
+@@ -208,6 +318,8 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
+             stage,
+             progress: prog,
+             message: msg || `Downloading: ${prog}%`,
++            downloadedMB: extra?.downloadedMB,
++            totalMB: extra?.totalMB,
+           });
+         },
+       });
+@@ -312,6 +424,24 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
+       console.log('[EnhancerContext] Enhancement complete');
+       console.log('[EnhancerContext] Improvements:', enhancementResult.improvements);
+ 
++      // Log telemetry
++      if (capabilities) {
++        const telemetry: EnhancementTelemetry = {
++          modelId: currentModelId || 'unknown',
++          gpuTier: capabilities.gpuTier,
++          gpuInfo: capabilities.gpuInfo?.description,
++          downloadTime: 0, // Model was already loaded
++          processingTime: enhancementResult.processingTime,
++          transcriptLength: transcript.length,
++          enhancedLength: enhancementResult.enhancedText.length,
++          fillerWordsRemoved: enhancementResult.improvements.fillerCount,
++          tokensGenerated: enhancementResult.tokensGenerated || 0,
++          wasCached: true, // Model was loaded, so this is a cached run
++          timestamp: new Date().toISOString(),
++        };
++        logEnhancementMetrics(telemetry);
++      }
++
+       return enhancementResult;
+ 
+     } catch (err) {
+@@ -427,6 +557,12 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
+     // Results
+     lastResult,
+     
++    // Download state
++    totalDownloadMB,
++    showResumePrompt,
++    savedDownloadState,
++    dismissResumePrompt,
++    
+     // Actions
+     loadModel,
+     enhance,
+diff --git a/lib/WorkerManager.ts b/lib/WorkerManager.ts
+index be5413f..168a69a 100644
+--- a/lib/WorkerManager.ts
++++ b/lib/WorkerManager.ts
+@@ -18,7 +18,7 @@ export interface WorkerRequest {
+   reject: (error: Error) => void;
+   timeout: NodeJS.Timeout;
+   timestamp: number;
+-  onProgress?: (progress: number, message?: string) => void;
++  onProgress?: (progress: number, message?: string, extra?: { downloadedMB?: number; totalMB?: number; tokensGenerated?: number }) => void;
+ }
+ 
+ export interface WorkerResponse {
+@@ -103,7 +103,11 @@ export class WorkerManager {
+       response.status === 'streaming'
+     ) {
+       if (request.onProgress) {
+-        request.onProgress(response.progress || 0, response.message);
++        request.onProgress(response.progress || 0, response.message, {
++          downloadedMB: response.downloadedMB,
++          totalMB: response.totalMB,
++          tokensGenerated: response.tokensGenerated,
++        });
+       }
+       return; // Don't complete the request
+     }
+@@ -157,7 +161,7 @@ export class WorkerManager {
+     data: any,
+     options: {
+       timeoutMs?: number;
+-      onProgress?: (progress: number, message?: string) => void;
++      onProgress?: (progress: number, message?: string, extra?: { downloadedMB?: number; totalMB?: number; tokensGenerated?: number }) => void;
+     } = {}
+   ): Promise<T> {
+     if (!this.worker) {
+diff --git a/services/ErrorHandlingService.ts b/services/ErrorHandlingService.ts
+index ec4a8d6..83529b6 100644
+--- a/services/ErrorHandlingService.ts
++++ b/services/ErrorHandlingService.ts
+@@ -169,4 +169,75 @@ export class ErrorHandlingService {
+ // Export singleton instance
+ export const errorHandler = new ErrorHandlingService();
+ 
++/**
++ * Get enhancement-specific error message
++ * Provides detailed, user-friendly messages for AI enhancement errors
++ */
++export function getEnhancementErrorMessage(error: Error): string {
++  const message = error.message.toLowerCase();
++  
++  // Network errors
++  if (message.includes('failed to fetch') || message.includes('network') || message.includes('net::')) {
++    return 'Network error downloading model. Check your internet connection and try again.';
++  }
++  
++  // CORS errors
++  if (message.includes('cors') || message.includes('cross-origin')) {
++    return 'Unable to download model due to browser security restrictions. Try a different browser or check your network settings.';
++  }
++  
++  // Out of memory
++  if (message.includes('out of memory') || message.includes('oom') || message.includes('allocation failed')) {
++    return 'Not enough memory to run AI enhancement. Close other browser tabs and applications, or try the smaller Qwen 0.5B model.';
++  }
++  
++  // WebGPU errors
++  if (message.includes('webgpu') || message.includes('gpu adapter') || message.includes('no adapter')) {
++    return 'GPU initialization failed. Your browser or hardware may not support WebGPU. Try Chrome 113+ or Edge 113+.';
++  }
++  
++  // Shader compilation errors
++  if (message.includes('shader') || message.includes('compile')) {
++    return 'GPU shader compilation failed. This may be a driver issue. Try updating your graphics drivers.';
++  }
++  
++  // Model loading errors
++  if (message.includes('model') && (message.includes('load') || message.includes('fetch'))) {
++    return 'Failed to load AI model. The download may have been interrupted. Try refreshing the page.';
++  }
++  
++  // Cache/storage errors
++  if (message.includes('indexeddb') || message.includes('storage') || message.includes('quota')) {
++    return 'Not enough browser storage space. Clear browser cache or allow more storage for this site.';
++  }
++  
++  // Timeout errors
++  if (message.includes('timeout') || message.includes('timed out')) {
++    return 'Operation timed out. Your connection may be slow. Try again with a stable internet connection.';
++  }
++  
++  // Worker errors
++  if (message.includes('worker') || message.includes('postmessage')) {
++    return 'AI worker failed to initialize. Try refreshing the page.';
++  }
++  
++  // Aborted/cancelled
++  if (message.includes('abort') || message.includes('cancel')) {
++    return 'Enhancement was cancelled.';
++  }
++  
++  // Token limit errors
++  if (message.includes('token') || message.includes('context length') || message.includes('too long')) {
++    return 'Transcript is too long for AI enhancement. Try selecting a shorter segment.';
++  }
++  
++  // Generic model errors
++  if (message.includes('inference') || message.includes('generate')) {
++    return 'AI model failed during text generation. Try again or use a different model.';
++  }
++  
++  // Return formatted original message for unknown errors
++  return `Enhancement failed: ${error.message}`;
++}
++
+ 
+diff --git a/utils/enhancementTelemetry.ts b/utils/enhancementTelemetry.ts
+new file mode 100644
+index 0000000..2a7c094
+--- /dev/null
++++ b/utils/enhancementTelemetry.ts
+@@ -0,0 +1,300 @@
++/**
++ * Enhancement Telemetry Utility
++ * 
++ * Tracks AI enhancement performance metrics for analysis and optimization.
++ * All data stays local in localStorage - no external analytics.
++ */
++
++// ============================================================================
++// Types
++// ============================================================================
++
++export interface EnhancementTelemetry {
++  /** Model used for enhancement */
++  modelId: string;
++  /** GPU tier detected */
++  gpuTier: 'high' | 'medium' | 'low' | 'unsupported';
++  /** GPU description */
++  gpuInfo?: string;
++  /** Time to download model (seconds, 0 if cached) */
++  downloadTime: number;
++  /** Time to process transcript (seconds) */
++  processingTime: number;
++  /** Input transcript length (characters) */
++  transcriptLength: number;
++  /** Output transcript length (characters) */
++  enhancedLength: number;
++  /** Number of filler words removed */
++  fillerWordsRemoved: number;
++  /** Tokens generated */
++  tokensGenerated: number;
++  /** Whether model was already cached */
++  wasCached: boolean;
++  /** Timestamp */
++  timestamp: string;
++}
++
++export interface TelemetrySummary {
++  /** Total enhancements performed */
++  totalEnhancements: number;
++  /** Average processing time (seconds) */
++  avgProcessingTime: number;
++  /** Average download time for non-cached (seconds) */
++  avgDownloadTime: number;
++  /** Average tokens per second */
++  avgTokensPerSecond: number;
++  /** Cache hit rate */
++  cacheHitRate: number;
++  /** Average filler words removed per enhancement */
++  avgFillerWordsRemoved: number;
++  /** Performance by model */
++  byModel: Record<string, {
++    count: number;
++    avgProcessingTime: number;
++    avgTokensPerSecond: number;
++  }>;
++  /** Performance by GPU tier */
++  byGpuTier: Record<string, {
++    count: number;
++    avgProcessingTime: number;
++    avgTokensPerSecond: number;
++  }>;
++}
++
++// ============================================================================
++// Constants
++// ============================================================================
++
++const TELEMETRY_KEY = 'mediaforge_enhancement_metrics';
++const MAX_ENTRIES = 50;
++
++// ============================================================================
++// Functions
++// ============================================================================
++
++/**
++ * Log enhancement metrics to localStorage
++ */
++export function logEnhancementMetrics(metrics: EnhancementTelemetry): void {
++  try {
++    // Get existing metrics
++    const existing = getEnhancementMetrics();
++    
++    // Add new entry
++    existing.push({
++      ...metrics,
++      timestamp: metrics.timestamp || new Date().toISOString(),
++    });
++    
++    // Keep only last N entries
++    while (existing.length > MAX_ENTRIES) {
++      existing.shift();
++    }
++    
++    // Save back
++    localStorage.setItem(TELEMETRY_KEY, JSON.stringify(existing));
++    
++    // Log summary for this hardware
++    const summary = getSummaryForHardware(metrics.modelId, metrics.gpuTier);
++    if (summary) {
++      console.log(
++        `[Telemetry] ${metrics.modelId} on ${metrics.gpuTier} GPU: ` +
++        `avg ${summary.avgProcessingTime.toFixed(1)}s processing, ` +
++        `${summary.avgTokensPerSecond.toFixed(1)} tokens/sec ` +
++        `(${summary.count} samples)`
++      );
++    }
++  } catch (err) {
++    console.warn('[Telemetry] Failed to save metrics:', err);
++  }
++}
++
++/**
++ * Get all stored enhancement metrics
++ */
++export function getEnhancementMetrics(): EnhancementTelemetry[] {
++  try {
++    const data = localStorage.getItem(TELEMETRY_KEY);
++    return data ? JSON.parse(data) : [];
++  } catch (err) {
++    console.warn('[Telemetry] Failed to read metrics:', err);
++    return [];
++  }
++}
++
++/**
++ * Get summary statistics
++ */
++export function getTelemetrySummary(): TelemetrySummary | null {
++  const metrics = getEnhancementMetrics();
++  
++  if (metrics.length === 0) {
++    return null;
++  }
++  
++  // Calculate totals
++  let totalProcessingTime = 0;
++  let totalDownloadTime = 0;
++  let totalTokensPerSecond = 0;
++  let totalFillerWords = 0;
++  let cachedCount = 0;
++  let downloadCount = 0;
++  
++  const byModel: TelemetrySummary['byModel'] = {};
++  const byGpuTier: TelemetrySummary['byGpuTier'] = {};
++  
++  for (const m of metrics) {
++    totalProcessingTime += m.processingTime;
++    totalFillerWords += m.fillerWordsRemoved;
++    
++    const tokensPerSec = m.processingTime > 0 
++      ? m.tokensGenerated / m.processingTime 
++      : 0;
++    totalTokensPerSecond += tokensPerSec;
++    
++    if (m.wasCached) {
++      cachedCount++;
++    } else {
++      totalDownloadTime += m.downloadTime;
++      downloadCount++;
++    }
++    
++    // By model
++    if (!byModel[m.modelId]) {
++      byModel[m.modelId] = { count: 0, avgProcessingTime: 0, avgTokensPerSecond: 0 };
++    }
++    byModel[m.modelId].count++;
++    byModel[m.modelId].avgProcessingTime += m.processingTime;
++    byModel[m.modelId].avgTokensPerSecond += tokensPerSec;
++    
++    // By GPU tier
++    if (!byGpuTier[m.gpuTier]) {
++      byGpuTier[m.gpuTier] = { count: 0, avgProcessingTime: 0, avgTokensPerSecond: 0 };
++    }
++    byGpuTier[m.gpuTier].count++;
++    byGpuTier[m.gpuTier].avgProcessingTime += m.processingTime;
++    byGpuTier[m.gpuTier].avgTokensPerSecond += tokensPerSec;
++  }
++  
++  // Calculate averages for byModel
++  for (const model of Object.keys(byModel)) {
++    const count = byModel[model].count;
++    byModel[model].avgProcessingTime /= count;
++    byModel[model].avgTokensPerSecond /= count;
++  }
++  
++  // Calculate averages for byGpuTier
++  for (const tier of Object.keys(byGpuTier)) {
++    const count = byGpuTier[tier].count;
++    byGpuTier[tier].avgProcessingTime /= count;
++    byGpuTier[tier].avgTokensPerSecond /= count;
++  }
++  
++  return {
++    totalEnhancements: metrics.length,
++    avgProcessingTime: totalProcessingTime / metrics.length,
++    avgDownloadTime: downloadCount > 0 ? totalDownloadTime / downloadCount : 0,
++    avgTokensPerSecond: totalTokensPerSecond / metrics.length,
++    cacheHitRate: cachedCount / metrics.length,
++    avgFillerWordsRemoved: totalFillerWords / metrics.length,
++    byModel,
++    byGpuTier,
++  };
++}
++
++/**
++ * Get summary for specific hardware configuration
++ */
++export function getSummaryForHardware(
++  modelId: string, 
++  gpuTier: string
++): { avgProcessingTime: number; avgTokensPerSecond: number; count: number } | null {
++  const metrics = getEnhancementMetrics();
++  
++  const matching = metrics.filter(
++    m => m.modelId === modelId && m.gpuTier === gpuTier
++  );
++  
++  if (matching.length === 0) {
++    return null;
++  }
++  
++  let totalProcessingTime = 0;
++  let totalTokensPerSecond = 0;
++  
++  for (const m of matching) {
++    totalProcessingTime += m.processingTime;
++    const tokensPerSec = m.processingTime > 0 
++      ? m.tokensGenerated / m.processingTime 
++      : 0;
++    totalTokensPerSecond += tokensPerSec;
++  }
++  
++  return {
++    avgProcessingTime: totalProcessingTime / matching.length,
++    avgTokensPerSecond: totalTokensPerSecond / matching.length,
++    count: matching.length,
++  };
++}
++
++/**
++ * Estimate processing time based on historical data
++ */
++export function estimateProcessingTime(
++  modelId: string,
++  gpuTier: string,
++  transcriptLength: number
++): number | null {
++  const metrics = getEnhancementMetrics();
++  
++  const matching = metrics.filter(
++    m => m.modelId === modelId && m.gpuTier === gpuTier
++  );
++  
++  if (matching.length < 3) {
++    // Not enough data for reliable estimate
++    return null;
++  }
++  
++  // Calculate average chars per second
++  let totalCharsPerSecond = 0;
++  for (const m of matching) {
++    if (m.processingTime > 0) {
++      totalCharsPerSecond += m.transcriptLength / m.processingTime;
++    }
++  }
++  const avgCharsPerSecond = totalCharsPerSecond / matching.length;
++  
++  if (avgCharsPerSecond <= 0) {
++    return null;
++  }
++  
++  return transcriptLength / avgCharsPerSecond;
++}
++
++/**
++ * Clear all telemetry data
++ */
++export function clearTelemetry(): void {
++  try {
++    localStorage.removeItem(TELEMETRY_KEY);
++    console.log('[Telemetry] Cleared all metrics');
++  } catch (err) {
++    console.warn('[Telemetry] Failed to clear metrics:', err);
++  }
++}
++
++/**
++ * Export telemetry data as JSON
++ */
++export function exportTelemetry(): string {
++  const metrics = getEnhancementMetrics();
++  const summary = getTelemetrySummary();
++  
++  return JSON.stringify({
++    metrics,
++    summary,
++    exportedAt: new Date().toISOString(),
++  }, null, 2);
++}
++

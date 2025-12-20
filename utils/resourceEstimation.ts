@@ -39,28 +39,34 @@ const FILE_SIZE_THRESHOLDS = {
 
 /**
  * Model complexity (RAM multipliers)
+ * 
+ * Note: Whisper Medium was removed due to browser WebAssembly memory limits
+ * causing OOM errors for audio longer than ~5 minutes.
  */
-const MODEL_COMPLEXITY: Record<ModelKey, { ram: number; gpuRecommended: boolean; name: string }> = {
-  tiny: { ram: 1, gpuRecommended: false, name: "Tiny" },
-  base: { ram: 1.5, gpuRecommended: false, name: "Base" },
-  small: { ram: 2, gpuRecommended: true, name: "Small" },
+const MODEL_COMPLEXITY: Record<ModelKey, { ram: number; gpuRecommended: boolean; name: string; maxDurationSec: number }> = {
+  tiny: { ram: 1, gpuRecommended: false, name: "Tiny", maxDurationSec: 3600 },      // ~1 hour
+  base: { ram: 1.5, gpuRecommended: false, name: "Base", maxDurationSec: 1800 },    // ~30 min
+  small: { ram: 2, gpuRecommended: true, name: "Small", maxDurationSec: 1200 },     // ~20 min
 };
 
 /**
  * Base RAM required by each Whisper model (in GB)
- * This is the model itself loaded in memory
+ * This is the model itself loaded in memory plus processing overhead
  * 
  * Calibrated from real-world testing:
- * - 400MB + Small = 76GB
- * - 700MB + Small = 78GB  
- * - 1000MB + Small = 78.3GB
+ * - Small model: ~28GB RAM (corrected measurement)
  * 
- * Pattern: ~75GB base + ~3GB per 1GB of file
+ * Model size progression:
+ * - Tiny: 39MB → ~2GB RAM
+ * - Base: 74MB → ~4GB RAM  
+ * - Small: 244MB → ~8GB RAM
+ * 
+ * Note: Medium model removed due to browser WASM memory limits
  */
 const MODEL_BASE_RAM_GB: Record<ModelKey, number> = {
-  tiny: 5,      // Tiny model is very light
-  base: 15,     // Base model moderate
-  small: 75,    // Small model heavy (validated: 400MB=76GB, 700MB=78GB, 1GB=78.3GB)
+  tiny: 2,      // Tiny model is very light (~39MB)
+  base: 4,      // Base model moderate (~74MB)
+  small: 8,     // Small model (~244MB, measured ~28GB with large files)
 };
 
 /**
@@ -210,9 +216,9 @@ export function getResourceRequirements(
   }
   
   // Model warnings
-  if (["large", "medium"].includes(modelKey) && fileSizeBytes > FILE_SIZE_THRESHOLDS.LARGE) {
+  if (modelKey === "small" && fileSizeBytes > FILE_SIZE_THRESHOLDS.LARGE) {
     warnings.push(
-      `⚠️ ${modelInfo.name} model with large file - This combination is very resource-intensive!`
+      `⚠️ ${modelInfo.name} model with large file - This combination is resource-intensive!`
     );
   }
   
@@ -328,13 +334,18 @@ function parseTimeStringToMinutes(timeStr: string): number {
 /**
  * Get resource warning (simplified version for UI)
  */
-export function getResourceWarning(file: File, modelKey: ModelKey): ResourceWarning {
+export function getResourceWarning(file: File, modelKey: ModelKey, audioDurationSec?: number): ResourceWarning {
   const requirements = getResourceRequirements(file.size, modelKey, "transcribe");
   const fileSizeMB = Math.round(file.size / (1024 * 1024));
+  const modelInfo = MODEL_COMPLEXITY[modelKey];
   
   // Use the calibrated time estimation (700MB = 20 min for Small)
   const processingTimeStr = estimateProcessingTime(file.size, modelKey);
   const estimatedTimeMinutes = parseTimeStringToMinutes(processingTimeStr);
+  
+  // Check for audio duration-based warnings (critical for Whisper Medium)
+  const durationWarning = audioDurationSec !== undefined && 
+    audioDurationSec > modelInfo.maxDurationSec;
   
   // Map our level to the legacy level system
   let legacyLevel: ResourceWarning["level"];
@@ -342,11 +353,31 @@ export function getResourceWarning(file: File, modelKey: ModelKey): ResourceWarn
   let message: string;
   let recommendation: string;
   
+  // Duration warning for models
+  if (durationWarning && audioDurationSec) {
+    const durationMin = Math.round(audioDurationSec / 60);
+    const maxMin = Math.round(modelInfo.maxDurationSec / 60);
+    legacyLevel = "extreme";
+    icon = "🟠";
+    message = `LONG AUDIO: ${durationMin}min exceeds recommended ${maxMin}min for ${modelInfo.name}`;
+    recommendation = `Consider using a smaller model or splitting the audio file for better reliability.`;
+    return {
+      level: legacyLevel,
+      icon,
+      message,
+      recommendation,
+      estimatedRAM: requirements.estimatedRAM,
+      estimatedTimeMinutes,
+      requiresGPU: requirements.requiresGPU,
+      requiresHighEndCPU: true,
+    };
+  }
+  
   // Updated messages based on real testing (700MB-1GB works fine with 78GB RAM)
   if (requirements.level === "extreme") {
     legacyLevel = "dangerous";
     icon = "🔴";
-    message = `EXTREME: ${fileSizeMB}MB file with ${MODEL_COMPLEXITY[modelKey].name} model requires ${requirements.estimatedRAM}GB+ RAM`;
+    message = `EXTREME: ${fileSizeMB}MB file with ${modelInfo.name} model requires ${requirements.estimatedRAM}GB+ RAM`;
     recommendation = `May crash or freeze your system. Use a smaller file (< 500MB) or lighter model (tiny/base).`;
   } else if (requirements.level === "high") {
     legacyLevel = "extreme";
@@ -374,5 +405,40 @@ export function getResourceWarning(file: File, modelKey: ModelKey): ResourceWarn
     estimatedTimeMinutes,
     requiresGPU: requirements.requiresGPU,
     requiresHighEndCPU: requirements.requiresPowerfulCPU,
+  };
+}
+
+/**
+ * Check if audio duration is too long for a model
+ * Returns a warning message if duration exceeds model's recommended limit
+ */
+export function checkAudioDurationLimit(
+  audioDurationSec: number,
+  modelKey: ModelKey
+): { isOverLimit: boolean; warningMessage: string | null; recommendedModel: ModelKey | null } {
+  const modelInfo = MODEL_COMPLEXITY[modelKey];
+  
+  if (audioDurationSec <= modelInfo.maxDurationSec) {
+    return { isOverLimit: false, warningMessage: null, recommendedModel: null };
+  }
+  
+  const durationMin = Math.round(audioDurationSec / 60);
+  const maxMin = Math.round(modelInfo.maxDurationSec / 60);
+  
+  // Find a model that can handle this duration
+  let recommendedModel: ModelKey | null = null;
+  for (const [key, info] of Object.entries(MODEL_COMPLEXITY)) {
+    if (audioDurationSec <= info.maxDurationSec) {
+      recommendedModel = key as ModelKey;
+      break;
+    }
+  }
+  
+  const warningMessage = `⚠️ ${modelInfo.name} model works best with audio under ${maxMin} minutes. Your audio is ${durationMin} minutes.`;
+  
+  return {
+    isOverLimit: true,
+    warningMessage,
+    recommendedModel,
   };
 }

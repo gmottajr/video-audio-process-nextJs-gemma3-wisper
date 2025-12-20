@@ -37,9 +37,7 @@ jest.mock('@/components/ModelSelector', () => ({
       },
         React.createElement('option', { value: 'tiny' }, 'Tiny'),
         React.createElement('option', { value: 'base' }, 'Base'),
-        React.createElement('option', { value: 'small' }, 'Small'),
-        React.createElement('option', { value: 'medium' }, 'Medium'),
-        React.createElement('option', { value: 'large' }, 'Large')
+        React.createElement('option', { value: 'small' }, 'Small')
       )
     );
   },
@@ -47,8 +45,6 @@ jest.mock('@/components/ModelSelector', () => ({
     tiny: { id: 'Xenova/whisper-tiny', name: 'Tiny' },
     base: { id: 'Xenova/whisper-base', name: 'Base' },
     small: { id: 'Xenova/whisper-small', name: 'Small' },
-    medium: { id: 'Xenova/whisper-medium', name: 'Medium' },
-    large: { id: 'Xenova/whisper-large', name: 'Large' },
   },
 }));
 
@@ -143,8 +139,8 @@ describe('Model Selection in Done State', () => {
     const modelSelect = screen.getByTestId('model-select');
     expect(modelSelect).toHaveValue('base');
 
-    // User changes to "medium"
-    fireEvent.change(modelSelect, { target: { value: 'medium' } });
+    // User changes to "small"
+    fireEvent.change(modelSelect, { target: { value: 'small' } });
 
     // Rerender with updated prop (simulates parent state update)
     rerender(
@@ -152,7 +148,7 @@ describe('Model Selection in Done State', () => {
         result={result}
         file={mockFile}
         formatId="wav"
-        selectedModelKey="medium"
+        selectedModelKey="small"
         currentModel={null}
         metrics={{}}
         memoryUsageMB={100}
@@ -168,7 +164,7 @@ describe('Model Selection in Done State', () => {
     fireEvent.click(transcribeButton);
 
     // Should call with the selected model key (third parameter)
-    expect(onTranscribe).toHaveBeenCalledWith('none', false, 'medium');
+    expect(onTranscribe).toHaveBeenCalledWith('none', false, 'small');
   });
 
   test('should start with default selected model', () => {
@@ -230,7 +226,7 @@ describe('Model Selection in Done State', () => {
         result={result}
         file={mockFile}
         formatId="wav"
-        selectedModelKey="large"
+        selectedModelKey="small"
         currentModel={null}
         metrics={{}}
         memoryUsageMB={100}
@@ -241,7 +237,7 @@ describe('Model Selection in Done State', () => {
       />
     );
 
-    expect(modelSelect).toHaveValue('large');
+    expect(modelSelect).toHaveValue('small');
   });
 
   test('should combine model selection with compression and normalization', () => {

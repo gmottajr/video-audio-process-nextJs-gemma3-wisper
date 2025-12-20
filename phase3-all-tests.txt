@@ -1,0 +1,1524 @@
+﻿
+> video-audio-process-poc-nextjs@0.1.0 test
+> jest __tests__/unit/qualityMetricsCalculator.test.ts __tests__/unit/feedbackManager.test.ts __tests__/unit/enhancementHistoryManager.test.ts
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300516_3g7vmj
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300543_4v9o69
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300544_2163le
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300545_f4wcy7
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300547_f4yllg
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300547_4i8zzn
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300549_mp7zc8
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300550_2ipwx5
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Updated record: enh_1766127300550_2ipwx5
+
+      at updateRecord (utils/feedbackManager.ts:206:13)
+
+  console.warn
+    [FeedbackManager] Record not found: non_existent_id
+
+      195 |   
+      196 |   if (index === -1) {
+    > 197 |     console.warn('[FeedbackManager] Record not found:', enhancementId);
+          |             ^
+      198 |     return null;
+      199 |   }
+      200 |   
+
+      at updateRecord (utils/feedbackManager.ts:197:13)
+      at Object.<anonymous> (__tests__/unit/feedbackManager.test.ts:195:35)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300553_ku76m7
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Updated record: enh_1766127300553_ku76m7
+
+      at updateRecord (utils/feedbackManager.ts:206:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300555_epcr5o
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300555_epcr5o
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.warn
+    [FeedbackManager] Record not found for feedback: non_existent_id
+
+      241 |   
+      242 |   if (index === -1) {
+    > 243 |     console.warn('[FeedbackManager] Record not found for feedback:', enhancementId);
+          |             ^
+      244 |     return false;
+      245 |   }
+      246 |   
+
+      at saveFeedback (utils/feedbackManager.ts:243:13)
+      at Object.<anonymous> (__tests__/unit/feedbackManager.test.ts:239:35)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300557_7es1ij
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.error
+    [FeedbackManager] Invalid feedback - rating must be 1-5
+
+      233 |   
+      234 |   if (!feedback || !feedback.rating || feedback.rating < 1 || feedback.rating > 5) {
+    > 235 |     console.error('[FeedbackManager] Invalid feedback - rating must be 1-5');
+          |             ^
+      236 |     return false;
+      237 |   }
+      238 |   
+
+      at saveFeedback (utils/feedbackManager.ts:235:13)
+      at Object.<anonymous> (__tests__/unit/feedbackManager.test.ts:247:26)
+
+  console.error
+    [FeedbackManager] Invalid feedback - rating must be 1-5
+
+      233 |   
+      234 |   if (!feedback || !feedback.rating || feedback.rating < 1 || feedback.rating > 5) {
+    > 235 |     console.error('[FeedbackManager] Invalid feedback - rating must be 1-5');
+          |             ^
+      236 |     return false;
+      237 |   }
+      238 |   
+
+      at saveFeedback (utils/feedbackManager.ts:235:13)
+      at Object.<anonymous> (__tests__/unit/feedbackManager.test.ts:248:26)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300557_7es1ij
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300559_ipa9q9
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300559_ipa9q9
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300561_9wuixg
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300561_9wuixg
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300562_sanb06
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300563_mwhdyt
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300563_mwhdyt
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300564_qg4nit
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300565_pd1v60
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300566_5fg2ix
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300566_xuy61r
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300565_pd1v60
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300566_5fg2ix
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300566_xuy61r
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300569_991qqt
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300569_fywxip
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300569_8wk06d
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300569_991qqt
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300569_fywxip
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300569_8wk06d
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300571_ag7qq7
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300572_5ju7kp
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300574_4ipiw9
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300571_ag7qq7
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300572_5ju7kp
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300574_4ipiw9
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300576_bgv4ri
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300577_2f7icm
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300576_bgv4ri
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300577_2f7icm
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300578_so3myk
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300579_4wvsjr
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300579_hv7o4b
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300578_so3myk
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300579_4wvsjr
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300579_hv7o4b
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300581_187s3j
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300582_xarjsg
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300581_187s3j
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300582_xarjsg
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300583_iw7r60
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300583_iw7r60
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300584_7uc96e
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300584_7uc96e
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300585_h36bdi
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300585_h36bdi
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300585_bimfag
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300585_bimfag
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300586_wme101
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300586_wme101
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300587_mrl3mp
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300589_ndljd2
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300589_28kedf
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] All data cleared
+
+      at clearAllData (utils/feedbackManager.ts:407:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300591_vlofu2
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300591_ga4x3f
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300591_vlofu2
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300593_ctvohz
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300594_3t3bfj
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300594_yvuogi
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300597_6szyhj
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300598_bcjqi7
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300598_mnpmp8
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300599_ilu4t8
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300599_442e9z
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300600_so5l70
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300600_db8y1c
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300600_kuu6it
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300601_bkzoui
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300601_vudzjc
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300601_3b7k6l
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300602_pjuntr
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300602_s0muky
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300602_iwdcpi
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300603_guhhcy
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300603_8nhbgk
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300604_48axai
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300604_hwk0u6
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300604_42yfwo
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300605_tc1nsi
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300605_76sdh6
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300605_7qsia8
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300606_e828rs
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300606_zz10wy
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300606_oa4q6n
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300607_t8xd7r
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300607_w1m0rm
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300607_qntlb9
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300608_mh6zz1
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300608_0ujkvi
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300608_ouv1oe
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300609_8lqm2a
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300609_kcqvp6
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300609_udvpnc
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300610_hn8cdm
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300610_9nks1f
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300610_y7k4d2
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300611_wy2kl5
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300611_76qp1j
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300611_wrvfah
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300612_fn8ugc
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300612_6aw86x
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300613_9jsw59
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300613_ecsjf1
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300613_e906xa
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300614_4rshje
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300614_muzrde
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300614_z9jam0
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300615_5g70vs
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300615_82i10g
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300615_d7vjni
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300616_5vba57
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300616_437u2p
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300617_6234t4
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300619_02xapu
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300619_ieonli
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300620_uqzckq
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300620_sq7l1t
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300620_uvidvx
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300621_nk0kwn
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300621_cyone3
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300622_o32hvs
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300622_xga1js
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300623_a98yjw
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300623_ictaym
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300623_cuga3c
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300624_2wkyfi
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300624_ii5aoo
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300625_7z5yw8
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300625_19un5s
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300625_wgo01h
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300626_lney6o
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300626_awm24s
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300627_bzno9m
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300627_jzaa48
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300627_yv7meb
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300628_vq8x05
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300628_19qcve
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300629_u7ceg8
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300629_sfjhyg
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300630_04gujw
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300630_8dpfln
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300630_th53hf
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300631_kvzsws
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300632_ib48em
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300632_13nwe3
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300633_exjt51
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300634_ehva1e
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300634_o9hp4t
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300635_e8hmgg
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300635_z6a3zy
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300635_w3klmn
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300636_bi5b17
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300636_6oc2fb
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300637_vjbq28
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300637_1cc1en
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300638_4pwiib
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Removed oldest record: enh_1766127300593_ctvohz
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:160:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300639_083mh1
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Removed oldest record: enh_1766127300594_3t3bfj
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:160:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300640_8b5qb6
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Removed oldest record: enh_1766127300594_yvuogi
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:160:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300641_al4zly
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Removed oldest record: enh_1766127300597_6szyhj
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:160:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300642_2gcwty
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Removed oldest record: enh_1766127300598_bcjqi7
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:160:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300642_m20z09
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+node.exe : PASS __tests__/unit/feedbackManager.test.ts
+At C:\Users\jrmot\Downloads\nodejs\npm.ps1:29 char:3
++   & $NODE_EXE $NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/...Manager.test.ts:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  Session Management
+    getOrCreateSessionId
+      ΓêÜ creates new session ID on first call (2 ms)
+      ΓêÜ returns same session ID on subsequent calls
+      ΓêÜ stores session ID in sessionStorage
+    generateEnhancementId
+      ΓêÜ generates unique IDs (1 ms)
+      ΓêÜ follows expected format
+  Record Operations
+    saveEnhancementRecord
+      ΓêÜ saves record successfully (26 ms)
+      ΓêÜ generates unique ID (3 ms)
+      ΓêÜ adds timestamp (1 ms)
+    getAllRecords
+      ΓêÜ returns empty array when no records (1 ms)
+      ΓêÜ returns saved records (1 ms)
+    getRecord
+      ΓêÜ returns record by ID (1 ms)
+      ΓêÜ returns null for non-existent ID (1 ms)
+    updateRecord
+      ΓêÜ updates existing record (1 ms)
+      ΓêÜ returns null for non-existent ID (2 ms)
+      ΓêÜ does not allow changing ID (1 ms)
+  Feedback Operations
+    saveFeedback
+      ΓêÜ saves feedback for existing record (2 ms)
+      ΓêÜ returns false for non-existent record (1 ms)
+      ΓêÜ validates rating is 1-5 (2 ms)
+      ΓêÜ truncates long comments (1 ms)
+    getFeedback
+      ΓêÜ retrieves saved feedback (2 ms)
+      ΓêÜ returns null for record without feedback
+      ΓêÜ returns null for non-existent record (1 ms)
+    hasFeedback
+      ΓêÜ returns true when feedback exists (1 ms)
+      ΓêÜ returns false when no feedback
+  Feedback Analytics
+    calculateFeedbackAnalytics
+      ΓêÜ returns zeros when no feedback (1 ms)
+      ΓêÜ calculates average rating correctly (3 ms)
+      ΓêÜ calculates rating distribution (3 ms)
+      ΓêÜ calculates satisfaction rate (5 ms)
+      ΓêÜ tracks issue frequency (2 ms)
+      ΓêÜ identifies top issues (3 ms)
+    getRecentFeedback
+      ΓêÜ returns recent feedback sorted by date (2 ms)
+      ΓêÜ respects limit (4 ms)
+  Data Management
+    exportAllData
+      ΓêÜ exports all data as JSON (1 ms)
+      ΓêÜ exports empty data correctly
+    clearAllData
+      ΓêÜ removes all records (1 ms)
+    getStorageStats
+      ΓêÜ returns accurate stats (1 ms)
+      ΓêÜ handles empty storage
+  Storage Limits
+    ΓêÜ enforces maximum record limit (50 ms)
+
+  console.warn
+    [QualityMetrics] Extreme compression detected: 0.34
+
+      698 |   if (metrics.compressionRatio < 0.40) {
+      699 |     penaltyPoints -= 10; // Lost too much content
+    > 700 |     console.warn('[QualityMetrics] Extreme compression detected:', metrics.compressionRatio);
+          |             ^
+      701 |   }
+      702 |   if (metrics.compressionRatio > 1.50) {
+      703 |     penaltyPoints -= 5; // Significant expansion
+
+      at calculateQualityBreakdown (utils/qualityMetricsCalculator.ts:700:13)
+      at calculateEnhancementQualityMetrics (utils/qualityMetricsCalculator.ts:848:28)
+      at Object.<anonymous> (__tests__/unit/qualityMetricsCalculator.test.ts:461:57)
+
+  console.warn
+    [QualityMetrics] Significant expansion detected: 7.5
+
+      702 |   if (metrics.compressionRatio > 1.50) {
+      703 |     penaltyPoints -= 5; // Significant expansion
+    > 704 |     console.warn('[QualityMetrics] Significant expansion detected:', metrics.compressionRatio);
+          |             ^
+      705 |   }
+      706 |   if (!metrics.sentimentPreserved) {
+      707 |     penaltyPoints -= 5; // Sentiment changed
+
+      at calculateQualityBreakdown (utils/qualityMetricsCalculator.ts:704:13)
+      at calculateEnhancementQualityMetrics (utils/qualityMetricsCalculator.ts:848:28)
+      at Object.<anonymous> (__tests__/unit/qualityMetricsCalculator.test.ts:471:57)
+
+  console.warn
+    [QualityMetrics] Extreme compression detected: 0.2
+
+      698 |   if (metrics.compressionRatio < 0.40) {
+      699 |     penaltyPoints -= 10; // Lost too much content
+    > 700 |     console.warn('[QualityMetrics] Extreme compression detected:', metrics.compressionRatio);
+          |             ^
+      701 |   }
+      702 |   if (metrics.compressionRatio > 1.50) {
+      703 |     penaltyPoints -= 5; // Significant expansion
+
+      at calculateQualityBreakdown (utils/qualityMetricsCalculator.ts:700:13)
+      at calculateEnhancementQualityMetrics (utils/qualityMetricsCalculator.ts:848:28)
+      at Object.<anonymous> (__tests__/unit/qualityMetricsCalculator.test.ts:497:57)
+
+  console.warn
+    [QualityMetrics] Extreme compression detected: 0.36
+
+      698 |   if (metrics.compressionRatio < 0.40) {
+      699 |     penaltyPoints -= 10; // Lost too much content
+    > 700 |     console.warn('[QualityMetrics] Extreme compression detected:', metrics.compressionRatio);
+          |             ^
+      701 |   }
+      702 |   if (metrics.compressionRatio > 1.50) {
+      703 |     penaltyPoints -= 5; // Significant expansion
+
+      at calculateQualityBreakdown (utils/qualityMetricsCalculator.ts:700:13)
+      at calculateEnhancementQualityMetrics (utils/qualityMetricsCalculator.ts:848:28)
+      at Object.<anonymous> (__tests__/unit/qualityMetricsCalculator.test.ts:507:57)
+
+  console.warn
+    [QualityMetrics] Extreme compression detected: 0.06
+
+      698 |   if (metrics.compressionRatio < 0.40) {
+      699 |     penaltyPoints -= 10; // Lost too much content
+    > 700 |     console.warn('[QualityMetrics] Extreme compression detected:', metrics.compressionRatio);
+          |             ^
+      701 |   }
+      702 |   if (metrics.compressionRatio > 1.50) {
+      703 |     penaltyPoints -= 5; // Significant expansion
+
+      at calculateQualityBreakdown (utils/qualityMetricsCalculator.ts:700:13)
+      at calculateEnhancementQualityMetrics (utils/qualityMetricsCalculator.ts:848:28)
+      at Object.<anonymous> (__tests__/unit/qualityMetricsCalculator.test.ts:533:57)
+
+  console.warn
+    [QualityMetrics] Significant expansion detected: 1.58
+
+      702 |   if (metrics.compressionRatio > 1.50) {
+      703 |     penaltyPoints -= 5; // Significant expansion
+    > 704 |     console.warn('[QualityMetrics] Significant expansion detected:', metrics.compressionRatio);
+          |             ^
+      705 |   }
+      706 |   if (!metrics.sentimentPreserved) {
+      707 |     penaltyPoints -= 5; // Sentiment changed
+
+      at calculateQualityBreakdown (utils/qualityMetricsCalculator.ts:704:13)
+      at calculateEnhancementQualityMetrics (utils/qualityMetricsCalculator.ts:848:28)
+      at Object.<anonymous> (__tests__/unit/qualityMetricsCalculator.test.ts:595:57)
+
+  console.warn
+    [QualityMetrics] Very low quality score: 20
+
+      863 |   // Warnings for edge cases
+      864 |   if (qualityBreakdown.totalScore < 30) {
+    > 865 |     console.warn('[QualityMetrics] Very low quality score:', qualityBreakdown.totalScore);
+          |             ^
+      866 |   }
+      867 |   
+      868 |   return {
+
+      at calculateEnhancementQualityMetrics (utils/qualityMetricsCalculator.ts:865:13)
+      at Object.<anonymous> (__tests__/unit/qualityMetricsCalculator.test.ts:595:57)
+
+PASS __tests__/unit/qualityMetricsCalculator.test.ts
+  Syllable Counting
+    countSyllables
+      ΓêÜ single syllable words (1 ms)
+      ΓêÜ two syllable words
+      ΓêÜ three syllable words
+      ΓêÜ four+ syllable words
+      ΓêÜ edge cases
+      ΓêÜ words with punctuation (1 ms)
+    countTotalSyllables
+      ΓêÜ counts syllables in sentence
+      ΓêÜ handles empty string
+      ΓêÜ handles multi-syllable sentence
+  Text Analysis Helpers
+    countWords
+      ΓêÜ counts words correctly (1 ms)
+      ΓêÜ handles edge cases
+      ΓêÜ handles punctuation
+    countSentences
+      ΓêÜ counts sentences correctly
+      ΓêÜ handles abbreviations
+      ΓêÜ handles decimals
+      ΓêÜ handles edge cases
+    countCharacters
+      ΓêÜ counts with spaces
+      ΓêÜ counts without spaces (1 ms)
+      ΓêÜ handles empty string
+  Readability Calculations
+    Flesch-Kincaid Reading Ease
+      ΓêÜ simple text scores high
+      ΓêÜ complex text scores low
+      ΓêÜ handles empty text
+      ΓêÜ returns value in 0-100 range (2 ms)
+    Flesch-Kincaid Grade Level
+      ΓêÜ simple text has low grade level
+      ΓêÜ complex text has high grade level (1 ms)
+      ΓêÜ handles empty text
+    SMOG Index
+      ΓêÜ calculates SMOG index
+      ΓêÜ handles empty text
+    ARI
+      ΓêÜ calculates ARI
+      ΓêÜ handles empty text (1 ms)
+      ΓêÜ complex text has higher ARI
+    Coleman-Liau Index
+      ΓêÜ calculates Coleman-Liau
+      ΓêÜ handles empty text
+    Gunning Fog Index
+      ΓêÜ calculates Gunning Fog (1 ms)
+      ΓêÜ handles empty text
+    calculateReadabilityScore
+      ΓêÜ returns all scores
+    getReadabilityDifficulty
+      ΓêÜ classifies correctly (1 ms)
+    assessReadability
+      ΓêÜ returns complete assessment
+  Sentiment Analysis
+    analyzeSentiment
+      ΓêÜ detects positive sentiment (1 ms)
+      ΓêÜ detects negative sentiment
+      ΓêÜ detects neutral sentiment
+      ΓêÜ handles negation correctly
+      ΓêÜ handles empty text
+  Preservation Metrics
+    extractTechnicalTerms
+      ΓêÜ extracts acronyms
+      ΓêÜ extracts camelCase (1 ms)
+      ΓêÜ extracts tech keywords
+    countPreservedTechnicalTerms
+      ΓêÜ counts preserved terms
+      ΓêÜ detects missing terms
+    extractNumbers
+      ΓêÜ extracts various number formats (1 ms)
+      ΓêÜ extracts decimals
+    countPreservedNumbers
+      ΓêÜ counts preserved numbers
+      ΓêÜ detects missing numbers
+    extractProperNouns
+      ΓêÜ extracts proper nouns (1 ms)
+    countPreservedProperNouns
+      ΓêÜ counts preserved proper nouns
+  calculateEnhancementQualityMetrics
+    basic functionality
+      ΓêÜ returns complete metrics object (1 ms)
+      ΓêÜ calculates compression ratio correctly (6 ms)
+      ΓêÜ handles expansion correctly (2 ms)
+    quality scoring
+      ΓêÜ good enhancement scores reasonably
+      ΓêÜ poor enhancement scores low (2 ms)
+      ΓêÜ includes quality breakdown (1 ms)
+    confidence scoring
+      ΓêÜ normal enhancement has good confidence
+      ΓêÜ extreme compression lowers confidence (1 ms)
+      ΓêÜ confidence is between 0 and 1 (1 ms)
+    edge cases
+      ΓêÜ handles empty strings
+      ΓêÜ handles identical texts
+      ΓêÜ handles null/undefined inputs (1 ms)
+    preservation detection
+      ΓêÜ detects technical term preservation
+      ΓêÜ detects number preservation (2 ms)
+      ΓêÜ detects sentiment preservation
+      ΓêÜ detects sentiment change
+  Helper Functions
+    formatMetricsSummary
+      ΓêÜ generates formatted summary (1 ms)
+    getQualityLabel
+      ΓêÜ returns correct labels
+    getConfidenceLabel
+      ΓêÜ returns correct labels
+  Performance
+    ΓêÜ completes within 100ms for large text (8 ms)
+    ΓêÜ handles very long text without errors (36 ms)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300852_n2tp81
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300855_zjyddg
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300856_nwswul
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300856_mza3g8
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300857_9koche
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300858_76x1mt
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300858_n2ebdp
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300859_so2f9w
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300859_oaxhgn
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300860_f5aq35
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300861_yb1ty7
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300862_io1drd
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300862_4ow04x
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300863_9xd5cj
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300863_rlv4vz
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300864_p1f0ny
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300867_iyzi4m
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300868_fm4iqv
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300868_xmp74b
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300869_iyvwed
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300870_dwaxpt
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300870_uzg0pz
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300871_cq1oio
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300871_tpqqqn
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300872_u24wgm
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300872_lpuirs
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300873_c19ej3
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300873_8arob5
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300874_9h66c3
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300874_aqutbh
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300875_ckaa6p
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300875_ckaa6p
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300876_wwt09h
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300877_d3gwch
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300877_g0vhzm
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300878_m1q6y9
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300878_p346s9
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300879_3vag1n
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300880_cwnyej
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300880_tlr8ym
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300881_39pd6b
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300882_oiiq37
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300882_kahqew
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Saved enhancement record: enh_1766127300883_djeqc0
+
+      at saveEnhancementRecord (utils/feedbackManager.ts:164:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300882_kahqew
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+  console.log
+    [FeedbackManager] Feedback saved for: enh_1766127300883_djeqc0
+
+      at saveFeedback (utils/feedbackManager.ts:257:13)
+
+PASS __tests__/unit/enhancementHistoryManager.test.ts
+  Record Creation
+    recordEnhancement
+      ΓêÜ creates record from metrics (3 ms)
+      ΓêÜ preserves word counts
+  Enhancement Analytics
+    calculateEnhancementAnalytics
+      ΓêÜ returns zeros when no records (1 ms)
+      ΓêÜ calculates averages correctly (1 ms)
+      ΓêÜ groups by content type (2 ms)
+      ΓêÜ groups by model (1 ms)
+    getAnalyticsSummary
+      ΓêÜ returns complete summary (1 ms)
+  History Queries
+    getEnhancementHistory
+      ΓêÜ returns all records by default (2 ms)
+      ΓêÜ filters by content type (4 ms)
+      ΓêÜ filters by model (2 ms)
+      ΓêÜ filters by minimum quality score (2 ms)
+      ΓêÜ sorts by quality score (1 ms)
+      ΓêÜ respects limit (2 ms)
+      ΓêÜ filters by hasRating (2 ms)
+    getContentTypes
+      ΓêÜ returns unique content types (2 ms)
+    getModelsUsed
+      ΓêÜ returns unique model IDs (1 ms)
+  Trend Analysis
+    getQualityTrend
+      ΓêÜ returns empty array when no records
+      ΓêÜ groups by date (1 ms)
+    compareModelPerformance
+      ΓêÜ compares models correctly (1 ms)
+      ΓêÜ calculates satisfaction rate with ratings (2 ms)
+
+Test Suites: 3 passed, 3 total
+Tests:       133 passed, 133 total
+Snapshots:   0 total
+Time:        0.994 s, estimated 1 s
+Ran all test suites matching __tests__/unit/qualityMetricsCalculator.test.ts|__tests__/unit/feedbackManager.test.ts|__t
+ests__/unit/enhancementHistoryManager.test.ts.

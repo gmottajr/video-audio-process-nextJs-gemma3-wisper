@@ -1,0 +1,233 @@
+﻿
+> video-audio-process-poc-nextjs@0.1.0 test
+> jest __tests__/unit/qualityMetricsCalculator.test.ts
+
+  console.warn
+    [QualityMetrics] Extreme compression detected: 0.34
+
+      698 |   if (metrics.compressionRatio < 0.40) {
+      699 |     penaltyPoints -= 10; // Lost too much content
+    > 700 |     console.warn('[QualityMetrics] Extreme compression detected:', metrics.compressionRatio);
+          |             ^
+      701 |   }
+      702 |   if (metrics.compressionRatio > 1.50) {
+      703 |     penaltyPoints -= 5; // Significant expansion
+
+      at calculateQualityBreakdown (utils/qualityMetricsCalculator.ts:700:13)
+      at calculateEnhancementQualityMetrics (utils/qualityMetricsCalculator.ts:848:28)
+      at Object.<anonymous> (__tests__/unit/qualityMetricsCalculator.test.ts:461:57)
+
+  console.warn
+    [QualityMetrics] Significant expansion detected: 7.5
+
+      702 |   if (metrics.compressionRatio > 1.50) {
+      703 |     penaltyPoints -= 5; // Significant expansion
+    > 704 |     console.warn('[QualityMetrics] Significant expansion detected:', metrics.compressionRatio);
+          |             ^
+      705 |   }
+      706 |   if (!metrics.sentimentPreserved) {
+      707 |     penaltyPoints -= 5; // Sentiment changed
+
+      at calculateQualityBreakdown (utils/qualityMetricsCalculator.ts:704:13)
+      at calculateEnhancementQualityMetrics (utils/qualityMetricsCalculator.ts:848:28)
+      at Object.<anonymous> (__tests__/unit/qualityMetricsCalculator.test.ts:471:57)
+
+  console.warn
+    [QualityMetrics] Extreme compression detected: 0.2
+
+      698 |   if (metrics.compressionRatio < 0.40) {
+      699 |     penaltyPoints -= 10; // Lost too much content
+    > 700 |     console.warn('[QualityMetrics] Extreme compression detected:', metrics.compressionRatio);
+          |             ^
+      701 |   }
+      702 |   if (metrics.compressionRatio > 1.50) {
+      703 |     penaltyPoints -= 5; // Significant expansion
+
+      at calculateQualityBreakdown (utils/qualityMetricsCalculator.ts:700:13)
+      at calculateEnhancementQualityMetrics (utils/qualityMetricsCalculator.ts:848:28)
+      at Object.<anonymous> (__tests__/unit/qualityMetricsCalculator.test.ts:497:57)
+
+  console.warn
+    [QualityMetrics] Extreme compression detected: 0.36
+
+      698 |   if (metrics.compressionRatio < 0.40) {
+      699 |     penaltyPoints -= 10; // Lost too much content
+    > 700 |     console.warn('[QualityMetrics] Extreme compression detected:', metrics.compressionRatio);
+          |             ^
+      701 |   }
+      702 |   if (metrics.compressionRatio > 1.50) {
+      703 |     penaltyPoints -= 5; // Significant expansion
+
+      at calculateQualityBreakdown (utils/qualityMetricsCalculator.ts:700:13)
+      at calculateEnhancementQualityMetrics (utils/qualityMetricsCalculator.ts:848:28)
+      at Object.<anonymous> (__tests__/unit/qualityMetricsCalculator.test.ts:507:57)
+
+  console.warn
+    [QualityMetrics] Extreme compression detected: 0.06
+
+      698 |   if (metrics.compressionRatio < 0.40) {
+      699 |     penaltyPoints -= 10; // Lost too much content
+    > 700 |     console.warn('[QualityMetrics] Extreme compression detected:', metrics.compressionRatio);
+          |             ^
+      701 |   }
+      702 |   if (metrics.compressionRatio > 1.50) {
+      703 |     penaltyPoints -= 5; // Significant expansion
+
+      at calculateQualityBreakdown (utils/qualityMetricsCalculator.ts:700:13)
+      at calculateEnhancementQualityMetrics (utils/qualityMetricsCalculator.ts:848:28)
+      at Object.<anonymous> (__tests__/unit/qualityMetricsCalculator.test.ts:533:57)
+
+  console.warn
+    [QualityMetrics] Significant expansion detected: 1.58
+
+      702 |   if (metrics.compressionRatio > 1.50) {
+      703 |     penaltyPoints -= 5; // Significant expansion
+    > 704 |     console.warn('[QualityMetrics] Significant expansion detected:', metrics.compressionRatio);
+          |             ^
+      705 |   }
+      706 |   if (!metrics.sentimentPreserved) {
+      707 |     penaltyPoints -= 5; // Sentiment changed
+
+      at calculateQualityBreakdown (utils/qualityMetricsCalculator.ts:704:13)
+      at calculateEnhancementQualityMetrics (utils/qualityMetricsCalculator.ts:848:28)
+      at Object.<anonymous> (__tests__/unit/qualityMetricsCalculator.test.ts:595:57)
+
+  console.warn
+    [QualityMetrics] Very low quality score: 20
+
+      863 |   // Warnings for edge cases
+      864 |   if (qualityBreakdown.totalScore < 30) {
+    > 865 |     console.warn('[QualityMetrics] Very low quality score:', qualityBreakdown.totalScore);
+          |             ^
+      866 |   }
+      867 |   
+      868 |   return {
+
+      at calculateEnhancementQualityMetrics (utils/qualityMetricsCalculator.ts:865:13)
+      at Object.<anonymous> (__tests__/unit/qualityMetricsCalculator.test.ts:595:57)
+
+node.exe : PASS __tests__/unit/qualityMetricsCalculator.test.ts
+At C:\Users\jrmot\Downloads\nodejs\npm.ps1:29 char:3
++   & $NODE_EXE $NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/...culator.test.ts:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  Syllable Counting
+    countSyllables
+      ΓêÜ single syllable words (2 ms)
+      ΓêÜ two syllable words (3 ms)
+      ΓêÜ three syllable words
+      ΓêÜ four+ syllable words (1 ms)
+      ΓêÜ edge cases (1 ms)
+      ΓêÜ words with punctuation
+    countTotalSyllables
+      ΓêÜ counts syllables in sentence (1 ms)
+      ΓêÜ handles empty string
+      ΓêÜ handles multi-syllable sentence
+  Text Analysis Helpers
+    countWords
+      ΓêÜ counts words correctly
+      ΓêÜ handles edge cases
+      ΓêÜ handles punctuation
+    countSentences
+      ΓêÜ counts sentences correctly (1 ms)
+      ΓêÜ handles abbreviations
+      ΓêÜ handles decimals
+      ΓêÜ handles edge cases (1 ms)
+    countCharacters
+      ΓêÜ counts with spaces
+      ΓêÜ counts without spaces (1 ms)
+      ΓêÜ handles empty string
+  Readability Calculations
+    Flesch-Kincaid Reading Ease
+      ΓêÜ simple text scores high (1 ms)
+      ΓêÜ complex text scores low
+      ΓêÜ handles empty text
+      ΓêÜ returns value in 0-100 range (1 ms)
+    Flesch-Kincaid Grade Level
+      ΓêÜ simple text has low grade level
+      ΓêÜ complex text has high grade level
+      ΓêÜ handles empty text (1 ms)
+    SMOG Index
+      ΓêÜ calculates SMOG index
+      ΓêÜ handles empty text
+    ARI
+      ΓêÜ calculates ARI
+      ΓêÜ handles empty text
+      ΓêÜ complex text has higher ARI
+    Coleman-Liau Index
+      ΓêÜ calculates Coleman-Liau
+      ΓêÜ handles empty text (1 ms)
+    Gunning Fog Index
+      ΓêÜ calculates Gunning Fog
+      ΓêÜ handles empty text
+    calculateReadabilityScore
+      ΓêÜ returns all scores (1 ms)
+    getReadabilityDifficulty
+      ΓêÜ classifies correctly (1 ms)
+    assessReadability
+      ΓêÜ returns complete assessment (2 ms)
+  Sentiment Analysis
+    analyzeSentiment
+      ΓêÜ detects positive sentiment (1 ms)
+      ΓêÜ detects negative sentiment
+      ΓêÜ detects neutral sentiment
+      ΓêÜ handles negation correctly (1 ms)
+      ΓêÜ handles empty text
+  Preservation Metrics
+    extractTechnicalTerms
+      ΓêÜ extracts acronyms
+      ΓêÜ extracts camelCase (1 ms)
+      ΓêÜ extracts tech keywords
+    countPreservedTechnicalTerms
+      ΓêÜ counts preserved terms
+      ΓêÜ detects missing terms
+    extractNumbers
+      ΓêÜ extracts various number formats (1 ms)
+      ΓêÜ extracts decimals
+    countPreservedNumbers
+      ΓêÜ counts preserved numbers
+      ΓêÜ detects missing numbers
+    extractProperNouns
+      ΓêÜ extracts proper nouns
+    countPreservedProperNouns
+      ΓêÜ counts preserved proper nouns
+  calculateEnhancementQualityMetrics
+    basic functionality
+      ΓêÜ returns complete metrics object (1 ms)
+      ΓêÜ calculates compression ratio correctly (23 ms)
+      ΓêÜ handles expansion correctly (1 ms)
+    quality scoring
+      ΓêÜ good enhancement scores reasonably
+      ΓêÜ poor enhancement scores low (1 ms)
+      ΓêÜ includes quality breakdown (2 ms)
+    confidence scoring
+      ΓêÜ normal enhancement has good confidence (1 ms)
+      ΓêÜ extreme compression lowers confidence (1 ms)
+      ΓêÜ confidence is between 0 and 1
+    edge cases
+      ΓêÜ handles empty strings
+      ΓêÜ handles identical texts
+      ΓêÜ handles null/undefined inputs (1 ms)
+    preservation detection
+      ΓêÜ detects technical term preservation
+      ΓêÜ detects number preservation (2 ms)
+      ΓêÜ detects sentiment preservation (1 ms)
+      ΓêÜ detects sentiment change
+  Helper Functions
+    formatMetricsSummary
+      ΓêÜ generates formatted summary
+    getQualityLabel
+      ΓêÜ returns correct labels
+    getConfidenceLabel
+      ΓêÜ returns correct labels (1 ms)
+  Performance
+    ΓêÜ completes within 100ms for large text (7 ms)
+    ΓêÜ handles very long text without errors (41 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       75 passed, 75 total
+Snapshots:   0 total
+Time:        0.489 s, estimated 1 s
+Ran all test suites matching __tests__/unit/qualityMetricsCalculator.test.ts.
