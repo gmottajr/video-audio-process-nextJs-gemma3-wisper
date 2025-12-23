@@ -16,7 +16,7 @@ import type {
   EnhancementStage,
   HardwareCapabilities 
 } from "@/types/enhancement";
-import { DEFAULT_MODEL } from "@/types/enhancement";
+import { DEFAULT_MODEL, ENHANCEMENT_MODELS } from "@/types/enhancement";
 import { logEnhancementMetrics, type EnhancementTelemetry } from "@/utils/enhancementTelemetry";
 import type { TranscriptionResult } from "@/contexts/TranscriberContext";
 import type { WhisperMetadata, EnhancementStrategy } from "@/types/whisper-metadata";
@@ -24,6 +24,10 @@ import { extractWhisperMetadata } from "@/utils/whisperMetadataExtractor";
 import { generateEnhancementStrategy, getStrategySummary } from "@/utils/enhancementStrategyGenerator";
 import { buildContextAwarePrompt, buildSimplePrompt } from "@/utils/contextAwarePromptBuilder";
 import { chunkTranscript, mergeChunks, getChunkingInfo } from "@/utils/transcriptChunker";
+import type { SpeakerIdentificationResult, SpeakerIdentificationOptions } from "@/utils/speakerIdentifier";
+import { identifySpeakers } from "@/utils/speakerIdentifier";
+import type { TranscriptAnalysis, AnalysisOptions } from "@/types/transcript-analysis";
+import { buildAnalysisPrompt, parseAnalysisResponse, validateAnalysisResult } from "@/utils/analysisPromptBuilder";
 
 // ============================================================================
 // Download State Persistence
@@ -66,7 +70,7 @@ interface EnhancerContextType {
   // Phase 2: Metadata and Strategy
   lastMetadata: WhisperMetadata | null;
   lastStrategy: EnhancementStrategy | null;
-  useContextAwarePrompts: boolean;
+  useContextAwarePrompts: boolean;  // DISABLED: Phase 2 prompts are too large for 1B model
   
   // Download state
   totalDownloadMB: number;
@@ -74,13 +78,28 @@ interface EnhancerContextType {
   savedDownloadState: DownloadState | null;
   dismissResumePrompt: () => void;
   
+  // Speaker Identification
+  isIdentifyingSpeakers: boolean;
+  speakerIdentificationResult: SpeakerIdentificationResult | null;
+  speakerIdentificationError: string | null;
+  
+  // Transcript Analysis
+  isAnalyzing: boolean;
+  analysisResult: TranscriptAnalysis | null;
+  analysisError: string | null;
+  
   // Actions
   loadModel: (modelId?: string) => Promise<void>;
   enhance: (transcript: string, whisperResult?: TranscriptionResult, audioDuration?: number) => Promise<EnhancementResult>;
+  identifySpeakersInTranscript: (options: SpeakerIdentificationOptions) => Promise<SpeakerIdentificationResult>;
+  analyzeTranscript: (transcript: string, options?: AnalysisOptions) => Promise<TranscriptAnalysis>;
   cancelEnhancement: () => void;
   reset: () => void;
+  resetEngine: () => Promise<void>;
   clearError: () => void;
   clearResult: () => void;
+  clearSpeakerIdentification: () => void;
+  clearAnalysis: () => void;
 }
 
 // ============================================================================
@@ -145,7 +164,20 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
   // Phase 2: Metadata and Strategy
   const [lastMetadata, setLastMetadata] = useState<WhisperMetadata | null>(null);
   const [lastStrategy, setLastStrategy] = useState<EnhancementStrategy | null>(null);
-  const [useContextAwarePrompts, setUseContextAwarePrompts] = useState(true);
+  // TEMP FIX: Disable Phase 2 context-aware prompts - they're too large for 1B model (20K+ tokens)
+  // Phase 2 prompts include metadata, strategy, examples which exceed the 4096 token context window
+  // TODO: Either use 3B model OR create shorter Phase 2 prompts
+  const [useContextAwarePrompts, setUseContextAwarePrompts] = useState(false);
+  
+  // Speaker Identification
+  const [isIdentifyingSpeakers, setIsIdentifyingSpeakers] = useState(false);
+  const [speakerIdentificationResult, setSpeakerIdentificationResult] = useState<SpeakerIdentificationResult | null>(null);
+  const [speakerIdentificationError, setSpeakerIdentificationError] = useState<string | null>(null);
+  
+  // Transcript Analysis
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<TranscriptAnalysis | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   
   // Download state persistence
   const [totalDownloadMB, setTotalDownloadMB] = useState(0);
@@ -285,7 +317,14 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
       throw new Error(errorMsg);
     }
 
-    const targetModelId = modelId || capabilities.recommendation.suggestedModel || DEFAULT_MODEL.id;
+    // Convert short key to full model ID if needed
+    let targetModelId = modelId || capabilities.recommendation.suggestedModel || DEFAULT_MODEL.id;
+    
+    // If modelId is a short key (e.g., 'llama-3.2-1b'), convert to full ID
+    if (modelId && ENHANCEMENT_MODELS[modelId]) {
+      targetModelId = ENHANCEMENT_MODELS[modelId].id;
+      console.log('[EnhancerContext] Converting model key to full ID:', modelId, '->', targetModelId);
+    }
 
     // Skip if already loaded with same model
     if (isModelLoaded && currentModelId === targetModelId) {
@@ -381,12 +420,15 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
     whisperResult?: TranscriptionResult,
     audioDuration?: number
   ): Promise<EnhancementResult> => {
-    // Validate model is loaded
-    if (!isModelLoaded || !workerRef.current) {
-      const errorMsg = 'Model not loaded. Please load the model first.';
+    // Validate model is loaded - check worker directly to avoid React state race condition
+    if (!workerRef.current) {
+      const errorMsg = 'Worker not initialized. Please wait for initialization.';
       setError(errorMsg);
       throw new Error(errorMsg);
     }
+    
+    // Note: We don't check isModelLoaded here because it's a React state that might not have
+    // updated yet even after loadModel() completes. The worker will handle the check internally.
 
     // Validate input
     if (!transcript || transcript.trim().length === 0) {
@@ -416,7 +458,7 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
     // Phase 2: Extract metadata and generate strategy
     let metadata: WhisperMetadata | null = null;
     let strategy: EnhancementStrategy | null = null;
-    let promptText: string;
+    let promptText: string | null;
     
     if (useContextAwarePrompts && whisperResult) {
       try {
@@ -456,23 +498,25 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
         });
         
       } catch (metadataErr) {
-        console.warn('[EnhancerContext] Failed to extract metadata, falling back to simple prompt:', metadataErr);
-        // Fall back to simple prompt
-        promptText = buildSimplePrompt(transcript.trim());
+        console.warn('[EnhancerContext] Failed to extract metadata, falling back to Phase 1 (system prompt):', metadataErr);
+        // Fall back to Phase 1 (no custom prompt)
+        promptText = null;
         setLastMetadata(null);
         setLastStrategy(null);
       }
     } else {
       // Use simple prompt when no Whisper result provided or context-aware disabled
       console.log('[EnhancerContext] Using simple prompt (Phase 1 mode)');
-      promptText = buildSimplePrompt(transcript.trim());
+      promptText = null; // Don't pass custom prompt - let worker use built-in system prompt
       setLastMetadata(null);
       setLastStrategy(null);
     }
 
     try {
       // Check if we need to chunk the transcript
-      const chunkingInfo = getChunkingInfo(transcript.trim(), 3000);
+      // SAFE CHUNK SIZE: 2000 tokens max (leaves room for system prompt ~300 + output ~1800 = 4100 total)
+      const MAX_CHUNK_TOKENS = 2000;
+      const chunkingInfo = getChunkingInfo(transcript.trim(), MAX_CHUNK_TOKENS);
       console.log('[EnhancerContext] Chunking info:', chunkingInfo);
       
       let result: EnhancementResult;
@@ -481,7 +525,7 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
         // Handle long transcripts with chunking
         console.log('[EnhancerContext] Transcript is too long, chunking into', chunkingInfo.estimatedChunks, 'parts');
         
-        const chunks = chunkTranscript(transcript.trim(), 3000);
+        const chunks = chunkTranscript(transcript.trim(), MAX_CHUNK_TOKENS);
         const enhancedChunks: string[] = [];
         let totalTokens = 0;
         let totalFillerWords = 0;
@@ -498,7 +542,7 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
           
           const chunkResult = await workerRef.current.sendRequest<EnhancementResult>('enhance', {
             transcript: chunk.text,
-            prompt: promptText, // Pass the generated prompt to the worker
+            prompt: promptText || undefined, // Pass custom prompt only if generated (Phase 2), otherwise undefined (Phase 1)
             metadata: metadata ? {
               contentType: metadata.contentType,
               fillerDensity: metadata.fillerDensity,
@@ -562,7 +606,7 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
         // Single request for short transcripts
         result = await workerRef.current.sendRequest<EnhancementResult>('enhance', {
           transcript: transcript.trim(),
-          prompt: promptText, // Pass the generated prompt to the worker
+          prompt: promptText || undefined, // Pass custom prompt only if generated (Phase 2), otherwise undefined (Phase 1)
           metadata: metadata ? {
             contentType: metadata.contentType,
             fillerDensity: metadata.fillerDensity,
@@ -679,6 +723,45 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
   /**
    * Full reset - unload model and clear all state
    */
+  /**
+   * Reset engine and clear cache
+   * Use this when the engine is corrupted/hung
+   */
+  const resetEngine = useCallback(async () => {
+    console.log('[EnhancerContext] Resetting engine and clearing cache...');
+
+    // Cancel any ongoing operation
+    if (isEnhancing) {
+      cancelEnhancement();
+    }
+
+    // Reset worker with cache clearing
+    if (workerRef.current) {
+      try {
+        await workerRef.current.sendRequest('reset', {}, { timeoutMs: 30000 });
+        console.log('[EnhancerContext] Engine reset complete');
+      } catch (err) {
+        console.error('[EnhancerContext] Reset request failed:', err);
+      }
+    }
+
+    // Reset all state
+    setIsModelLoaded(false);
+    setIsModelLoading(false);
+    setModelLoadProgress(0);
+    setCurrentModelId(null);
+    setIsEnhancing(false);
+    setProgress(null);
+    setError(null);
+    setLastResult(null);
+    setLastMetadata(null);
+    setLastStrategy(null);
+    setSpeakerIdentificationResult(null);
+    setSpeakerIdentificationError(null);
+    setAnalysisResult(null);
+    setAnalysisError(null);
+  }, [isEnhancing, cancelEnhancement]);
+
   const reset = useCallback(() => {
     console.log('[EnhancerContext] Resetting...');
 
@@ -718,6 +801,183 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
     setLastResult(null);
   }, []);
 
+  /**
+   * Clear speaker identification results
+   */
+  const clearSpeakerIdentification = useCallback(() => {
+    setSpeakerIdentificationResult(null);
+    setSpeakerIdentificationError(null);
+  }, []);
+
+  // ============================================================================
+  // Speaker Identification
+  // ============================================================================
+
+  /**
+   * Identify speakers in transcript using AI
+   */
+  const identifySpeakersInTranscript = useCallback(async (
+    options: SpeakerIdentificationOptions
+  ): Promise<SpeakerIdentificationResult> => {
+    console.log('[EnhancerContext] Starting speaker identification...', { mode: options.mode });
+
+    // Validate model is loaded
+    if (!isModelLoaded) {
+      const msg = 'Model must be loaded before identifying speakers';
+      setSpeakerIdentificationError(msg);
+      throw new Error(msg);
+    }
+
+    // Validate we're not already identifying
+    if (isIdentifyingSpeakers) {
+      const msg = 'Speaker identification already in progress';
+      setSpeakerIdentificationError(msg);
+      throw new Error(msg);
+    }
+
+    setIsIdentifyingSpeakers(true);
+    setSpeakerIdentificationError(null);
+    setSpeakerIdentificationResult(null);
+
+    try {
+      const worker = initWorker();
+
+      // Create LLM generation function using the worker
+      const llmGenerate = async (prompt: string): Promise<string> => {
+        console.log('[EnhancerContext] Generating speaker identification response...');
+        
+        const result = await worker.sendRequest('generate', {
+          prompt,
+          temperature: 0.3, // Lower temperature for more consistent speaker detection
+          max_tokens: 2000,
+        }, {
+          timeoutMs: 120000, // 2 minutes
+        });
+
+        return result.text || '';
+      };
+
+      // Run speaker identification
+      const result = await identifySpeakers(options, llmGenerate);
+
+      setSpeakerIdentificationResult(result);
+      console.log('[EnhancerContext] Speaker identification complete:', {
+        identified: result.speakerMap.size,
+        warnings: result.warnings.length,
+      });
+
+      return result;
+
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Speaker identification failed';
+      console.error('[EnhancerContext] Speaker identification failed:', errorMsg);
+      
+      setSpeakerIdentificationError(errorMsg);
+      throw err;
+    } finally {
+      setIsIdentifyingSpeakers(false);
+    }
+  }, [isModelLoaded, isIdentifyingSpeakers, initWorker]);
+
+  // ============================================================================
+  // Transcript Analysis
+  // ============================================================================
+
+  /**
+   * Analyze transcript using AI to extract insights
+   */
+  const analyzeTranscript = useCallback(async (
+    transcript: string,
+    options: AnalysisOptions = {}
+  ): Promise<TranscriptAnalysis> => {
+    console.log('[EnhancerContext] Starting transcript analysis...');
+
+    // Validate model is loaded
+    if (!isModelLoaded) {
+      const msg = 'Model must be loaded before analyzing transcript';
+      setAnalysisError(msg);
+      throw new Error(msg);
+    }
+
+    // Validate we're not already analyzing
+    if (isAnalyzing) {
+      const msg = 'Analysis already in progress';
+      setAnalysisError(msg);
+      throw new Error(msg);
+    }
+
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    setAnalysisResult(null);
+
+    const startTime = Date.now();
+
+    try {
+      const worker = initWorker();
+
+      // Build analysis prompt
+      const prompt = buildAnalysisPrompt(transcript, options);
+
+      console.log('[EnhancerContext] Sending analysis request to LLM...');
+
+      // Send to LLM
+      const result = await worker.sendRequest('generate', {
+        prompt,
+        temperature: 0.3, // Lower temperature for structured analysis
+        max_tokens: 4000, // Need more tokens for comprehensive analysis
+      }, {
+        timeoutMs: 180000, // 3 minutes for complex analysis
+      });
+
+      const responseText = result.text || '';
+
+      // Parse LLM response
+      console.log('[EnhancerContext] Parsing analysis response...');
+      const parsedAnalysis = parseAnalysisResponse(responseText);
+
+      // Validate structure
+      if (!validateAnalysisResult(parsedAnalysis)) {
+        throw new Error('Invalid analysis result structure');
+      }
+
+      // Add processing time and metadata
+      const processingTime = (Date.now() - startTime) / 1000; // Convert to seconds
+      
+      const finalAnalysis: TranscriptAnalysis = {
+        ...parsedAnalysis,
+        processingTime,
+        modelId: currentModelId || 'unknown',
+      };
+
+      setAnalysisResult(finalAnalysis);
+      
+      console.log('[EnhancerContext] Analysis complete:', {
+        keyPoints: finalAnalysis.keyPoints.length,
+        questions: finalAnalysis.questionsRaised.total,
+        processingTime: processingTime.toFixed(1) + 's',
+      });
+
+      return finalAnalysis;
+
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Analysis failed';
+      console.error('[EnhancerContext] Analysis failed:', errorMsg);
+      
+      setAnalysisError(errorMsg);
+      throw err;
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [isModelLoaded, isAnalyzing, currentModelId, initWorker]);
+
+  /**
+   * Clear analysis results
+   */
+  const clearAnalysis = useCallback(() => {
+    setAnalysisResult(null);
+    setAnalysisError(null);
+  }, []);
+
   // ============================================================================
   // Context Value
   // ============================================================================
@@ -747,6 +1007,16 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
     lastStrategy,
     useContextAwarePrompts,
     
+    // Speaker Identification
+    isIdentifyingSpeakers,
+    speakerIdentificationResult,
+    speakerIdentificationError,
+    
+    // Transcript Analysis
+    isAnalyzing,
+    analysisResult,
+    analysisError,
+    
     // Download state
     totalDownloadMB,
     showResumePrompt,
@@ -756,10 +1026,15 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
     // Actions
     loadModel,
     enhance,
+    identifySpeakersInTranscript,
+    analyzeTranscript,
     cancelEnhancement,
     reset,
+    resetEngine,
     clearError,
     clearResult,
+    clearSpeakerIdentification,
+    clearAnalysis,
   };
 
   return (

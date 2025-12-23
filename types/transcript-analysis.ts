@@ -184,3 +184,7 @@ export interface AnalyzeTranscriptResponse {
 
 export type AnalyzerWorkerMessageType = 'analyze' | 'cancel';
 
+
+
+
+

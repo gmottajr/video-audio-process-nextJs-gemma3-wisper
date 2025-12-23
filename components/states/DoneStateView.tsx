@@ -8,10 +8,9 @@ import { ResourceMonitor } from "@/components/ResourceMonitor";
 import { StatisticsModal } from "@/components/StatisticsModal";
 import { TranscribeFromDoneForm } from "@/components/TranscribeFromDoneForm";
 import { ResourceComparison } from "@/components/ResourceComparison";
-import { EnhancementToggle } from "@/components/EnhancementToggle";
 import { EnhancementProgress } from "@/components/EnhancementProgress";
 import ModelSelector, { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
-import { Download, RotateCcw, BarChart3, Scissors, Sparkles } from "lucide-react";
+import { Download, RotateCcw, BarChart3, Scissors, Sparkles, Check } from "lucide-react";
 import { getFormatById } from "@/utils/audioFormats";
 import { getVideoFormatById } from "@/utils/videoFormats";
 import type { ProcessingResult } from "@/hooks/useMediaProcessor";
@@ -28,7 +27,11 @@ import { recordEnhancement } from "@/utils/enhancementHistoryManager";
 import { saveFeedback } from "@/utils/feedbackManager";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
 import { TranscriptFormattingControls } from "@/components/TranscriptFormattingControls";
+import { SpeakerIdentificationInput, type SpeakerNames } from "@/components/SpeakerIdentificationInput";
+import { SpeakerEditModal } from "@/components/SpeakerEditModal";
+import { TranscriptionMediaPlayer } from "@/components/TranscriptionMediaPlayer";
 import { formatEnhancedTranscriptWithSpeakers, formatTranscriptWithSpeakers, type FormattingOptions } from "@/utils/speakerFormatter";
+import { getSpeakerIdentificationSummary } from "@/utils/speakerIdentifier";
 
 interface DoneStateViewProps {
   result: ProcessingResult;
@@ -87,7 +90,6 @@ export function DoneStateView({
   const [segmentNormalizeAudio, setSegmentNormalizeAudio] = useState(false);
   
   // AI Enhancement state
-  const [enhancementEnabled, setEnhancementEnabled] = useState(false);
   const [enhancedResult, setEnhancedResult] = useState<EnhancementResult | null>(null);
   
   // Phase 3: Quality metrics and feedback
@@ -103,8 +105,33 @@ export function DoneStateView({
     speakerDetectionSensitivity: 'medium',
   });
   
+  // Speaker identification state
+  const [speakerNames, setSpeakerNames] = useState<SpeakerNames>({
+    mode: 'auto',
+    useAIDetection: true,
+  });
+  
+  const [isIdentifyingSpeakers, setIsIdentifyingSpeakers] = useState(false);
+  const [showSpeakerEditModal, setShowSpeakerEditModal] = useState(false);
+  
+  // Create blob URL for original media (for transcription results)
+  const [originalMediaUrl, setOriginalMediaUrl] = useState<string | null>(null);
+  
   // Get enhancer context (optional - may not be available)
   const enhancer = useEnhancerContextOptional();
+  
+  // Create blob URL from original file for transcription results
+  useEffect(() => {
+    if (result.type === "transcription" && file) {
+      const url = URL.createObjectURL(file);
+      setOriginalMediaUrl(url);
+      
+      // Cleanup on unmount
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    }
+  }, [result.type, file]);
   
   // Debug logging for enhancement capability
   useEffect(() => {
@@ -222,19 +249,26 @@ export function DoneStateView({
     }
   };
   
-  // Handle enhancement toggle
+  // Handle enhancement - triggered by button click
   const handleEnhancementToggle = async (enabled: boolean) => {
-    setEnhancementEnabled(enabled);
-    
-    // If turning on and we have a transcription, start enhancement
+    // Only proceed if we have a transcription and enhancer is available
     if (enabled && result.type === "transcription" && result.transcription?.text && enhancer) {
       const startTime = Date.now();
       
       try {
-        // Load model if not already loaded
-        // Force Llama 3.2 1B for better context window size
-        if (!enhancer.isModelLoaded && !enhancer.isModelLoading) {
-          await enhancer.loadModel('Llama-3.2-1B-Instruct-q4f32_1-MLC');
+        // Force Llama 3.2 3B for better speaker identification and analysis
+        // Always load the correct model, even if a different model is already loaded
+        const targetModelId = 'Llama-3.2-3B-Instruct-q4f32_1-MLC';
+        
+        console.log('[DoneStateView] Current model:', enhancer.currentModelId);
+        console.log('[DoneStateView] Target model:', targetModelId);
+        
+        // Load model if not loaded or if wrong model is loaded
+        if (!enhancer.isModelLoaded || enhancer.currentModelId !== targetModelId) {
+          console.log('[DoneStateView] Loading/reloading model...');
+          await enhancer.loadModel('llama-3.2-3b'); // Use the key, not the full ID
+        } else {
+          console.log('[DoneStateView] Correct model already loaded');
         }
         
         // Run enhancement with Whisper result for context-aware prompting (Phase 2)
@@ -330,8 +364,119 @@ export function DoneStateView({
     setEnhancementId(null);
     setFeedbackSubmitted(false);
     setShowFeedback(false);
-    setEnhancementEnabled(false);
   }, []);
+  
+  // Handle AI Analysis
+  const handleAnalyze = useCallback(async () => {
+    if (!enhancer || !result.transcription) return;
+    
+    // Prevent concurrent requests - check if speaker identification is running
+    if (isIdentifyingSpeakers) {
+      console.log('[DoneStateView] Skipping analysis - speaker identification is running');
+      return;
+    }
+    
+    try {
+      // Make sure model is loaded
+      if (!enhancer.isModelLoaded) {
+        await enhancer.loadModel('llama-3.2-3b'); // Use 3B for better analysis
+      }
+      
+      // Run analysis on the enhanced text if available, otherwise original
+      const textToAnalyze = enhancedResult?.enhancedText || result.transcription.text;
+      
+      await enhancer.analyzeTranscript(textToAnalyze, {
+        contentType: enhancer.lastMetadata?.contentType || 'general',
+        depth: 'standard',
+      });
+      
+      console.log('[DoneStateView] Analysis complete');
+      
+    } catch (error) {
+      console.error('[DoneStateView] Analysis failed:', error);
+    }
+  }, [enhancer, result.transcription, enhancedResult, isIdentifyingSpeakers]);
+  
+  // Auto-trigger analysis after enhancement completes
+  useEffect(() => {
+    if (
+      enhancedResult &&
+      enhancer?.isModelLoaded &&
+      !enhancer.isAnalyzing &&
+      !enhancer.analysisResult &&
+      !enhancer.analysisError
+    ) {
+      console.log('[DoneStateView] Auto-triggering analysis after enhancement');
+      handleAnalyze();
+    }
+  }, [enhancedResult, enhancer?.isModelLoaded, enhancer?.isAnalyzing, enhancer?.analysisResult, enhancer?.analysisError, handleAnalyze]);
+  
+  // Handle speaker identification
+  const handleIdentifySpeakers = useCallback(async () => {
+    if (!enhancer || !result.transcription) return;
+    
+    // Prevent concurrent requests - check if analysis or enhancement is running
+    if (enhancer.isAnalyzing || enhancer.isEnhancing) {
+      alert('Please wait for the current AI operation to complete before identifying speakers.');
+      return;
+    }
+    
+    setIsIdentifyingSpeakers(true);
+    
+    try {
+      // Make sure model is loaded
+      if (!enhancer.isModelLoaded) {
+        await enhancer.loadModel('llama-3.2-3b'); // Use 3B for better speaker identification
+      }
+      
+      // Run speaker identification
+      const identificationResult = await enhancer.identifySpeakersInTranscript({
+        mode: speakerNames.mode,
+        firstSpeaker: speakerNames.firstSpeaker,
+        allSpeakers: speakerNames.allSpeakers,
+        useAIDetection: speakerNames.useAIDetection,
+        transcript: result.transcription.text,
+        speakerTurns: undefined,
+      });
+      
+      // Update formatting options with identified speaker names
+      setFormattingOptions(prev => ({
+        ...prev,
+        speakerNames: identificationResult.speakerMap,
+      }));
+      
+      const summary = getSpeakerIdentificationSummary(identificationResult);
+      console.log('[DoneStateView] Speaker identification complete:', {
+        identified: summary.identifiedCount,
+        unknown: summary.unknownCount,
+        averageConfidence: summary.averageConfidence.toFixed(2),
+        speakerMap: Object.fromEntries(identificationResult.speakerMap),
+        transcript_sample: result.transcription.text.substring(0, 500),
+      });
+      
+      // Show warnings if any
+      if (identificationResult.warnings.length > 0) {
+        console.warn('[DoneStateView] Speaker identification warnings:', identificationResult.warnings);
+      }
+      
+      // Alert user with results
+      const speakerList = Array.from(identificationResult.speakerMap.entries())
+        .map(([label, name]) => `${label} → ${name}`)
+        .join('\n');
+      
+      alert(`✅ Speaker Identification Complete!\n\nIdentified Speakers:\n${speakerList || 'No speakers identified'}\n\nWarnings: ${identificationResult.warnings.length}`);
+    
+      
+    } catch (error) {
+      console.error('[DoneStateView] Speaker identification failed:', error);
+    } finally {
+      setIsIdentifyingSpeakers(false);
+    }
+  }, [enhancer, result.transcription, speakerNames]);
+  
+  // Automatically identify speakers when conditions are met
+  // Note: Speaker identification is now triggered explicitly via the "Identify Speakers" button
+  // This prevents unnecessary processing on every keystroke
   
   // Check if enhancement is available
   const canEnhance = enhancer?.capabilities?.isCapable && result.type === "transcription" && result.transcription?.text;
@@ -555,6 +700,20 @@ export function DoneStateView({
           </div>
         ) : result.type === "transcription" && result.transcription ? (
           <>
+            {/* Original Media Player - NEW: Show audio/video for validation */}
+            {originalMediaUrl && (
+              <TranscriptionMediaPlayer
+                file={file}
+                mediaUrl={originalMediaUrl}
+                mediaType={file.type.startsWith('video/') ? 'video' : 'audio'}
+                metrics={{
+                  duration: metrics?.duration,
+                  size: file.size,
+                }}
+                defaultCollapsed={false}
+              />
+            )}
+
             {/* Phase 4: Tabbed Transcription View (shown when enhancement is complete) */}
             {enhancedResult ? (
               <div className="space-y-4">
@@ -563,6 +722,146 @@ export function DoneStateView({
                   options={formattingOptions}
                   onChange={setFormattingOptions}
                 />
+                
+                {/* Speaker Identification Input */}
+                {formattingOptions.includeSpeakerLabels && enhancer?.isModelLoaded && (
+                  <>
+                    <SpeakerIdentificationInput
+                      onSubmit={(names) => {
+                        setSpeakerNames(names);
+                        // Trigger identification when user clicks the button
+                        handleIdentifySpeakers();
+                      }}
+                      initialNames={speakerNames}
+                      speakerCount={
+                        result.transcription?.text 
+                          ? (result.transcription.text.match(/Speaker \d+/g) || []).filter((v, i, a) => a.indexOf(v) === i).length || 2
+                          : 2
+                      }
+                      disabled={isIdentifyingSpeakers || enhancer?.isAnalyzing || enhancer?.isEnhancing}
+                    />
+                    {(isIdentifyingSpeakers || enhancer?.isAnalyzing) && (
+                      <div className="p-3 bg-purple-950/20 border border-purple-500/30 rounded-lg text-sm">
+                        <div className="flex items-center gap-2 text-purple-300">
+                          <div className="animate-spin">⏳</div>
+                          <span>
+                            {enhancer?.isAnalyzing 
+                              ? 'Analyzing transcript... Please wait before identifying speakers.' 
+                              : 'Identifying speakers...'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    {formattingOptions.speakerNames && formattingOptions.speakerNames.size > 0 && (
+                      <div className="p-3 bg-green-950/20 border border-green-500/30 rounded-lg text-sm">
+                        <div className="flex items-center gap-2 text-green-300 mb-2">
+                          <span>✅</span>
+                          <span className="font-medium">Speakers Identified</span>
+                        </div>
+                        <div className="text-xs text-green-400/80 space-y-1">
+                          {Array.from(formattingOptions.speakerNames.entries()).map(([label, name]) => (
+                            <div key={label}>{label} → {name}</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+                
+                {/* Speaker Identification Status */}
+                {isIdentifyingSpeakers && (
+                  <div className="flex items-center gap-2 p-3 bg-purple-950/20 border border-purple-500/30 rounded-lg text-sm text-purple-300">
+                    <div className="w-4 h-4 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+                    <span>Identifying speakers...</span>
+                  </div>
+                )}
+                
+                {/* Speaker Identification Summary */}
+                {formattingOptions.speakerNames && !isIdentifyingSpeakers && enhancer?.speakerIdentificationResult && (
+                  <div className="p-3 bg-green-950/20 border border-green-500/30 rounded-lg text-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 text-green-300">
+                        <span>✓</span>
+                        <span className="font-medium">Speaker Identification Complete</span>
+                      </div>
+                      <button
+                        onClick={() => setShowSpeakerEditModal(true)}
+                        className="px-3 py-1.5 text-xs font-medium bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <Check className="w-3 h-3" />
+                        Edit Names
+                      </button>
+                    </div>
+                    {(() => {
+                      const summary = getSpeakerIdentificationSummary(enhancer.speakerIdentificationResult);
+                      return (
+                        <div className="text-xs text-green-400/80 space-y-1">
+                          <p>• Identified: {summary.identifiedCount} speakers</p>
+                          {summary.unknownCount > 0 && (
+                            <p>• Unknown: {summary.unknownCount} speakers</p>
+                          )}
+                          <p>• Average Confidence: {(summary.averageConfidence * 100).toFixed(0)}%</p>
+                        </div>
+                      );
+                    })()}
+                    {enhancer.speakerIdentificationResult.warnings.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-green-500/20">
+                        <p className="text-xs text-yellow-400 font-medium mb-1">⚠️ Warnings:</p>
+                        <ul className="text-xs text-yellow-400/80 space-y-0.5 list-disc list-inside">
+                          {enhancer.speakerIdentificationResult.warnings.map((warning, i) => (
+                            <li key={i}>{warning}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* AI Analysis Button */}
+                {enhancer?.isModelLoaded && !enhancer.isAnalyzing && (
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={enhancer.isAnalyzing}
+                    className="w-full px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-zinc-700 disabled:to-zinc-700 disabled:cursor-not-allowed rounded-lg font-bold text-lg transition-all duration-200 flex items-center justify-center gap-3 shadow-lg"
+                  >
+                    {enhancer.analysisResult ? (
+                      <>
+                        <Check className="w-5 h-5" />
+                        View AI Analysis
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-5 h-5" />
+                        Analyze Transcript
+                      </>
+                    )}
+                  </button>
+                )}
+                
+                {/* Analysis Status */}
+                {enhancer?.isAnalyzing && (
+                  <div className="flex items-center gap-2 p-3 bg-indigo-950/20 border border-indigo-500/30 rounded-lg text-sm text-indigo-300">
+                    <div className="w-4 h-4 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                    <span>Analyzing transcript... This may take a minute.</span>
+                  </div>
+                )}
+                
+                {/* Analysis Error */}
+                {enhancer?.analysisError && (
+                  <div className="p-3 bg-red-950/20 border border-red-500/30 rounded-lg text-sm">
+                    <div className="flex items-center gap-2 text-red-300 mb-2">
+                      <span>❌</span>
+                      <span className="font-medium">Analysis Failed</span>
+                    </div>
+                    <p className="text-xs text-red-400/80">{enhancer.analysisError}</p>
+                    <button
+                      onClick={handleAnalyze}
+                      className="mt-2 text-xs text-red-400 hover:text-red-300 underline"
+                    >
+                      Retry Analysis
+                    </button>
+                  </div>
+                )}
                 
                 <TabbedTranscriptionView
                   originalText={
@@ -584,24 +883,54 @@ export function DoneStateView({
                     modelName: currentModel ? WHISPER_MODELS[selectedModelKey].name : undefined,
                     filename: file.name.split(".")[0],
                   }}
+                  analysis={enhancer?.analysisResult}
+                  isAnalyzing={enhancer?.isAnalyzing}
+                  analysisError={enhancer?.analysisError}
                   onReEnhance={handleReEnhance}
+                  onAnalysisRetry={handleAnalyze}
                 />
               </div>
             ) : (
               /* Show basic transcription view before enhancement */
-              <TranscriptionViewer result={result.transcription} />
-            )}
-            
-            {/* AI Enhancement Toggle */}
-            {enhancer && enhancer.capabilities && !enhancer.isCheckingHardware && (
-              <EnhancementToggle
-                capabilities={enhancer.capabilities}
-                enabled={enhancementEnabled}
-                onToggle={handleEnhancementToggle}
-                disabled={enhancer.isEnhancing || enhancer.isModelLoading}
-                isModelLoaded={enhancer.isModelLoaded}
-                isModelLoading={enhancer.isModelLoading}
-              />
+              <>
+                <TranscriptionViewer result={result.transcription} />
+                
+                {/* AI Enhancement Button - Only show if capable and not already enhanced */}
+                {enhancer && enhancer.capabilities?.isCapable && !enhancer.isCheckingHardware && (
+                  <div className="mt-6">
+                    <button
+                      onClick={() => handleEnhancementToggle(true)}
+                      disabled={enhancer.isEnhancing || enhancer.isModelLoading}
+                      className="w-full px-8 py-5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-zinc-700 disabled:to-zinc-700 disabled:cursor-not-allowed rounded-lg font-bold text-xl transition-all duration-200 flex items-center justify-center gap-3 shadow-2xl hover:shadow-purple-500/25"
+                    >
+                      {enhancer.isModelLoading ? (
+                        <>
+                          <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                          Loading AI Model... ({enhancer.modelLoadProgress}%)
+                        </>
+                      ) : enhancer.isEnhancing ? (
+                        <>
+                          <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                          Enhancing Transcript...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-6 h-6" />
+                          Enhance Transcript with AI
+                        </>
+                      )}
+                    </button>
+                    
+                    {/* Info text */}
+                    <div className="mt-3 text-center text-sm text-zinc-400">
+                      <p>✨ Remove filler words, fix grammar, improve readability</p>
+                      <p className="text-xs text-zinc-500 mt-1">
+                        Uses {enhancer.capabilities.recommendation.modelName} • Runs locally in your browser
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
             
             {/* Show why enhancement is unavailable */}
@@ -641,12 +970,27 @@ export function DoneStateView({
                   <span>❌</span>
                   Enhancement failed: {enhancer.error}
                 </p>
-                <button
-                  onClick={() => enhancer.clearError()}
-                  className="mt-2 text-xs text-red-400 hover:text-red-300 underline"
-                >
-                  Dismiss
-                </button>
+                <div className="mt-3 flex gap-3">
+                  <button
+                    onClick={() => enhancer.clearError()}
+                    className="text-xs text-red-400 hover:text-red-300 underline"
+                  >
+                    Dismiss
+                  </button>
+                  {(enhancer.error.includes('timed out') || 
+                    enhancer.error.includes('corrupted') || 
+                    enhancer.error.includes('hung')) && (
+                    <button
+                      onClick={async () => {
+                        await enhancer.resetEngine();
+                        enhancer.clearError();
+                      }}
+                      className="px-3 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                    >
+                      🔧 Reset AI Engine & Clear Cache
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </>
@@ -784,6 +1128,21 @@ export function DoneStateView({
           onCancel={handleCancelEnhancement}
         />
       )}
+
+      {/* Speaker Edit Modal */}
+      <SpeakerEditModal
+        isOpen={showSpeakerEditModal}
+        onClose={() => setShowSpeakerEditModal(false)}
+        currentSpeakers={formattingOptions.speakerNames || new Map()}
+        onSave={(updatedSpeakers) => {
+          // Update formatting options with new speaker names
+          setFormattingOptions(prev => ({
+            ...prev,
+            speakerNames: updatedSpeakers,
+          }));
+          console.log('[DoneStateView] Speaker names updated:', Array.from(updatedSpeakers.entries()));
+        }}
+      />
     </div>
   );
 }

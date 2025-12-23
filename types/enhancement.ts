@@ -260,7 +260,7 @@ export const ENHANCEMENT_MODELS: Record<string, ModelConfig> = {
     id: 'Llama-3.2-3B-Instruct-q4f32_1-MLC',
     name: 'Llama 3.2 3B',
     size: '~1.8GB',
-    description: 'Best quality, recommended for most users',
+    description: 'Best quality, recommended for most users. Use 3B for speaker identification and analysis',
     minVRAM: 4,
     recommendedTier: 'medium',
   },
@@ -291,9 +291,9 @@ export const ENHANCEMENT_MODELS: Record<string, ModelConfig> = {
 } as const;
 
 /**
- * Default model to use (smaller default for better compatibility)
+ * Default model to use (3B for better speaker identification and analysis)
  */
-export const DEFAULT_MODEL = ENHANCEMENT_MODELS['llama-3.2-1b'];
+export const DEFAULT_MODEL = ENHANCEMENT_MODELS['llama-3.2-3b'];
 
 
 

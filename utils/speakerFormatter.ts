@@ -10,6 +10,7 @@ export interface FormattingOptions {
   includeTimestamps: boolean;
   includeSpeakerLabels: boolean;
   speakerDetectionSensitivity: 'low' | 'medium' | 'high';
+  speakerNames?: Map<string, string>; // Maps "Speaker 1" -> "John Smith"
 }
 
 export interface SpeakerTurn {
@@ -167,7 +168,9 @@ export function formatTranscriptWithSpeakers(
     
     // Add speaker label if requested
     if (options.includeSpeakerLabels) {
-      line += `**${turn.speaker}**: `;
+      // Use identified name if available, otherwise use generic label
+      const speakerName = options.speakerNames?.get(turn.speaker) || turn.speaker;
+      line += `**${speakerName}**: `;
     }
     
     // Add text
@@ -227,7 +230,9 @@ export function formatEnhancedTranscriptWithSpeakers(
     
     // Add speaker label if requested
     if (options.includeSpeakerLabels) {
-      line += `**${turn.speaker}**: `;
+      // Use identified name if available, otherwise use generic label
+      const speakerName = options.speakerNames?.get(turn.speaker) || turn.speaker;
+      line += `**${speakerName}**: `;
     }
     
     // Collect sentences for this turn
@@ -249,7 +254,9 @@ export function formatEnhancedTranscriptWithSpeakers(
     if (remaining) {
       let line = '';
       if (options.includeSpeakerLabels) {
-        line += `**Speaker ${originalTurns.length + 1}**: `;
+        const finalSpeakerLabel = `Speaker ${originalTurns.length + 1}`;
+        const speakerName = options.speakerNames?.get(finalSpeakerLabel) || finalSpeakerLabel;
+        line += `**${speakerName}**: `;
       }
       line += remaining;
       lines.push(line);
@@ -282,4 +289,5 @@ export function getSpeakerStats(turns: SpeakerTurn[]): {
     turnCounts,
   };
 }
+
 

@@ -119,10 +119,19 @@ export function buildAnalysisPrompt(
     '```\n'
   );
 
-  // Add the transcript
+  // CRITICAL FIX: Only send a SAMPLE of the transcript to avoid exceeding context window
+  // For Llama 3.2 1B with 4096 token limit, we need to keep prompts under ~3000 tokens
+  // Sending first 6000 characters (~1800 tokens) gives us room for instructions
+  const maxTranscriptChars = 6000;
+  const transcriptSample = transcript.length > maxTranscriptChars
+    ? transcript.substring(0, maxTranscriptChars) + '\n\n[... transcript continues for ' + 
+      Math.round((transcript.length - maxTranscriptChars) / 1000) + 'K more characters ...]'
+    : transcript;
+
+  // Add the transcript sample
   sections.push(
     '\n--- TRANSCRIPT TO ANALYZE ---\n\n' +
-    transcript +
+    transcriptSample +
     '\n\n--- END TRANSCRIPT ---'
   );
 
@@ -257,4 +266,6 @@ export function createEmptyAnalysis(): Partial<any> {
     decisions: [],
   };
 }
+
+
 

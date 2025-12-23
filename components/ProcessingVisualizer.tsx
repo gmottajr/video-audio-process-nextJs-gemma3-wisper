@@ -167,7 +167,7 @@ export function ProcessingVisualizer({
           <div className="mb-6">
             <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-300 ease-out"
+                className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-1000 ease-linear"
                 style={{ width: `${progress}%` }}
               />
             </div>

@@ -21,6 +21,81 @@ let currentModelId = null;
 let abortController = null;
 
 // ============================================================================
+// Cache Management & Recovery
+// ============================================================================
+
+/**
+ * Clear WebLLM cache from IndexedDB
+ * This fixes corrupted engine states by clearing model cache
+ */
+async function clearWebLLMCache() {
+  console.log('[EnhancerWorker] Clearing WebLLM cache...');
+  
+  try {
+    // WebLLM stores models in IndexedDB with these database names
+    const dbNames = [
+      'webllm/model',      // Main model storage
+      'webllm/config',     // Config storage
+      'webllm/wasm',       // WASM cache
+      'web-llm-cache',     // Alternative cache name
+    ];
+    
+    // Try to delete each database
+    for (const dbName of dbNames) {
+      try {
+        await new Promise((resolve, reject) => {
+          const request = indexedDB.deleteDatabase(dbName);
+          request.onsuccess = () => {
+            console.log(`[EnhancerWorker] Deleted database: ${dbName}`);
+            resolve();
+          };
+          request.onerror = () => resolve(); // Ignore errors (DB might not exist)
+          request.onblocked = () => {
+            console.warn(`[EnhancerWorker] Database ${dbName} is blocked, forcing deletion`);
+            setTimeout(resolve, 100); // Continue anyway
+          };
+        });
+      } catch (err) {
+        console.log(`[EnhancerWorker] Could not delete ${dbName}:`, err.message);
+      }
+    }
+    
+    // Also clear cache storage if available
+    if (self.caches) {
+      const cacheNames = await self.caches.keys();
+      for (const cacheName of cacheNames) {
+        if (cacheName.includes('webllm') || cacheName.includes('mlc')) {
+          await self.caches.delete(cacheName);
+          console.log(`[EnhancerWorker] Deleted cache: ${cacheName}`);
+        }
+      }
+    }
+    
+    console.log('[EnhancerWorker] Cache cleared successfully');
+    return true;
+  } catch (error) {
+    console.error('[EnhancerWorker] Error clearing cache:', error);
+    return false;
+  }
+}
+
+/**
+ * Timeout wrapper for async operations
+ * @param {Promise} promise - Promise to wrap
+ * @param {number} timeoutMs - Timeout in milliseconds
+ * @param {string} operationName - Name for logging
+ * @returns {Promise} - Wrapped promise
+ */
+function withTimeout(promise, timeoutMs, operationName = 'Operation') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error(`${operationName} timed out after ${timeoutMs}ms`)), timeoutMs)
+    )
+  ]);
+}
+
+// ============================================================================
 // System Prompt for Transcript Enhancement
 // ============================================================================
 
@@ -219,6 +294,183 @@ async function initEngine(modelId, requestId) {
 }
 
 // ============================================================================
+// Text Generation (for analysis, speaker identification, etc.)
+// ============================================================================
+
+/**
+ * Generate text using the AI model (for analysis, speaker identification, etc.)
+ * @param {string} prompt - The prompt to send to the model
+ * @param {string} requestId - Request ID for tracking
+ * @param {object} options - Generation options (temperature, max_tokens)
+ */
+async function generateText(prompt, requestId, options = {}) {
+  if (!isReady || !engine) {
+    self.postMessage({
+      requestId,
+      status: 'error',
+      message: 'Model not loaded yet',
+      error: 'Not ready',
+    });
+    return;
+  }
+  
+  // Validate input
+  if (!prompt || typeof prompt !== 'string') {
+    self.postMessage({
+      requestId,
+      status: 'error',
+      message: 'Invalid prompt provided',
+      error: 'Invalid input',
+    });
+    return;
+  }
+  
+  const trimmedPrompt = prompt.trim();
+  if (trimmedPrompt.length === 0) {
+    self.postMessage({
+      requestId,
+      status: 'error',
+      message: 'Prompt is empty',
+      error: 'Empty input',
+    });
+    return;
+  }
+  
+  try {
+    console.log('[EnhancerWorker] Starting text generation...');
+    console.log('[EnhancerWorker] Prompt length:', trimmedPrompt.length, 'chars');
+    
+    // Create abort controller for this request
+    abortController = new AbortController();
+    
+    self.postMessage({
+      requestId,
+      status: 'processing',
+      message: 'Generating response...',
+      progress: 0,
+    });
+    
+    const startTime = performance.now();
+    let generatedText = '';
+    let tokenCount = 0;
+    
+    // Extract options with defaults
+    const temperature = options.temperature ?? 0.7;
+    const maxTokens = options.max_tokens ?? 2000;
+    
+    // Build messages
+    const messages = [
+      { role: 'user', content: trimmedPrompt },
+    ];
+    
+    // Create streaming completion with timeout detection
+    console.log('[EnhancerWorker] Calling engine for text generation...');
+    let stream;
+    try {
+      stream = await withTimeout(
+        engine.chat.completions.create({
+          messages,
+          temperature,
+          top_p: 0.9,
+          max_tokens: maxTokens,
+          stream: true,
+        }),
+        30000, // 30 second timeout
+        'Engine text generation initialization'
+      );
+      
+      console.log('[EnhancerWorker] Stream created successfully for text generation');
+    } catch (timeoutError) {
+      if (timeoutError.message.includes('timed out')) {
+        console.error('[EnhancerWorker] Engine is hung! Attempting auto-recovery...');
+        
+        // Unload the broken engine
+        try {
+          if (engine) {
+            await engine.unload();
+          }
+        } catch (e) {
+          console.log('[EnhancerWorker] Could not unload engine:', e.message);
+        }
+        
+        // Clear the cache
+        await clearWebLLMCache();
+        
+        // Reset state
+        engine = null;
+        isReady = false;
+        currentModelId = null;
+        abortController = null;
+        
+        // Inform the main thread to retry
+        self.postMessage({
+          requestId,
+          status: 'error',
+          message: 'Engine was corrupted and has been reset. Please reload the page and try again.',
+          error: 'ENGINE_CORRUPTED_AND_RESET',
+          needsRetry: true,
+        });
+        return;
+      }
+      
+      throw timeoutError;
+    }
+    
+    console.log('[EnhancerWorker] Streaming response...');
+    
+    // Process stream
+    for await (const chunk of stream) {
+      // Check for cancellation (check if abortController exists first)
+      if (abortController && abortController.signal.aborted) {
+        console.log('[EnhancerWorker] Generation cancelled');
+        self.postMessage({
+          requestId,
+          status: 'cancelled',
+          message: 'Generation cancelled by user',
+        });
+        return;
+      }
+      
+      const content = chunk.choices[0]?.delta?.content || '';
+      generatedText += content;
+      tokenCount++;
+    }
+    
+    const processingTime = (performance.now() - startTime) / 1000;
+    
+    console.log('[EnhancerWorker] Generation complete');
+    console.log('[EnhancerWorker] Processing time:', processingTime.toFixed(2), 'seconds');
+    console.log('[EnhancerWorker] Tokens generated:', tokenCount);
+    
+    // Clean up the output
+    generatedText = generatedText.trim();
+    
+    // Send complete result
+    self.postMessage({
+      requestId,
+      status: 'complete',
+      message: 'Generation complete',
+      progress: 100,
+      text: generatedText,
+      tokensGenerated: tokenCount,
+      processingTime,
+    });
+    
+  } catch (error) {
+    console.error('[EnhancerWorker] Generation failed:', error);
+    
+    self.postMessage({
+      requestId,
+      status: 'error',
+      message: error.message || 'Generation failed',
+      error: error.message,
+    });
+  } finally {
+    abortController = null;
+  }
+}
+
+// ============================================================================
 // Transcript Enhancement
 // ============================================================================
 
@@ -305,21 +557,76 @@ async function enhanceTranscript(transcript, requestId, customPrompt = null, met
       ];
     }
     
-    // Create streaming completion
-    const stream = await engine.chat.completions.create({
-      messages,
-      temperature: 0.2,  // Low temperature for consistent output
-      top_p: 0.9,
-      max_tokens: Math.max(estimatedOutputTokens * 2, 2048),
-      stream: true,
-    });
+    // Create streaming completion with timeout detection
+    console.log('[EnhancerWorker] Calling engine.chat.completions.create()...');
+    let stream;
+    try {
+      // Wrap the engine call with a 30-second timeout
+      // If it hangs here, the engine is corrupted
+      stream = await withTimeout(
+        engine.chat.completions.create({
+          messages,
+          temperature: 0.2,  // Low temperature for consistent output
+          top_p: 0.9,
+          max_tokens: Math.max(estimatedOutputTokens * 2, 2048),
+          stream: true,
+        }),
+        30000, // 30 second timeout for the initial call
+        'Engine chat completion initialization'
+      );
+      
+      console.log('[EnhancerWorker] Stream created successfully');
+    } catch (timeoutError) {
+      if (timeoutError.message.includes('timed out')) {
+        console.error('[EnhancerWorker] Engine is hung! Attempting auto-recovery...');
+        
+        // Send recovery status
+        self.postMessage({
+          requestId,
+          status: 'processing',
+          message: 'Engine corrupted, clearing cache and resetting...',
+          progress: 0,
+        });
+        
+        // Unload the broken engine
+        try {
+          if (engine) {
+            await engine.unload();
+          }
+        } catch (e) {
+          console.log('[EnhancerWorker] Could not unload engine:', e.message);
+        }
+        
+        // Clear the cache
+        await clearWebLLMCache();
+        
+        // Reset state
+        engine = null;
+        isReady = false;
+        currentModelId = null;
+        abortController = null;
+        
+        // Inform the main thread to retry
+        self.postMessage({
+          requestId,
+          status: 'error',
+          message: 'Engine was corrupted and has been reset. Please try enhancement again - the model will be re-downloaded.',
+          error: 'ENGINE_CORRUPTED_AND_RESET',
+          needsRetry: true,
+        });
+        return;
+      }
+      
+      // Re-throw other errors
+      throw timeoutError;
+    }
     
     console.log('[EnhancerWorker] Streaming response...');
     
     // Process stream
     for await (const chunk of stream) {
-      // Check for cancellation
-      if (abortController.signal.aborted) {
+      // Check for cancellation (check if abortController exists first)
+      if (abortController && abortController.signal.aborted) {
         console.log('[EnhancerWorker] Enhancement cancelled');
         self.postMessage({
           requestId,
@@ -428,10 +735,32 @@ function cancelEnhancement(requestId) {
  */
 async function resetEngine(requestId) {
   try {
+    console.log('[EnhancerWorker] Starting engine reset...');
+    
+    // Unload the engine if it exists
     if (engine) {
-      await engine.unload();
+      try {
+        await engine.unload();
+        console.log('[EnhancerWorker] Engine unloaded');
+      } catch (e) {
+        console.log('[EnhancerWorker] Could not unload engine:', e.message);
+      }
     }
     
+    // Clear the IndexedDB cache
+    self.postMessage({
+      requestId,
+      status: 'processing',
+      message: 'Clearing model cache...',
+    });
+    
+    const cacheCleared = await clearWebLLMCache();
+    
+    if (cacheCleared) {
+      console.log('[EnhancerWorker] Cache cleared successfully');
+    }
+    
+    // Reset state
     engine = null;
     isReady = false;
     currentModelId = null;
@@ -442,7 +771,7 @@ async function resetEngine(requestId) {
     self.postMessage({
       requestId,
       status: 'reset',
-      message: 'Engine reset complete',
+      message: 'Engine reset complete. Cache cleared. Model will be re-downloaded on next use.',
     });
     
   } catch (error) {
@@ -481,6 +810,13 @@ self.addEventListener('message', async (event) => {
         
       case 'enhance':
         await enhanceTranscript(data?.transcript, requestId, data?.prompt, data?.metadata);
+        break;
+        
+      case 'generate':
+        await generateText(data?.prompt, requestId, {
+          temperature: data?.temperature,
+          max_tokens: data?.max_tokens,
+        });
         break;
         
       case 'cancel':

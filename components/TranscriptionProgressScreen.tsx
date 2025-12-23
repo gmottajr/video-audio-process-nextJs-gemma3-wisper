@@ -64,7 +64,7 @@ export default function TranscriptionProgressScreen() {
             {/* Progress Bar */}
             <div className="h-2 bg-white/20 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-blue-400 to-purple-400 transition-all duration-300 ease-out"
+                className="h-full bg-gradient-to-r from-blue-400 to-purple-400 transition-all duration-1000 ease-linear"
                 style={{ width: `${progress}%` }}
               >
                 {/* Shimmer effect */}

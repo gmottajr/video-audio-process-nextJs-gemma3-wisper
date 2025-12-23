@@ -25,12 +25,12 @@ export function estimateTokenCount(text: string): number {
  * Split transcript into chunks that fit within context window
  * 
  * @param transcript - Full transcript text
- * @param maxTokens - Maximum tokens per chunk (default: 3000 to leave room for system prompt)
+ * @param maxTokens - Maximum tokens per chunk (default: 2000 to leave room for system prompt ~300 + output ~1800)
  * @returns Array of transcript chunks
  */
 export function chunkTranscript(
   transcript: string,
-  maxTokens: number = 3000
+  maxTokens: number = 2000
 ): TranscriptChunk[] {
   const trimmedTranscript = transcript.trim();
   
@@ -55,6 +55,35 @@ export function chunkTranscript(
   
   for (const sentence of sentences) {
     const sentenceTokens = estimateTokenCount(sentence);
+    
+    // If a single sentence is too long, split it by clauses (commas, semicolons)
+    if (sentenceTokens > maxTokens) {
+      console.warn('[transcriptChunker] Single sentence exceeds max tokens, splitting by clauses');
+      const clauses = sentence.split(/(?<=[,;])\s+/);
+      for (const clause of clauses) {
+        const clauseTokens = estimateTokenCount(clause);
+        
+        // If adding this clause exceeds limit, save current chunk
+        if (currentTokens + clauseTokens > maxTokens && currentChunk.length > 0) {
+          const chunkText = currentChunk.join(' ');
+          chunks.push({
+            text: chunkText,
+            index: chunks.length,
+            totalChunks: 0,
+            startChar,
+            endChar: startChar + chunkText.length,
+          });
+          
+          startChar += chunkText.length + 1;
+          currentChunk = [];
+          currentTokens = 0;
+        }
+        
+        currentChunk.push(clause);
+        currentTokens += clauseTokens;
+      }
+      continue;
+    }
     
     // If adding this sentence exceeds limit, save current chunk
     if (currentTokens + sentenceTokens > maxTokens && currentChunk.length > 0) {
@@ -114,7 +143,7 @@ export function mergeChunks(enhancedChunks: string[]): string {
 /**
  * Get chunking recommendation for a transcript
  */
-export function getChunkingInfo(transcript: string, maxTokens: number = 3000): {
+export function getChunkingInfo(transcript: string, maxTokens: number = 2000): {
   needsChunking: boolean;
   estimatedTokens: number;
   estimatedChunks: number;
@@ -131,4 +160,7 @@ export function getChunkingInfo(transcript: string, maxTokens: number = 3000): {
     estimatedChunks,
   };
 }
+
+
+
 

@@ -7,11 +7,13 @@
  * This is the primary result view - users want to see the improved version prominently.
  * 
  * Phase 4.5: Added editable text support
+ * Phase 4.6: Added inline speaker name editing
  */
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Sparkles, TrendingUp, TrendingDown, Clock, Hash, AlignLeft, Zap, Edit3 } from "lucide-react";
 import { getTextStatistics, formatNumber } from "@/utils/textStatistics";
+import { InlineEditableSpeaker } from "@/components/InlineEditableText";
 import type { EnhancementQualityMetrics, ReadabilityScore } from "@/types/quality-metrics";
 
 interface EnhancedTabViewProps {
@@ -74,6 +76,48 @@ export function EnhancedTabView({
   
   // Calculate statistics
   const stats = useMemo(() => getTextStatistics(text), [text]);
+  
+  // Handle speaker name edit
+  const handleSpeakerEdit = useCallback((oldName: string, newName: string) => {
+    if (!onTextChange) return;
+    
+    // Replace all occurrences of **oldName**: with **newName**:
+    const regex = new RegExp(`\\*\\*${oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\*\\*:`, 'g');
+    const updatedText = text.replace(regex, `**${newName}**:`);
+    
+    onTextChange(updatedText);
+  }, [text, onTextChange]);
+  
+  // Parse text to find speaker names for inline editing
+  const renderTextWithEditableSpeakers = useMemo(() => {
+    if (isEditable || !text) return null;
+    
+    // Split text by speaker patterns: **Name**:
+    const speakerPattern = /(\*\*[^*]+\*\*:)/g;
+    const parts = text.split(speakerPattern);
+    
+    return parts.map((part, index) => {
+      // Check if this part is a speaker label
+      const speakerMatch = part.match(/\*\*([^*]+)\*\*:/);
+      if (speakerMatch) {
+        const speakerName = speakerMatch[1];
+        return (
+          <span key={index}>
+            <strong>
+              <InlineEditableSpeaker
+                speakerLabel={speakerName}
+                speakerName={speakerName}
+                onSave={(_, newName) => handleSpeakerEdit(speakerName, newName)}
+              />
+            </strong>
+            :
+          </span>
+        );
+      }
+      // Regular text
+      return <span key={index}>{part}</span>;
+    });
+  }, [text, isEditable, handleSpeakerEdit]);
   
   // Get readability info
   const readability = useMemo(() => {
@@ -209,7 +253,7 @@ export function EnhancedTabView({
             />
           </div>
         ) : (
-          /* View Mode - Paragraph */
+          /* View Mode - Paragraph with inline-editable speakers */
           <div 
             className={`h-full max-h-[400px] overflow-y-auto border rounded-lg p-4 transition-all duration-500 ${
               hasEdits
@@ -220,9 +264,9 @@ export function EnhancedTabView({
             }`}
             style={{ scrollbarGutter: 'stable' }}
           >
-            <p className="text-zinc-100 leading-relaxed whitespace-pre-wrap font-mono text-sm select-text">
-              {text || "No enhanced transcription available."}
-            </p>
+            <div className="text-zinc-100 leading-relaxed whitespace-pre-wrap font-mono text-sm select-text">
+              {renderTextWithEditableSpeakers || text || "No enhanced transcription available."}
+            </div>
           </div>
         )}
       </div>

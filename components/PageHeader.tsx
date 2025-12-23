@@ -2,6 +2,7 @@
 
 import { useFont } from '@/contexts/FontContext';
 import { Zap } from 'lucide-react';
+import Image from 'next/image';
 
 interface PageHeaderProps {
   subtitle: string;
@@ -14,16 +15,20 @@ export function PageHeader({ subtitle, description, icon }: PageHeaderProps) {
 
   return (
     <div className="text-center mb-8">
-      {/* Main Title - Always Present */}
-      <h1 className={`text-4xl sm:text-5xl md:text-6xl font-black mb-3 ${fontClass}`}>
-        <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent animate-gradient">
-          Neural Groove
-        </span>
-        <br />
-        <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent animate-gradient">
-          Spectrum Divergent
-        </span>
-      </h1>
+      {/* Main Title - Logo Image */}
+      <div className="mb-3 flex justify-center bg-zinc-950 p-4 rounded-lg">
+        <Image
+          src="/branding/NeuralGrooveLogoEnhanced.PNG"
+          alt="Neural Groove Spectrum Divergent"
+          width={500}
+          height={200}
+          priority
+          className="max-w-full h-auto"
+          style={{
+            filter: 'brightness(1.1) saturate(0.5)',
+          }}
+        />
+      </div>
 
       {/* Divider */}
       <div className="flex items-center justify-center gap-3 my-4">

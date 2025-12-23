@@ -223,6 +223,7 @@ export function useFFmpeg() {
         const startTime = Date.now();
         let lastProgressTime = Date.now();
         let lastProgress = 0;
+        let ffmpegReporting = false;
         
         // Heartbeat logger - logs every 10 seconds
         const heartbeatInterval = setInterval(() => {
@@ -246,8 +247,23 @@ export function useFFmpeg() {
           if (progress !== lastProgress) {
             lastProgress = progress;
             lastProgressTime = Date.now();
+            ffmpegReporting = true; // FFmpeg is reporting, disable fallback
           }
         }, 1000);
+        
+        // Fallback progress estimator (when FFmpeg doesn't report progress)
+        const fallbackEstimator = setInterval(() => {
+          if (!ffmpegReporting && progress < 95) {
+            const elapsed = Date.now() - startTime;
+            // Estimate progress based on elapsed time (cap at 95% to avoid 100% before done)
+            const estimatedProgress = Math.min(95, Math.round((elapsed / timeoutMs) * 90));
+            
+            if (estimatedProgress > progress) {
+              setProgress(estimatedProgress);
+              console.log(`[useFFmpeg] 📊 Fallback progress estimation: ${estimatedProgress}%`);
+            }
+          }
+        }, 2000); // Check every 2 seconds
 
         const execPromise = ffmpeg.exec(command);
         const timeoutPromise = new Promise<never>((_, reject) => {
@@ -260,10 +276,13 @@ export function useFFmpeg() {
           await Promise.race([execPromise, timeoutPromise]);
           clearInterval(heartbeatInterval);
           clearInterval(progressTracker);
+          clearInterval(fallbackEstimator);
+          setProgress(100); // Ensure progress reaches 100% when complete
           console.log(`[useFFmpeg] ✅ Command completed in ${Math.floor((Date.now() - startTime) / 1000)}s`);
         } catch (error) {
           clearInterval(heartbeatInterval);
           clearInterval(progressTracker);
+          clearInterval(fallbackEstimator);
           
           // If timeout or other error, terminate FFmpeg to free resources
           if (error instanceof Error && error.message === "Process timed out") {

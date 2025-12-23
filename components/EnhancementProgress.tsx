@@ -169,7 +169,7 @@ export function EnhancementProgress({
                 </div>
                 <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
                   <div
-                    className={`h-full bg-gradient-to-r ${config.gradientFrom} ${config.gradientTo} rounded-full transition-all duration-300 ease-out`}
+                    className={`h-full bg-gradient-to-r ${config.gradientFrom} ${config.gradientTo} rounded-full transition-all duration-1000 ease-linear`}
                     style={{ width: `${progress.progress}%` }}
                   />
                 </div>
@@ -248,6 +248,9 @@ export function EnhancementProgress({
     </div>
   );
 }
+
+
+
 
 
 
