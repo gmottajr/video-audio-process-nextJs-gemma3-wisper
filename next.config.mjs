@@ -14,5 +14,4 @@ const nextConfig = {
 };
 
 export default nextConfig;
-// Autoprefixer installed - server should restart
 

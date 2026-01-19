@@ -75,9 +75,9 @@ export function InspectStateView({
         />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Left: Metadata */}
-        <div>
+        <div className="min-w-0">
           <h3 className="text-lg font-semibold mb-3 text-zinc-300">
             File Information
           </h3>
@@ -85,7 +85,7 @@ export function InspectStateView({
         </div>
 
         {/* Right: Action Selector */}
-        <div>
+        <div className="min-w-0">
           <h3 className="text-lg font-semibold mb-3 text-zinc-300">
             Choose Action
           </h3>

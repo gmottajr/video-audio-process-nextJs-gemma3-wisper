@@ -278,7 +278,7 @@ export function FileUploader({
                 type="button"
                 className="mt-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
               >
-                Select File
+                Browse Files
               </button>
             )}
           </div>
@@ -369,7 +369,7 @@ export function FileUploader({
         <div className="mt-4 p-4 bg-red-950/30 border border-red-800 rounded-lg flex items-start gap-3">
           <X className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm text-red-200 font-medium mb-1">Upload Error</p>
+            <p className="text-sm text-red-200 font-medium mb-1">File Error</p>
             <p className="text-xs text-red-300/80">{error}</p>
           </div>
         </div>

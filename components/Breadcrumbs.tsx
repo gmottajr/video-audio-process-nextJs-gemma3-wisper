@@ -9,7 +9,7 @@ interface BreadcrumbsProps {
 }
 
 const stateLabels: Record<AppState, string> = {
-  IDLE: 'Upload',
+  IDLE: 'Select',
   INSPECT: 'Configure',
   PROCESSING: 'Processing',
   DONE: 'Complete',

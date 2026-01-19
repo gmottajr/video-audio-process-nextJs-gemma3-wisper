@@ -321,16 +321,28 @@ export default function Home() {
 
         {/* Hardware Capability Badge */}
         <div className="flex justify-center mb-6">
-          <span className="px-4 py-1.5 bg-gradient-to-r from-green-950/50 to-emerald-950/50 border border-green-500/50 rounded-full text-xs font-bold text-green-400 uppercase tracking-wider flex items-center gap-2">
-            <Cpu className="w-3 h-3" />
-            <span suppressHydrationWarning>
-              {hardwareCapability.tier === "high"
-                ? `🚀 High Performance Mode (${hardwareCapability.deviceMemoryGB}GB+ RAM)`
+          <div className="group relative">
+            <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 border ${
+              hardwareCapability.tier === "high"
+                ? "bg-gradient-to-r from-emerald-950/50 to-green-950/50 border-emerald-500/50 text-emerald-400"
                 : hardwareCapability.tier === "medium"
-                ? "⚡ Standard Performance Mode"
-                : "Standard Mode"}
+                ? "bg-gradient-to-r from-blue-950/50 to-cyan-950/50 border-blue-500/50 text-blue-400"
+                : "bg-gradient-to-r from-amber-950/50 to-orange-950/50 border-amber-500/50 text-amber-400"
+            }`}>
+              <Cpu className="w-3 h-3" />
+              <span suppressHydrationWarning>
+                {hardwareCapability.tier === "high"
+                  ? `🚀 High Performance (${hardwareCapability.deviceMemoryGB}GB+ RAM)`
+                  : hardwareCapability.tier === "medium"
+                  ? "⚡ Standard Performance"
+                  : "💡 Basic Performance"}
+              </span>
             </span>
-          </span>
+            {/* Tooltip */}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-300 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+              <span className="text-zinc-400">Your device&apos;s processing capability for media operations</span>
+            </div>
+          </div>
         </div>
 
         {/* STATE VIEWS */}
