@@ -32,15 +32,13 @@ import { OriginalTabView } from "@/components/tabs/OriginalTabView";
 import { EnhancedTabView } from "@/components/tabs/EnhancedTabView";
 import { SideBySideTabView } from "@/components/tabs/SideBySideTabView";
 import { DiffTabView } from "@/components/tabs/DiffTabView";
-import { AnalysisTabView } from "@/components/tabs/AnalysisTabView";
 import type { EnhancementQualityMetrics } from "@/types/quality-metrics";
-import type { TranscriptAnalysis } from "@/types/transcript-analysis";
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-export type TabType = 'original' | 'enhanced' | 'sidebyside' | 'diff' | 'analysis';
+export type TabType = 'original' | 'enhanced' | 'sidebyside' | 'diff';
 
 export type ExportFormat = 'txt' | 'json' | 'srt';
 
@@ -68,20 +66,12 @@ export interface TabbedTranscriptionViewProps {
     modelName?: string;
     filename?: string;
   };
-  /** AI Analysis results */
-  analysis?: TranscriptAnalysis | null;
-  /** Is analysis currently running */
-  isAnalyzing?: boolean;
-  /** Analysis error message */
-  analysisError?: string | null;
   /** Action callbacks */
   onCopy?: (text: string, tabType: TabType) => void;
   onExport?: (format: ExportFormat, tabType: TabType) => void;
   onReEnhance?: () => void;
   /** Called when user edits the enhanced text */
   onEnhancedTextChange?: (newText: string) => void;
-  /** Called when user requests analysis retry */
-  onAnalysisRetry?: () => void;
   /** Additional CSS classes */
   className?: string;
 }
@@ -125,13 +115,6 @@ const TABS: Array<{
     icon: <GitCompare className="w-4 h-4" />,
     description: 'See exactly what changed with highlights',
   },
-  {
-    id: 'analysis',
-    label: 'AI Analysis',
-    shortLabel: 'Analysis',
-    icon: <TrendingUp className="w-4 h-4" />,
-    description: 'Deep insights and structured analysis of the transcript',
-  },
 ];
 
 // ============================================================================
@@ -145,14 +128,10 @@ export function TabbedTranscriptionView({
   processingTime,
   chunks,
   metadata,
-  analysis,
-  isAnalyzing,
-  analysisError,
   onCopy,
   onExport,
   onReEnhance,
   onEnhancedTextChange,
-  onAnalysisRetry,
   className,
 }: TabbedTranscriptionViewProps) {
   // State
@@ -175,13 +154,13 @@ export function TabbedTranscriptionView({
   // Phase 4.5: URL Hash Sync - Read hash on mount
   useEffect(() => {
     const hash = window.location.hash.slice(1); // Remove #
-    if (hash && ['original', 'enhanced', 'sidebyside', 'diff', 'analysis'].includes(hash)) {
+    if (hash && ['original', 'enhanced', 'sidebyside', 'diff'].includes(hash)) {
       setActiveTab(hash as TabType);
     } else {
       // Fall back to session storage
       try {
         const saved = sessionStorage.getItem('mediaforge_active_tab');
-        if (saved && ['original', 'enhanced', 'sidebyside', 'diff', 'analysis'].includes(saved)) {
+        if (saved && ['original', 'enhanced', 'sidebyside', 'diff'].includes(saved)) {
           setActiveTab(saved as TabType);
         }
       } catch {
@@ -208,7 +187,7 @@ export function TabbedTranscriptionView({
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1);
-      if (hash && ['original', 'enhanced', 'sidebyside', 'diff', 'analysis'].includes(hash)) {
+      if (hash && ['original', 'enhanced', 'sidebyside', 'diff'].includes(hash)) {
         setActiveTab(hash as TabType);
       }
     };
@@ -647,20 +626,6 @@ export function TabbedTranscriptionView({
           </div>
         )}
         
-        {activeTab === 'analysis' && (
-          <div
-            role="tabpanel"
-            id="analysis-panel"
-            aria-labelledby="analysis-tab"
-          >
-            <AnalysisTabView
-              analysis={analysis}
-              isLoading={isAnalyzing}
-              error={analysisError}
-              onRetry={onAnalysisRetry}
-            />
-          </div>
-        )}
       </div>
 
       {/* Keyboard Help Modal */}

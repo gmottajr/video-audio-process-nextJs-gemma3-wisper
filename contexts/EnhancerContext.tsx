@@ -24,10 +24,6 @@ import { extractWhisperMetadata } from "@/utils/whisperMetadataExtractor";
 import { generateEnhancementStrategy, getStrategySummary } from "@/utils/enhancementStrategyGenerator";
 import { buildContextAwarePrompt, buildSimplePrompt } from "@/utils/contextAwarePromptBuilder";
 import { chunkTranscript, mergeChunks, getChunkingInfo } from "@/utils/transcriptChunker";
-import type { SpeakerIdentificationResult, SpeakerIdentificationOptions } from "@/utils/speakerIdentifier";
-import { identifySpeakers } from "@/utils/speakerIdentifier";
-import type { TranscriptAnalysis, AnalysisOptions } from "@/types/transcript-analysis";
-import { buildAnalysisPrompt, parseAnalysisResponse, validateAnalysisResult } from "@/utils/analysisPromptBuilder";
 
 // ============================================================================
 // Download State Persistence
@@ -78,28 +74,14 @@ interface EnhancerContextType {
   savedDownloadState: DownloadState | null;
   dismissResumePrompt: () => void;
   
-  // Speaker Identification
-  isIdentifyingSpeakers: boolean;
-  speakerIdentificationResult: SpeakerIdentificationResult | null;
-  speakerIdentificationError: string | null;
-  
-  // Transcript Analysis
-  isAnalyzing: boolean;
-  analysisResult: TranscriptAnalysis | null;
-  analysisError: string | null;
-  
   // Actions
   loadModel: (modelId?: string) => Promise<void>;
   enhance: (transcript: string, whisperResult?: TranscriptionResult, audioDuration?: number) => Promise<EnhancementResult>;
-  identifySpeakersInTranscript: (options: SpeakerIdentificationOptions) => Promise<SpeakerIdentificationResult>;
-  analyzeTranscript: (transcript: string, options?: AnalysisOptions) => Promise<TranscriptAnalysis>;
   cancelEnhancement: () => void;
   reset: () => void;
   resetEngine: () => Promise<void>;
   clearError: () => void;
   clearResult: () => void;
-  clearSpeakerIdentification: () => void;
-  clearAnalysis: () => void;
 }
 
 // ============================================================================
@@ -168,16 +150,6 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
   // Phase 2 prompts include metadata, strategy, examples which exceed the 4096 token context window
   // TODO: Either use 3B model OR create shorter Phase 2 prompts
   const [useContextAwarePrompts, setUseContextAwarePrompts] = useState(false);
-  
-  // Speaker Identification
-  const [isIdentifyingSpeakers, setIsIdentifyingSpeakers] = useState(false);
-  const [speakerIdentificationResult, setSpeakerIdentificationResult] = useState<SpeakerIdentificationResult | null>(null);
-  const [speakerIdentificationError, setSpeakerIdentificationError] = useState<string | null>(null);
-  
-  // Transcript Analysis
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<TranscriptAnalysis | null>(null);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
   
   // Download state persistence
   const [totalDownloadMB, setTotalDownloadMB] = useState(0);
@@ -756,10 +728,6 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
     setLastResult(null);
     setLastMetadata(null);
     setLastStrategy(null);
-    setSpeakerIdentificationResult(null);
-    setSpeakerIdentificationError(null);
-    setAnalysisResult(null);
-    setAnalysisError(null);
   }, [isEnhancing, cancelEnhancement]);
 
   const reset = useCallback(() => {
@@ -801,183 +769,6 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
     setLastResult(null);
   }, []);
 
-  /**
-   * Clear speaker identification results
-   */
-  const clearSpeakerIdentification = useCallback(() => {
-    setSpeakerIdentificationResult(null);
-    setSpeakerIdentificationError(null);
-  }, []);
-
-  // ============================================================================
-  // Speaker Identification
-  // ============================================================================
-
-  /**
-   * Identify speakers in transcript using AI
-   */
-  const identifySpeakersInTranscript = useCallback(async (
-    options: SpeakerIdentificationOptions
-  ): Promise<SpeakerIdentificationResult> => {
-    console.log('[EnhancerContext] Starting speaker identification...', { mode: options.mode });
-
-    // Validate model is loaded
-    if (!isModelLoaded) {
-      const msg = 'Model must be loaded before identifying speakers';
-      setSpeakerIdentificationError(msg);
-      throw new Error(msg);
-    }
-
-    // Validate we're not already identifying
-    if (isIdentifyingSpeakers) {
-      const msg = 'Speaker identification already in progress';
-      setSpeakerIdentificationError(msg);
-      throw new Error(msg);
-    }
-
-    setIsIdentifyingSpeakers(true);
-    setSpeakerIdentificationError(null);
-    setSpeakerIdentificationResult(null);
-
-    try {
-      const worker = initWorker();
-
-      // Create LLM generation function using the worker
-      const llmGenerate = async (prompt: string): Promise<string> => {
-        console.log('[EnhancerContext] Generating speaker identification response...');
-        
-        const result = await worker.sendRequest('generate', {
-          prompt,
-          temperature: 0.3, // Lower temperature for more consistent speaker detection
-          max_tokens: 2000,
-        }, {
-          timeoutMs: 120000, // 2 minutes
-        });
-
-        return result.text || '';
-      };
-
-      // Run speaker identification
-      const result = await identifySpeakers(options, llmGenerate);
-
-      setSpeakerIdentificationResult(result);
-      console.log('[EnhancerContext] Speaker identification complete:', {
-        identified: result.speakerMap.size,
-        warnings: result.warnings.length,
-      });
-
-      return result;
-
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Speaker identification failed';
-      console.error('[EnhancerContext] Speaker identification failed:', errorMsg);
-      
-      setSpeakerIdentificationError(errorMsg);
-      throw err;
-    } finally {
-      setIsIdentifyingSpeakers(false);
-    }
-  }, [isModelLoaded, isIdentifyingSpeakers, initWorker]);
-
-  // ============================================================================
-  // Transcript Analysis
-  // ============================================================================
-
-  /**
-   * Analyze transcript using AI to extract insights
-   */
-  const analyzeTranscript = useCallback(async (
-    transcript: string,
-    options: AnalysisOptions = {}
-  ): Promise<TranscriptAnalysis> => {
-    console.log('[EnhancerContext] Starting transcript analysis...');
-
-    // Validate model is loaded
-    if (!isModelLoaded) {
-      const msg = 'Model must be loaded before analyzing transcript';
-      setAnalysisError(msg);
-      throw new Error(msg);
-    }
-
-    // Validate we're not already analyzing
-    if (isAnalyzing) {
-      const msg = 'Analysis already in progress';
-      setAnalysisError(msg);
-      throw new Error(msg);
-    }
-
-    setIsAnalyzing(true);
-    setAnalysisError(null);
-    setAnalysisResult(null);
-
-    const startTime = Date.now();
-
-    try {
-      const worker = initWorker();
-
-      // Build analysis prompt
-      const prompt = buildAnalysisPrompt(transcript, options);
-
-      console.log('[EnhancerContext] Sending analysis request to LLM...');
-
-      // Send to LLM
-      const result = await worker.sendRequest('generate', {
-        prompt,
-        temperature: 0.3, // Lower temperature for structured analysis
-        max_tokens: 4000, // Need more tokens for comprehensive analysis
-      }, {
-        timeoutMs: 180000, // 3 minutes for complex analysis
-      });
-
-      const responseText = result.text || '';
-
-      // Parse LLM response
-      console.log('[EnhancerContext] Parsing analysis response...');
-      const parsedAnalysis = parseAnalysisResponse(responseText);
-
-      // Validate structure
-      if (!validateAnalysisResult(parsedAnalysis)) {
-        throw new Error('Invalid analysis result structure');
-      }
-
-      // Add processing time and metadata
-      const processingTime = (Date.now() - startTime) / 1000; // Convert to seconds
-      
-      const finalAnalysis: TranscriptAnalysis = {
-        ...parsedAnalysis,
-        processingTime,
-        modelId: currentModelId || 'unknown',
-      };
-
-      setAnalysisResult(finalAnalysis);
-      
-      console.log('[EnhancerContext] Analysis complete:', {
-        keyPoints: finalAnalysis.keyPoints.length,
-        questions: finalAnalysis.questionsRaised.total,
-        processingTime: processingTime.toFixed(1) + 's',
-      });
-
-      return finalAnalysis;
-
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Analysis failed';
-      console.error('[EnhancerContext] Analysis failed:', errorMsg);
-      
-      setAnalysisError(errorMsg);
-      throw err;
-    } finally {
-      setIsAnalyzing(false);
-    }
-  }, [isModelLoaded, isAnalyzing, currentModelId, initWorker]);
-
-  /**
-   * Clear analysis results
-   */
-  const clearAnalysis = useCallback(() => {
-    setAnalysisResult(null);
-    setAnalysisError(null);
-  }, []);
-
   // ============================================================================
   // Context Value
   // ============================================================================
@@ -1007,16 +798,6 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
     lastStrategy,
     useContextAwarePrompts,
     
-    // Speaker Identification
-    isIdentifyingSpeakers,
-    speakerIdentificationResult,
-    speakerIdentificationError,
-    
-    // Transcript Analysis
-    isAnalyzing,
-    analysisResult,
-    analysisError,
-    
     // Download state
     totalDownloadMB,
     showResumePrompt,
@@ -1026,15 +807,11 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
     // Actions
     loadModel,
     enhance,
-    identifySpeakersInTranscript,
-    analyzeTranscript,
     cancelEnhancement,
     reset,
     resetEngine,
     clearError,
     clearResult,
-    clearSpeakerIdentification,
-    clearAnalysis,
   };
 
   return (
