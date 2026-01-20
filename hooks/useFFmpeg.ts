@@ -118,6 +118,65 @@ export function useFFmpeg() {
     }
   }, [parseDuration]);
 
+  // Probe file to extract metadata without processing
+  const probeFile = useCallback(async (file: File): Promise<void> => {
+    if (!ffmpegRef.current) {
+      console.warn("[useFFmpeg] FFmpeg not loaded, cannot probe file");
+      return;
+    }
+
+    try {
+      console.log("[useFFmpeg] Probing file for metadata:", file.name);
+      
+      // Reset metrics before probing
+      setMetrics({
+        speed: null,
+        duration: null,
+        bitrate: null,
+        videoCodec: null,
+        audioCodec: null,
+        resolution: null,
+        fps: null,
+      });
+
+      const inputFileName = "probe_input";
+      
+      // Clean up any existing probe file first
+      try {
+        await ffmpegRef.current.deleteFile(inputFileName);
+      } catch {
+        // File doesn't exist, that's fine
+      }
+      
+      // Write file to FFmpeg file system
+      await ffmpegRef.current.writeFile(inputFileName, await fetchFile(file));
+      
+      // Run FFmpeg with -i to get metadata (will fail but output metadata to stderr)
+      // We catch the error because FFmpeg returns non-zero when no output is specified
+      try {
+        await ffmpegRef.current.exec(["-i", inputFileName]);
+      } catch (error) {
+        // Expected error - FFmpeg outputs metadata to stderr even on "failure"
+        // The parseLog callback will have captured the metadata
+        console.log("[useFFmpeg] Probe completed (expected error), metadata extracted");
+      }
+      
+      // Cleanup
+      try {
+        await ffmpegRef.current.deleteFile(inputFileName);
+        console.log("[useFFmpeg] Probe file cleaned up");
+      } catch (cleanupError) {
+        console.warn("[useFFmpeg] Failed to cleanup probe file:", cleanupError);
+      }
+      
+      console.log("[useFFmpeg] Metadata probing complete");
+      
+    } catch (error) {
+      console.error("[useFFmpeg] Failed to probe file:", error);
+      // Don't throw - metadata extraction is optional
+    }
+  }, []); // ✅ No dependencies - parseLog callback is already attached via FFmpeg.on("log")
+
   // Load FFmpeg.wasm from local files
   const load = useCallback(async () => {
     // Check both state AND ref to prevent race conditions
@@ -445,6 +504,7 @@ export function useFFmpeg() {
     logs,
     metrics,
     load,
+    probeFile,
     transcode,
     extractAudio,
     prepareAudioForAI,

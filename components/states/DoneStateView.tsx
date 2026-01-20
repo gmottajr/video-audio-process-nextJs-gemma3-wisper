@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { WaveformViewer, WaveformSelection } from "@/components/WaveformViewer";
 import { TranscriptionViewer } from "@/components/TranscriptionViewer";
+import { TabbedTranscriptionView } from "@/components/TabbedTranscriptionView";
+import { EnhancementToggle } from "@/components/EnhancementToggle";
 import { ResourceMonitor } from "@/components/ResourceMonitor";
+import { MetadataDisplay } from "@/components/MetadataDisplay";
 import { StatisticsModal } from "@/components/StatisticsModal";
 import { TranscribeFromDoneForm } from "@/components/TranscribeFromDoneForm";
 import { ResourceComparison } from "@/components/ResourceComparison";
@@ -17,6 +20,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { extractAudioSegmentFromUrl } from "@/utils/audioExtraction";
 import { createSegmentMetadata, formatSegmentLabel, estimateSegmentSize } from "@/types/audioSegment";
 import { getResourceRequirements } from "@/utils/resourceEstimation";
+import { useEnhancerContextOptional } from "@/contexts/EnhancerContext";
+import type { EnhancementResult } from "@/types/enhancement";
+import type { EnhancementQualityMetrics } from "@/types/quality-metrics";
 
 interface DoneStateViewProps {
   result: ProcessingResult;
@@ -73,6 +79,14 @@ export function DoneStateView({
   const [segmentModelKey, setSegmentModelKey] = useState<ModelKey>(selectedModelKey);
   const [segmentCompressionType, setSegmentCompressionType] = useState<CompressionType>("none");
   const [segmentNormalizeAudio, setSegmentNormalizeAudio] = useState(false);
+  
+  // AI Enhancement state
+  const [enhancementEnabled, setEnhancementEnabled] = useState(false);
+  const [enhancedResult, setEnhancedResult] = useState<EnhancementResult | null>(null);
+  const [qualityMetrics, setQualityMetrics] = useState<EnhancementQualityMetrics | null>(null);
+  
+  // Get enhancer context (optional - may not be available)
+  const enhancer = useEnhancerContextOptional();
   
   const format =
     result.type === "audio"
@@ -174,6 +188,47 @@ export function DoneStateView({
       setIsExtractingSegment(false);
     }
   };
+  
+  // Handle enhancement toggle
+  const handleEnhancementToggle = useCallback(async (enabled: boolean) => {
+    setEnhancementEnabled(enabled);
+    
+    // If turning on and we have a transcription, start enhancement
+    if (enabled && result.type === "transcription" && result.transcription?.text && enhancer) {
+      try {
+        // Load model if not already loaded
+        if (!enhancer.isModelLoaded && !enhancer.isModelLoading) {
+          await enhancer.loadModel();
+        }
+        
+        // Run enhancement
+        const enhancementResult = await enhancer.enhance(
+          result.transcription.text,
+          result.transcription,
+          metrics?.duration
+        );
+        setEnhancedResult(enhancementResult);
+        
+        // Calculate quality metrics if available
+        // TODO: Implement quality metrics calculation
+        
+      } catch (error) {
+        console.error('[DoneStateView] Enhancement failed:', error);
+        // Error is handled by the enhancer context
+      }
+    }
+  }, [result, enhancer, metrics]);
+  
+  // Handle re-enhancement request
+  const handleReEnhance = useCallback(() => {
+    // Reset enhancement state to allow re-enhancement
+    setEnhancedResult(null);
+    setQualityMetrics(null);
+    setEnhancementEnabled(false);
+  }, []);
+  
+  // Check if enhancement is available
+  const canEnhance = enhancer?.capabilities?.isCapable && result.type === "transcription" && result.transcription?.text;
 
   return (
     <div className="animate-in fade-in duration-500">
@@ -390,13 +445,56 @@ export function DoneStateView({
             </video>
           </div>
         ) : result.type === "transcription" && result.transcription ? (
-          <TranscriptionViewer
-            result={result.transcription}
-            filename={file.name.split(".")[0]}
-            modelName={
-              currentModel ? WHISPER_MODELS[selectedModelKey].name : undefined
-            }
-          />
+          <>
+            {/* AI-Enhanced Tabbed View (shown when enhancement is complete) */}
+            {enhancedResult ? (
+              <TabbedTranscriptionView
+                originalText={result.transcription.text}
+                enhancedText={enhancedResult.enhancedText}
+                qualityMetrics={qualityMetrics}
+                processingTime={enhancedResult.processingTime}
+                chunks={result.transcription.chunks}
+                metadata={{
+                  contentType: enhancer?.lastMetadata?.contentType,
+                  duration: metrics?.duration,
+                  modelName: currentModel ? WHISPER_MODELS[selectedModelKey].name : undefined,
+                  filename: file.name.split(".")[0],
+                }}
+                onReEnhance={handleReEnhance}
+              />
+            ) : (
+              /* Show basic transcription view before enhancement */
+              <TranscriptionViewer
+                result={result.transcription}
+                filename={file.name.split(".")[0]}
+                modelName={
+                  currentModel ? WHISPER_MODELS[selectedModelKey].name : undefined
+                }
+              />
+            )}
+            
+            {/* AI Enhancement Toggle */}
+            {enhancer && enhancer.capabilities && !enhancer.isCheckingHardware && (
+              <EnhancementToggle
+                capabilities={enhancer.capabilities}
+                enabled={enhancementEnabled}
+                onToggle={handleEnhancementToggle}
+                disabled={enhancer.isEnhancing || enhancer.isModelLoading}
+                isModelLoaded={enhancer.isModelLoaded}
+                isModelLoading={enhancer.isModelLoading}
+              />
+            )}
+            
+            {/* Enhancement Error Display */}
+            {enhancer?.error && (
+              <div className="mt-4 p-4 bg-red-950/30 border border-red-500/30 rounded-lg">
+                <p className="text-sm text-red-300 flex items-center gap-2">
+                  <span>❌</span>
+                  Enhancement failed: {enhancer.error}
+                </p>
+              </div>
+            )}
+          </>
         ) : null}
       </div>
 
@@ -459,54 +557,50 @@ export function DoneStateView({
         />
       )}
 
-      {/* File Details (for audio/video results) */}
-      {result.metadata && (result.type === "audio" || result.type === "video") && (
-        <div className="mt-6 max-w-2xl mx-auto bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-zinc-300 mb-3">File Details</h3>
-          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-            {result.metadata.format && (
-              <div>
-                <dt className="text-zinc-500">Format</dt>
-                <dd className="font-medium text-zinc-200 uppercase">{result.metadata.format}</dd>
-              </div>
-            )}
-            {result.metadata.size && (
-              <div>
-                <dt className="text-zinc-500">Size</dt>
-                <dd className="font-medium text-zinc-200">
-                  {(result.metadata.size / 1024 / 1024).toFixed(2)} MB
-                </dd>
-              </div>
-            )}
-            {result.metadata.compressionType && (
-              <div>
-                <dt className="text-zinc-500">Compression</dt>
-                <dd className="font-medium">
-                  {result.metadata.compressionType === "none" ? (
-                    <span className="text-zinc-400">None</span>
-                  ) : result.metadata.compressionType === "speech" ? (
-                    <span className="text-green-400">🎙️ Speech</span>
-                  ) : result.metadata.compressionType === "studio" ? (
-                    <span className="text-blue-400">🎚️ Studio</span>
-                  ) : (
-                    <span className="text-purple-400">✨ Full</span>
-                  )}
-                </dd>
-              </div>
-            )}
-            {result.metadata.normalized !== undefined && (
-              <div>
-                <dt className="text-zinc-500">Normalized</dt>
-                <dd className="font-medium">
-                  {result.metadata.normalized ? (
-                    <span className="text-green-400">✓ Yes</span>
-                  ) : (
-                    <span className="text-zinc-400">✗ No</span>
-                  )}
-                </dd>
-              </div>
-            )}
-          </dl>
+      {/* File Metadata (for audio/video results) */}
+      {(result.type === "audio" || result.type === "video") && (
+        <div className="mt-6 max-w-2xl mx-auto">
+          <h3 className="text-lg font-semibold mb-3 text-zinc-300">
+            File Information
+          </h3>
+          <MetadataDisplay metrics={metrics} file={file} />
+          
+          {/* Additional Processing Info (if any) */}
+          {result.metadata && (result.metadata.compressionType || result.metadata.normalized !== undefined) && (
+            <div className="mt-4 bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-zinc-400 mb-3 uppercase tracking-wider">
+                Processing Applied
+              </h4>
+              <dl className="grid grid-cols-2 gap-3 text-sm">
+                {result.metadata.compressionType && result.metadata.compressionType !== "none" && (
+                  <div>
+                    <dt className="text-zinc-500">Audio Compression</dt>
+                    <dd className="font-medium">
+                      {result.metadata.compressionType === "speech" ? (
+                        <span className="text-green-400">🎙️ Speech Optimized</span>
+                      ) : result.metadata.compressionType === "studio" ? (
+                        <span className="text-blue-400">🎚️ Studio Quality</span>
+                      ) : (
+                        <span className="text-purple-400">✨ Full Enhancement</span>
+                      )}
+                    </dd>
+                  </div>
+                )}
+                {result.metadata.normalized !== undefined && (
+                  <div>
+                    <dt className="text-zinc-500">Audio Normalization</dt>
+                    <dd className="font-medium">
+                      {result.metadata.normalized ? (
+                        <span className="text-green-400">✓ Applied</span>
+                      ) : (
+                        <span className="text-zinc-400">✗ Not Applied</span>
+                      )}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
         </div>
       )}
 

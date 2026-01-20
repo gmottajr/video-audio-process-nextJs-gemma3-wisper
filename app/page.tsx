@@ -60,6 +60,9 @@ export default function Home() {
     isActive: stateMachine.state === "PROCESSING" || processor.isFFmpegLoading,
   });
 
+  // Track which file has been probed to prevent re-probing
+  const [probedFileName, setProbedFileName] = useState<string | null>(null);
+
   // Auto-load FFmpeg on mount (only once)
   useEffect(() => {
     const initFFmpeg = async () => {
@@ -75,6 +78,37 @@ export default function Home() {
     initFFmpeg();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps - only run once on mount
+
+  // Probe file metadata when entering INSPECT state (only once per file)
+  useEffect(() => {
+    const probeFile = async () => {
+      if (
+        stateMachine.state === "INSPECT" &&
+        stateMachine.selectedFile &&
+        processor.isFFmpegLoaded &&
+        probedFileName !== stateMachine.selectedFile.name // ✅ Only probe if not already probed
+      ) {
+        try {
+          console.log("[App] Probing file for metadata:", stateMachine.selectedFile.name);
+          await processor.ffmpeg.probeFile(stateMachine.selectedFile);
+          setProbedFileName(stateMachine.selectedFile.name); // ✅ Mark as probed
+          console.log("[App] File metadata extracted");
+        } catch (error) {
+          console.error("[App] Failed to probe file:", error);
+          // Don't fail the whole process - metadata extraction is optional
+        }
+      }
+    };
+
+    probeFile();
+  }, [stateMachine.state, stateMachine.selectedFile, processor.isFFmpegLoaded, probedFileName, processor.ffmpeg]);
+
+  // Reset probed file name when returning to IDLE
+  useEffect(() => {
+    if (stateMachine.state === "IDLE") {
+      setProbedFileName(null);
+    }
+  }, [stateMachine.state]);
 
   // Sync transcription result to state machine
   useEffect(() => {
@@ -267,7 +301,7 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-gradient-to-br from-[#060d17] via-[#0a1525] to-[#060d17] text-zinc-100">
       {/* Font Selector - Fixed Position */}
       <FontSelector />
       
