@@ -44,7 +44,9 @@ export function useTranscriber() {
     setError(null);
     
     // Create worker as ES module (type: 'module')
-    const worker = new Worker('/transcription.worker.js', { type: 'module' });
+    // Cache-bust to ensure latest worker code is loaded
+    const workerUrl = `/transcription.worker.js?v=${Date.now()}`;
+    const worker = new Worker(workerUrl, { type: 'module' });
     workerRef.current = worker;
 
     // Set up message handler

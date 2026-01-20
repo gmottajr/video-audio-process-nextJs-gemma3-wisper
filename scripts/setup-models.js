@@ -3,7 +3,6 @@ const path = require('path');
 const https = require('https');
 
 // Support multiple Whisper models for user choice
-// Note: Medium model removed due to browser WASM memory limits causing OOM errors
 const MODELS = [
   {
     name: 'Xenova/whisper-tiny',
@@ -18,7 +17,12 @@ const MODELS = [
   {
     name: 'Xenova/whisper-small',
     size: '244 MB',
-    description: 'Best quality available in browser'
+    description: 'High accuracy, good for most use cases'
+  },
+  {
+    name: 'distil-whisper/distil-small.en',
+    size: '166 MB',
+    description: 'Fast alternative, English only'
   }
 ];
 

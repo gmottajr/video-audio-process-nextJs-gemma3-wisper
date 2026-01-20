@@ -44,6 +44,18 @@ export const WHISPER_MODELS = {
     borderColor: "border-purple-300",
     badge: "Best",
   },
+  "distil-small": {
+    id: "distil-whisper/distil-small.en",
+    name: "Distil-Whisper",
+    size: "166 MB",
+    speed: "Fast",
+    quality: "Good",
+    description: "Faster than Small, English only",
+    color: "text-amber-600",
+    bgColor: "bg-amber-50",
+    borderColor: "border-amber-300",
+    badge: "Fast",
+  },
 } as const;
 
 export type ModelKey = keyof typeof WHISPER_MODELS;
@@ -135,7 +147,7 @@ export default function ModelSelector({
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-4 gap-3">
         {(Object.keys(WHISPER_MODELS) as ModelKey[]).map((modelKey) => {
           const model = WHISPER_MODELS[modelKey];
           const isSelected = selectedModel === modelKey;
@@ -148,18 +160,20 @@ export default function ModelSelector({
               onClick={() => onModelSelect(modelKey)}
               disabled={disabled || isLoading}
               className={`
-                relative p-4 rounded-xl border-2 text-left transition-all
+                relative p-3 rounded-lg border-2 text-left transition-all
                 ${isSelected ? `${model.borderColor} ${model.bgColor}` : "border-gray-200 bg-white"}
                 ${disabled || isLoading ? "opacity-50 cursor-not-allowed" : "hover:shadow-md cursor-pointer"}
                 ${!disabled && !isLoading && isSelected ? "shadow-md" : ""}
               `}
             >
-              {/* Badge (Popular, Best) */}
+              {/* Badge (Popular, Best, Fast) */}
               {model.badge && (
-                <div className="absolute -top-2 -right-2">
-                  <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                <div className="absolute -top-2 -right-2 z-10">
+                  <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
                     model.badge === 'Best' 
                       ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
+                      : model.badge === 'Fast'
+                      ? 'bg-amber-500 text-white'
                       : 'bg-blue-500 text-white'
                   }`}>
                     {model.badge}
@@ -169,38 +183,38 @@ export default function ModelSelector({
 
               {/* Active Indicator */}
               {isCurrentlyLoaded && (
-                <div className="absolute top-2 right-2">
-                  <CheckCircle2 className={`w-5 h-5 ${model.color}`} />
+                <div className="absolute top-1.5 right-1.5">
+                  <CheckCircle2 className={`w-4 h-4 ${model.color}`} />
                 </div>
               )}
 
               {/* Model Name & Size */}
-              <div className="mb-3">
-                <h4 className={`font-bold text-lg ${isSelected ? model.color : "text-gray-800"}`}>
-                  {model.name}
+              <div className="mb-2">
+                <h4 className={`font-bold text-sm leading-tight ${isSelected ? model.color : "text-gray-800"}`}>
+                  {model.name.replace('Whisper ', '')}
                 </h4>
-                <p className="text-xs text-gray-500 mt-1">{model.size}</p>
+                <p className="text-[11px] text-gray-500">{model.size}</p>
               </div>
 
-              {/* Speed & Quality Badges */}
-              <div className="flex flex-wrap gap-2 mb-3">
-                <span className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-md text-xs">
-                  <Zap className="w-3 h-3" />
-                  <span className="font-medium">{model.speed}</span>
+              {/* Speed & Quality */}
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                <span className="flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600">
+                  <Zap className="w-2.5 h-2.5" />
+                  {model.speed}
                 </span>
-                <span className="px-2 py-1 bg-gray-100 rounded-md text-xs font-medium">
-                  {model.quality} Quality
+                <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] text-gray-500">
+                  {model.quality}
                 </span>
               </div>
 
               {/* Description */}
-              <p className="text-sm text-gray-600">{model.description}</p>
+              <p className="text-[10px] text-gray-500 leading-tight">{model.description}</p>
 
               {/* Loading/Loaded State */}
               {isCurrentlyLoaded && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <span className={`text-xs font-semibold ${model.color}`}>
-                    ✓ Currently Loaded
+                <div className="mt-2 pt-2 border-t border-gray-200">
+                  <span className={`text-[10px] font-semibold ${model.color}`}>
+                    ✓ Loaded
                   </span>
                 </div>
               )}

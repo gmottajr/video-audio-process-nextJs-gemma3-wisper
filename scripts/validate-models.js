@@ -8,7 +8,13 @@
 const fs = require('fs');
 const path = require('path');
 
-const MODELS = ['whisper-tiny', 'whisper-base', 'whisper-small'];
+// Models with their full paths (organization/model-name)
+const MODELS = [
+  { name: 'whisper-tiny', path: 'Xenova/whisper-tiny' },
+  { name: 'whisper-base', path: 'Xenova/whisper-base' },
+  { name: 'whisper-small', path: 'Xenova/whisper-small' },
+  { name: 'distil-small.en', path: 'distil-whisper/distil-small.en' },
+];
 const REQUIRED_FILES = [
   'config.json',
   'tokenizer.json',
@@ -24,9 +30,10 @@ console.log('🔍 Validating Whisper Model Files...\n');
 let allValid = true;
 const issues = [];
 
-MODELS.forEach((modelName) => {
-  console.log(`📦 Checking ${modelName}...`);
-  const modelPath = path.join(__dirname, '..', 'public', 'models', 'Xenova', modelName);
+MODELS.forEach((model) => {
+  const modelName = model.name;
+  console.log(`📦 Checking ${model.path}...`);
+  const modelPath = path.join(__dirname, '..', 'public', 'models', model.path);
 
   if (!fs.existsSync(modelPath)) {
     issues.push(`❌ ${modelName}: Directory not found`);

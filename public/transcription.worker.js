@@ -2,7 +2,7 @@
  * Transcription Web Worker - ES Module Version
  * 
  * Runs Whisper model inference in a separate thread to avoid blocking the UI.
- * Uses locally hosted models for maximum stability and privacy.
+ * Downloads models on-demand from Hugging Face when first selected.
  * 
  * NOTE: This is an ES Module worker (type="module")
  */
@@ -10,14 +10,15 @@
 // Import Transformers.js using ES module syntax
 import { pipeline, env } from '/transformers.min.js';
 
-// CRITICAL CONFIGURATION FOR SELF-HOSTING
-env.allowLocalModels = true;
-env.allowRemoteModels = false; // Force offline mode - no external requests!
+// CONFIGURATION: On-demand model downloading
+env.allowLocalModels = true;  // Check local cache first
+env.allowRemoteModels = true; // Download from Hugging Face if not cached
 env.localModelPath = '/models/'; // Path to models folder (relative to public/)
-env.useBrowserCache = true;
+env.useBrowserCache = true;   // Cache downloaded models in browser
 
-console.log('[Worker] Configured for self-hosted models');
-console.log('[Worker] Model path:', env.localModelPath);
+console.log('[Worker] Configured for on-demand model downloading');
+console.log('[Worker] Local path:', env.localModelPath);
+console.log('[Worker] Remote download enabled:', env.allowRemoteModels);
 
 // State
 let transcriber = null;
@@ -25,7 +26,8 @@ let isModelLoaded = false;
 let currentModelName = null; // Track which model is currently loaded
 
 /**
- * Initialize the Whisper model from local files
+ * Initialize the Whisper model
+ * Downloads from Hugging Face if not already cached locally
  */
 async function loadModel(modelName = 'Xenova/whisper-base', requestId = null) {
   try {
@@ -197,8 +199,12 @@ async function transcribe(audioData, requestId = null) {
 
     const transcriptionStartTime = performance.now();
     
+    // Detect Distil-Whisper models for configuration adjustments
+    const isDistilModel = currentModelName?.includes('distil-whisper');
+    
     console.log('🎯 Transcription Configuration:');
     console.log('   • Model:', currentModelName || 'unknown');
+    console.log('   • Model Type:', isDistilModel ? 'Distil-Whisper (optimized)' : 'Whisper (standard)');
     console.log('   • Request ID:', requestId || 'none');
     console.log('   • Chunk Length: 30 seconds');
     console.log('   • Stride (overlap): 5 seconds');
@@ -235,10 +241,17 @@ async function transcribe(audioData, requestId = null) {
     let lastProgressUpdate = performance.now(); // ✅ FIX: Use performance.now() consistently
     let progressCount = 0;
     
+    // Distil-Whisper models don't support word-level timestamps (different architecture)
+    // Disable timestamps entirely for distil models to avoid _extract_token_timestamps error
+    const isDistilWhisper = currentModelName?.includes('distil-whisper');
+    const timestampOption = isDistilWhisper ? false : 'word'; // false = no timestamps, 'word' = word-level
+    
+    console.log('   • Timestamp Mode:', isDistilWhisper ? 'DISABLED (distil-whisper compatibility)' : 'word-level');
+    
     const output = await transcriber(audioData, {
       chunk_length_s: 30, // Process in 30-second chunks
       stride_length_s: 5, // 5-second overlap between chunks
-      return_timestamps: 'word', // Return word-level timestamps
+      return_timestamps: timestampOption, // Sentence-level for distil, word-level for others
       language: 'english', // Can be made dynamic
       // ✅ SAFE CALLBACK: Just track elapsed time, don't access chunk properties
       callback_function: (beams) => {

@@ -55,9 +55,11 @@ export class WorkerManager {
    */
   private initialize(workerPath: string): void {
     try {
-      console.log('[WorkerManager] 🚀 Initializing worker from:', workerPath);
+      // Cache-bust to ensure latest worker code is loaded
+      const cacheBustedPath = `${workerPath}?v=${Date.now()}`;
+      console.log('[WorkerManager] 🚀 Initializing worker from:', cacheBustedPath);
       
-      this.worker = new Worker(workerPath, { type: 'module' });
+      this.worker = new Worker(cacheBustedPath, { type: 'module' });
       
       // Bind handlers
       this.messageHandler = this.handleMessage.bind(this);

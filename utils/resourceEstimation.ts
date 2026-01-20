@@ -40,13 +40,14 @@ const FILE_SIZE_THRESHOLDS = {
 /**
  * Model complexity (RAM multipliers)
  * 
- * Note: Whisper Medium was removed due to browser WebAssembly memory limits
- * causing OOM errors for audio longer than ~5 minutes.
+ * Note: Whisper Medium requires significant RAM and may cause OOM errors
+ * for very long audio files in browsers with limited memory.
  */
 const MODEL_COMPLEXITY: Record<ModelKey, { ram: number; gpuRecommended: boolean; name: string; maxDurationSec: number }> = {
   tiny: { ram: 1, gpuRecommended: false, name: "Tiny", maxDurationSec: 3600 },      // ~1 hour
   base: { ram: 1.5, gpuRecommended: false, name: "Base", maxDurationSec: 1800 },    // ~30 min
   small: { ram: 2, gpuRecommended: true, name: "Small", maxDurationSec: 1200 },     // ~20 min
+  "distil-small": { ram: 1.7, gpuRecommended: false, name: "Distil-Whisper", maxDurationSec: 2400 }, // ~40 min, faster than Small
 };
 
 /**
@@ -60,13 +61,13 @@ const MODEL_COMPLEXITY: Record<ModelKey, { ram: number; gpuRecommended: boolean;
  * - Tiny: 39MB → ~2GB RAM
  * - Base: 74MB → ~4GB RAM  
  * - Small: 244MB → ~8GB RAM
- * 
- * Note: Medium model removed due to browser WASM memory limits
+ * - Distil-Small: 166MB → ~6GB RAM (more efficient than standard Whisper)
  */
 const MODEL_BASE_RAM_GB: Record<ModelKey, number> = {
   tiny: 2,      // Tiny model is very light (~39MB)
   base: 4,      // Base model moderate (~74MB)
   small: 8,     // Small model (~244MB, measured ~28GB with large files)
+  "distil-small": 6, // Distil-Whisper (~166MB, more efficient architecture)
 };
 
 /**
@@ -88,8 +89,11 @@ const RAM_PER_GB_FILE = 3;
 export function estimateRAMUsage(fileSizeBytes: number, modelKey: ModelKey): number {
   const fileSizeGB = fileSizeBytes / (1024 * 1024 * 1024);
   
+  // Fallback to 'small' if model doesn't exist (e.g., removed models)
+  const safeModelKey = MODEL_BASE_RAM_GB[modelKey] !== undefined ? modelKey : 'small';
+  
   // Base RAM for the model + additional RAM for file size
-  const baseRAM = MODEL_BASE_RAM_GB[modelKey];
+  const baseRAM = MODEL_BASE_RAM_GB[safeModelKey];
   const fileRAM = fileSizeGB * RAM_PER_GB_FILE;
   const totalRAM = baseRAM + fileRAM;
   
@@ -112,11 +116,15 @@ export function estimateProcessingTime(fileSizeBytes: number, modelKey: ModelKey
     tiny: 0.3,    // Tiny is ~3x faster than Small
     base: 0.5,    // Base is ~2x faster than Small
     small: 1.0,   // Small baseline (700MB = 20min)
+    "distil-small": 0.6, // Distil-Whisper is ~40% faster than Small (distilled architecture)
   };
+  
+  // Fallback to 'small' if model doesn't exist (e.g., removed models)
+  const safeModelKey = timeMultipliers[modelKey] !== undefined ? modelKey : 'small';
   
   // Base rate for Small model: 700MB in 20 minutes = 0.0286 min/MB
   const baseMinutesPerMB = 0.029; // ~35MB per minute
-  const modelMultiplier = timeMultipliers[modelKey];
+  const modelMultiplier = timeMultipliers[safeModelKey];
   const minutesPerMB = baseMinutesPerMB * modelMultiplier;
   const estimatedMinutes = fileSizeMB * minutesPerMB;
   
@@ -171,10 +179,13 @@ export function getResourceRequirements(
     };
   }
 
-  const estimatedRAM = estimateRAMUsage(fileSizeBytes, modelKey);
-  const level = getResourceLevel(fileSizeBytes, modelKey);
-  const processingTime = estimateProcessingTime(fileSizeBytes, modelKey);
-  const modelInfo = MODEL_COMPLEXITY[modelKey];
+  // Fallback to 'small' if model doesn't exist (e.g., removed models)
+  const safeModelKey = MODEL_COMPLEXITY[modelKey] ? modelKey : 'small';
+  
+  const estimatedRAM = estimateRAMUsage(fileSizeBytes, safeModelKey);
+  const level = getResourceLevel(fileSizeBytes, safeModelKey);
+  const processingTime = estimateProcessingTime(fileSizeBytes, safeModelKey);
+  const modelInfo = MODEL_COMPLEXITY[safeModelKey];
   const fileSizeMB = Math.round(fileSizeBytes / (1024 * 1024));
   
   const warnings: string[] = [];
@@ -335,12 +346,15 @@ function parseTimeStringToMinutes(timeStr: string): number {
  * Get resource warning (simplified version for UI)
  */
 export function getResourceWarning(file: File, modelKey: ModelKey, audioDurationSec?: number): ResourceWarning {
-  const requirements = getResourceRequirements(file.size, modelKey, "transcribe");
+  // Fallback to 'small' if model doesn't exist (e.g., removed models)
+  const safeModelKey = MODEL_COMPLEXITY[modelKey] ? modelKey : 'small';
+  
+  const requirements = getResourceRequirements(file.size, safeModelKey, "transcribe");
   const fileSizeMB = Math.round(file.size / (1024 * 1024));
-  const modelInfo = MODEL_COMPLEXITY[modelKey];
+  const modelInfo = MODEL_COMPLEXITY[safeModelKey];
   
   // Use the calibrated time estimation (700MB = 20 min for Small)
-  const processingTimeStr = estimateProcessingTime(file.size, modelKey);
+  const processingTimeStr = estimateProcessingTime(file.size, safeModelKey);
   const estimatedTimeMinutes = parseTimeStringToMinutes(processingTimeStr);
   
   // Check for audio duration-based warnings (critical for Whisper Medium)
@@ -416,7 +430,9 @@ export function checkAudioDurationLimit(
   audioDurationSec: number,
   modelKey: ModelKey
 ): { isOverLimit: boolean; warningMessage: string | null; recommendedModel: ModelKey | null } {
-  const modelInfo = MODEL_COMPLEXITY[modelKey];
+  // Fallback to 'small' if model doesn't exist (e.g., removed models)
+  const safeModelKey = MODEL_COMPLEXITY[modelKey] ? modelKey : 'small';
+  const modelInfo = MODEL_COMPLEXITY[safeModelKey];
   
   if (audioDurationSec <= modelInfo.maxDurationSec) {
     return { isOverLimit: false, warningMessage: null, recommendedModel: null };
