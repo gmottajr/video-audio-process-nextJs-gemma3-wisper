@@ -17,9 +17,10 @@ interface MetadataDisplayProps {
   metrics: FFmpegMetrics;
   file: File | null;
   className?: string;
+  variant?: "default" | "compact";
 }
 
-export function MetadataDisplay({ metrics, file, className }: MetadataDisplayProps) {
+export function MetadataDisplay({ metrics, file, className, variant = "default" }: MetadataDisplayProps) {
   // Format duration from seconds to HH:MM:SS
   const formatDuration = (seconds: number | null): string => {
     if (seconds === null) return "—";
@@ -42,6 +43,64 @@ export function MetadataDisplay({ metrics, file, className }: MetadataDisplayPro
   // Determine if file is video or audio
   const isVideo = file && file.type.startsWith("video/");
   const isAudio = file && file.type.startsWith("audio/");
+
+  // Compact variant - single row with key info
+  if (variant === "compact") {
+    return (
+      <div className={cn("bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-3", className)}>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          {/* File icon and name */}
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-1.5 bg-zinc-800 rounded shrink-0">
+              {isVideo ? (
+                <FileVideo className="w-4 h-4 text-blue-400" />
+              ) : isAudio ? (
+                <FileAudio className="w-4 h-4 text-cyan-400" />
+              ) : (
+                <Disc className="w-4 h-4 text-zinc-500" />
+              )}
+            </div>
+            <span className="font-mono text-sm text-zinc-100 truncate max-w-[200px]" title={file?.name}>
+              {file?.name || "—"}
+            </span>
+          </div>
+
+          {/* Divider */}
+          <div className="h-4 w-px bg-zinc-700 hidden sm:block" />
+
+          {/* Size */}
+          <div className="flex items-center gap-1.5">
+            <Disc className="w-3.5 h-3.5 text-zinc-500" />
+            <span className="text-xs text-zinc-400">Size:</span>
+            <span className="font-mono text-sm text-zinc-200">{file ? formatFileSize(file.size) : "—"}</span>
+          </div>
+
+          {/* Duration */}
+          <div className="flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-zinc-500" />
+            <span className="text-xs text-zinc-400">Duration:</span>
+            <span className="font-mono text-sm text-zinc-200">{formatDuration(metrics.duration)}</span>
+          </div>
+
+          {/* Resolution (video only) */}
+          {isVideo && metrics.resolution && (
+            <div className="flex items-center gap-1.5">
+              <Gauge className="w-3.5 h-3.5 text-zinc-500" />
+              <span className="text-xs text-zinc-400">Res:</span>
+              <span className="font-mono text-sm text-zinc-200">{metrics.resolution}</span>
+            </div>
+          )}
+
+          {/* Format */}
+          <div className="flex items-center gap-1.5">
+            <Film className="w-3.5 h-3.5 text-zinc-500" />
+            <span className="text-xs text-zinc-400">Format:</span>
+            <span className="font-mono text-sm text-zinc-200">{file?.type.split("/")[1].toUpperCase() || "—"}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("bg-zinc-900 border border-zinc-800 rounded-lg p-6", className)}>

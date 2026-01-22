@@ -23,6 +23,7 @@ import { getResourceRequirements } from "@/utils/resourceEstimation";
 import { useEnhancerContextOptional } from "@/contexts/EnhancerContext";
 import type { EnhancementResult } from "@/types/enhancement";
 import type { EnhancementQualityMetrics } from "@/types/quality-metrics";
+import { EnhancementTimeWarning } from "@/components/transcription/EnhancementTimeWarning";
 
 interface DoneStateViewProps {
   result: ProcessingResult;
@@ -389,6 +390,12 @@ export function DoneStateView({
                         </div>
                       </label>
                     </div>
+                    
+                    {/* Time Warning - shows when any enhancement is enabled */}
+                    <EnhancementTimeWarning 
+                      compressionType={segmentCompressionType} 
+                      normalizeAudio={segmentNormalizeAudio} 
+                    />
                   </div>
                   
                   {/* Transcribe Segment Button */}

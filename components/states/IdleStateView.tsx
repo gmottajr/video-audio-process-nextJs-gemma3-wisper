@@ -81,6 +81,20 @@ export function IdleStateView({
         </div>
       </div>
 
+      {/* Pro Tip: Segment Transcription */}
+      <div className="mb-8 bg-gradient-to-r from-amber-950/30 via-orange-950/30 to-amber-950/30 border border-amber-500/30 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <span className="text-xl">✂️</span>
+          <div>
+            <h4 className="font-bold text-amber-200 text-sm mb-1">Pro Tip: Transcribe Specific Segments</h4>
+            <p className="text-xs text-amber-300/80">
+              Want to transcribe only part of a video? Select <span className="font-semibold text-amber-200">"Extract Audio"</span> first, 
+              then use the waveform viewer to select and transcribe specific sections. Perfect for long recordings!
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Privacy Banner */}
       <div className="mb-8 bg-gradient-to-r from-green-950/30 via-emerald-950/30 to-green-950/30 border border-green-500/30 rounded-xl p-4">
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-center sm:text-left">

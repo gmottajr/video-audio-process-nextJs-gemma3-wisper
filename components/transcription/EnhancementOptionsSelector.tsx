@@ -5,6 +5,7 @@
  */
 
 import type { CompressionType } from "@/components/ActionSelector";
+import { EnhancementTimeWarning } from "./EnhancementTimeWarning";
 
 interface EnhancementOptionsSelectorProps {
   compressionType: CompressionType;
@@ -62,6 +63,12 @@ export function EnhancementOptionsSelector({
           </span>
         </label>
       )}
+      
+      {/* Time Warning - shows when any enhancement is enabled */}
+      <EnhancementTimeWarning 
+        compressionType={compressionType} 
+        normalizeAudio={normalizeAudio} 
+      />
     </div>
   );
 }

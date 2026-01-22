@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Zap, AlertTriangle } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { Zap, AlertTriangle, Scissors } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { formatFileSize } from "@/utils/resourceEstimation";
 import { ResourceWarningCard } from "@/components/ResourceWarningCard";
@@ -24,13 +24,24 @@ import { TranscribeInfoCard } from "./TranscribeInfoCard";
 import { FormatSelector } from "./FormatSelector";
 import { ResolutionSelector } from "./ResolutionSelector";
 import { FormatDetailsCard } from "./FormatDetailsCard";
+import { EnhancementTimeWarning } from "./transcription/EnhancementTimeWarning";
+import { WaveformViewer, type WaveformSelection } from "./WaveformViewer";
+import { createSegmentMetadata, formatSegmentLabel, estimateSegmentSize } from "@/types/audioSegment";
 
 export type ActionType = "extract" | "convert_audio" | "convert_video" | "transcribe";
 export type CompressionType = "none" | "speech" | "studio" | "both";
 
+// Extended options interface with segment support
+export interface ActionOptions {
+  resolutionId?: string;
+  normalizeAudio?: boolean;
+  compressionType?: CompressionType;
+  segment?: { startTime: number; endTime: number };
+}
+
 interface ActionSelectorProps {
   file: File;
-  onAction: (action: ActionType, formatId: string, options?: { resolutionId?: string; normalizeAudio?: boolean; compressionType?: CompressionType }) => void;
+  onAction: (action: ActionType, formatId: string, options?: ActionOptions) => void;
   disabled: boolean;
   isModelLoading?: boolean;
   isModelLoaded?: boolean;
@@ -63,6 +74,58 @@ export function ActionSelector({
   const [selectedResolution, setSelectedResolution] = useState<string>("original");
   const [normalizeAudio, setNormalizeAudio] = useState(false); // NEW: Audio normalization option
   const [compressionType, setCompressionType] = useState<CompressionType>("none"); // NEW: Audio compression option
+  
+  // Waveform selection state (for audio files)
+  const [waveformSelection, setWaveformSelection] = useState<WaveformSelection | null>(null);
+  const [audioDuration, setAudioDuration] = useState<number>(0);
+  
+  // Use a ref to cache the blob URL by file reference
+  // This persists across React StrictMode double-mounting
+  const blobUrlCacheRef = useRef<{ file: File; url: string } | null>(null);
+  
+  // Get or create blob URL for the current file
+  const audioUrl = useMemo(() => {
+    if (fileType !== "audio") {
+      return null;
+    }
+    
+    // Check if we already have a URL for this exact file
+    if (blobUrlCacheRef.current?.file === file) {
+      return blobUrlCacheRef.current.url;
+    }
+    
+    // Revoke old URL if it exists and file changed
+    if (blobUrlCacheRef.current) {
+      URL.revokeObjectURL(blobUrlCacheRef.current.url);
+    }
+    
+    // Create new blob URL
+    const url = URL.createObjectURL(file);
+    blobUrlCacheRef.current = { file, url };
+    console.log("[ActionSelector] Created blob URL for audio:", url);
+    return url;
+  }, [file, fileType]);
+  
+  // Get segment metadata for display
+  const segmentMetadata = useMemo(() => {
+    if (!waveformSelection || audioDuration === 0) return null;
+    return createSegmentMetadata(
+      file,
+      waveformSelection.startTime,
+      waveformSelection.endTime,
+      audioDuration
+    );
+  }, [file, waveformSelection, audioDuration]);
+  
+  // Estimate segment size
+  const estimatedSegmentSize = useMemo(() => {
+    if (!segmentMetadata) return null;
+    return estimateSegmentSize(
+      file.size,
+      segmentMetadata.duration,
+      audioDuration
+    );
+  }, [file.size, segmentMetadata, audioDuration]);
 
   // Derived state
   const selectedAudioConfig = getFormatById(selectedAudioFormat);
@@ -120,25 +183,36 @@ export function ActionSelector({
     }
     
     if (fileType === "audio") {
+      const segmentPrefix = waveformSelection ? "✂️ " : "";
+      const segmentSuffix = waveformSelection ? " Segment" : "";
+      
       if (hasCompression && hasNormalization) {
-        return `🎵 Normalize & Convert to ${formatName}`;
+        return `${segmentPrefix}🎵 Normalize & Convert${segmentSuffix} to ${formatName}`;
       }
       if (compressionType === "speech") {
-        return `🎙️ Compress & Convert to ${formatName}`;
+        return `${segmentPrefix}🎙️ Compress & Convert${segmentSuffix} to ${formatName}`;
       }
       if (compressionType === "studio") {
-        return `🎚️ Compress & Convert to ${formatName}`;
+        return `${segmentPrefix}🎚️ Compress & Convert${segmentSuffix} to ${formatName}`;
       }
       if (compressionType === "both") {
-        return `🎛️ Enhance & Convert to ${formatName}`;
+        return `${segmentPrefix}🎛️ Enhance & Convert${segmentSuffix} to ${formatName}`;
       }
       if (hasNormalization) {
-        return `🎵 Normalize & Convert to ${formatName}`;
+        return `${segmentPrefix}🎵 Normalize & Convert${segmentSuffix} to ${formatName}`;
       }
-      return `Convert to ${formatName}`;
+      return `${segmentPrefix}Convert${segmentSuffix} to ${formatName}`;
     }
     
     return "Start Processing";
+  };
+  
+  // Build segment option if selection exists
+  const getSegmentOption = () => {
+    if (waveformSelection) {
+      return { startTime: waveformSelection.startTime, endTime: waveformSelection.endTime };
+    }
+    return undefined;
   };
   
   // Handlers
@@ -162,7 +236,12 @@ export function ActionSelector({
         });
       }
     } else {
-      onAction("convert_audio", selectedAudioFormat, { normalizeAudio, compressionType }); // Pass for audio files too
+      // For audio files, include segment if selected
+      onAction("convert_audio", selectedAudioFormat, { 
+        normalizeAudio, 
+        compressionType,
+        segment: getSegmentOption()
+      });
     }
   };
 
@@ -175,7 +254,12 @@ export function ActionSelector({
       return;
     }
     
-    onAction("transcribe", "", { normalizeAudio, compressionType }); // Pass enhancements for transcription
+    // Include segment if selected
+    onAction("transcribe", "", { 
+      normalizeAudio, 
+      compressionType,
+      segment: getSegmentOption()
+    });
   };
 
   // Badge generator for format selector
@@ -269,6 +353,61 @@ export function ActionSelector({
             minRAMThreshold={50}
           />
         </>
+      )}
+
+      {/* Waveform Viewer with Segment Selection (for audio files) */}
+      {fileType === "audio" && audioUrl && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-zinc-400">
+              Click and drag on the waveform to select a segment (optional)
+            </p>
+            {waveformSelection && (
+              <button
+                onClick={() => setWaveformSelection(null)}
+                className="text-xs text-blue-400 hover:text-blue-300 underline"
+              >
+                Clear Selection
+              </button>
+            )}
+          </div>
+          <WaveformViewer
+            audioUrl={audioUrl}
+            selectable={true}
+            onSelectionChange={(selection) => {
+              setWaveformSelection(selection);
+            }}
+          />
+          
+          {/* Segment Info Card (when selection exists) */}
+          {segmentMetadata && (
+            <div className="mt-4 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-500/20 rounded-lg">
+                    <Scissors className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-blue-100">
+                      Segment Selected
+                    </h4>
+                    <p className="text-xs text-blue-300/70 mt-0.5">
+                      {formatSegmentLabel(segmentMetadata)}
+                    </p>
+                    {estimatedSegmentSize && (
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        ~{(estimatedSegmentSize / 1024 / 1024).toFixed(1)} MB
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-blue-300/80">
+                All actions below will apply to this segment only.
+              </p>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Format Selection (hide for transcribe mode) */}
@@ -523,6 +662,20 @@ export function ActionSelector({
               </p>
             </div>
           )}
+          
+          {/* Time Warning - shows when any enhancement is enabled */}
+          <EnhancementTimeWarning 
+            compressionType={compressionType} 
+            normalizeAudio={normalizeAudio} 
+          />
+          
+          {/* Segment Transcription Tip */}
+          <div className="mt-3 p-2.5 bg-amber-950/30 border border-amber-600/30 rounded-md">
+            <p className="text-xs text-amber-300/90 leading-relaxed">
+              <span className="font-semibold text-amber-200">✂️ Tip:</span> Need to transcribe only a portion? 
+              Use <span className="font-semibold text-amber-200">"Extract Audio"</span> first, then select segments from the waveform.
+            </p>
+          </div>
         </div>
       )}
 
@@ -636,15 +789,15 @@ export function ActionSelector({
               : isModelLoaded
               ? hasMultipleEnhancements
                 ? compressionType !== "none" && normalizeAudio
-                  ? "🎵 Transcribe with Enhanced Audio"
+                  ? waveformSelection ? "✂️ 🎵 Transcribe Segment (Enhanced)" : "🎵 Transcribe with Enhanced Audio"
                   : compressionType === "speech"
-                  ? "🎙️ Transcribe with Speech Compression"
+                  ? waveformSelection ? "✂️ 🎙️ Transcribe Segment (Speech)" : "🎙️ Transcribe with Speech Compression"
                   : compressionType === "studio"
-                  ? "🎚️ Transcribe with Studio Compression"
+                  ? waveformSelection ? "✂️ 🎚️ Transcribe Segment (Studio)" : "🎚️ Transcribe with Studio Compression"
                   : compressionType === "both"
-                  ? "🎛️ Transcribe with Full Enhancement"
-                  : "🎵 Transcribe with Normalized Audio"
-                : "Transcribe Audio to Text"
+                  ? waveformSelection ? "✂️ 🎛️ Transcribe Segment (Full)" : "🎛️ Transcribe with Full Enhancement"
+                  : waveformSelection ? "✂️ 🎵 Transcribe Segment (Normalized)" : "🎵 Transcribe with Normalized Audio"
+                : waveformSelection ? "✂️ Transcribe Selected Segment" : "Transcribe Audio to Text"
               : "Waiting for Model..."}
           </ProgressButton>
           <p className="mt-2 text-xs text-center text-zinc-500">

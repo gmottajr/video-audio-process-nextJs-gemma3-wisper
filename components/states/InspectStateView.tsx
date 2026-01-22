@@ -1,7 +1,8 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { MetadataDisplay } from "@/components/MetadataDisplay";
-import { ActionSelector, type ActionType } from "@/components/ActionSelector";
+import { ActionSelector, type ActionType, type ActionOptions } from "@/components/ActionSelector";
 import ModelSelector, { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
 import { PageHeader } from "@/components/PageHeader";
 
@@ -17,11 +18,12 @@ interface InspectStateViewProps {
   onModelSelect: (modelKey: ModelKey) => void;
   
   // Action handling
-  onAction: (action: ActionType, formatId: string, options?: { resolutionId?: string }) => void;
+  onAction: (action: ActionType, formatId: string, options?: ActionOptions) => void;
   onBack: () => void;
   
   // Status
   isFFmpegLoaded: boolean;
+  isFFmpegLoading?: boolean;
   isModelLoaded: boolean;
   modelLoadingProgress: number;
 }
@@ -41,6 +43,7 @@ export function InspectStateView({
   onAction,
   onBack,
   isFFmpegLoaded,
+  isFFmpegLoading = false,
   isModelLoaded,
   modelLoadingProgress,
 }: InspectStateViewProps) {
@@ -63,8 +66,27 @@ export function InspectStateView({
         </p>
       </div>
 
+      {/* FFmpeg Loading Banner */}
+      {!isFFmpegLoaded && (
+        <div className="mb-6 p-4 bg-blue-950/50 border border-blue-500/50 rounded-lg">
+          <div className="flex items-center gap-3">
+            <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+            <div>
+              <p className="text-sm font-medium text-blue-300">
+                {isFFmpegLoading ? "Loading processing engine..." : "Processing engine not loaded"}
+              </p>
+              <p className="text-xs text-blue-400/70">
+                {isFFmpegLoading 
+                  ? "Please wait while FFmpeg WebAssembly initializes" 
+                  : "Click any action to reload the processing engine"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Model Selector (for AI Transcription) */}
-      <div className="mb-6">
+      <div className="mb-4">
         <ModelSelector
           selectedModel={selectedModelKey}
           currentlyLoadedModel={currentModel}
@@ -75,30 +97,28 @@ export function InspectStateView({
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Left: Metadata */}
-        <div className="min-w-0">
-          <h3 className="text-lg font-semibold mb-3 text-zinc-300">
-            File Information
-          </h3>
-          <MetadataDisplay metrics={metrics} file={file} />
-        </div>
+      {/* File Information - Compact Single Row */}
+      <div className="mb-6">
+        <h3 className="text-sm font-medium mb-2 text-zinc-400">
+          File Information
+        </h3>
+        <MetadataDisplay metrics={metrics} file={file} variant="compact" />
+      </div>
 
-        {/* Right: Action Selector */}
-        <div className="min-w-0">
-          <h3 className="text-lg font-semibold mb-3 text-zinc-300">
-            Choose Action
-          </h3>
-          <ActionSelector
-            file={file}
-            onAction={onAction}
-            disabled={!isFFmpegLoaded}
-            isModelLoading={isModelLoading}
-            isModelLoaded={isModelLoaded}
-            modelLoadingProgress={modelLoadingProgress}
-            selectedModelKey={selectedModelKey}
-          />
-        </div>
+      {/* Action Selector - Full Width */}
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold mb-3 text-zinc-300">
+          Choose Action
+        </h3>
+        <ActionSelector
+          file={file}
+          onAction={onAction}
+          disabled={!isFFmpegLoaded}
+          isModelLoading={isModelLoading}
+          isModelLoaded={isModelLoaded}
+          modelLoadingProgress={modelLoadingProgress}
+          selectedModelKey={selectedModelKey}
+        />
       </div>
 
       {/* Back button */}

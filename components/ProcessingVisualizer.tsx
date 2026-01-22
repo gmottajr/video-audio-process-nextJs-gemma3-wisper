@@ -82,8 +82,8 @@ export function ProcessingVisualizer({
         />
       </div>
 
-      {/* Processing visualizer centered */}
-      <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
+      {/* Processing visualizer - positioned below header with reasonable gap */}
+      <div className="flex justify-center mt-8">
         <div className="max-w-md w-full mx-4">
         {/* Main Card */}
         <div className="bg-zinc-900 border-2 border-blue-500/50 rounded-xl p-8 shadow-2xl">

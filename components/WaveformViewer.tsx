@@ -53,6 +53,9 @@ export function WaveformViewer({
       return;
     }
 
+    // Track if this effect instance is still active (for React StrictMode)
+    let isActive = true;
+
     // Destroy existing instance before creating new one
     if (wavesurferRef.current) {
       wavesurferRef.current.destroy();
@@ -154,11 +157,20 @@ export function WaveformViewer({
       });
     }
 
-    // Load audio
-    wavesurfer.load(audioUrl);
+    // Load audio with error handling
+    wavesurfer.load(audioUrl).catch((error) => {
+      // Ignore abort errors from React StrictMode cleanup
+      if (error?.name === 'AbortError' || !isActive) {
+        console.log("[WaveformViewer] Load aborted (likely React StrictMode)");
+        return;
+      }
+      console.error("[WaveformViewer] Failed to load audio:", error);
+    });
 
     // Cleanup function - CRITICAL for memory management
     return () => {
+      isActive = false;
+      
       // Clear playback monitor
       if (playbackCheckIntervalRef.current) {
         clearInterval(playbackCheckIntervalRef.current);
@@ -166,7 +178,11 @@ export function WaveformViewer({
       }
       
       if (wavesurferRef.current) {
-        wavesurferRef.current.destroy();
+        try {
+          wavesurferRef.current.destroy();
+        } catch (e) {
+          // Ignore destroy errors (may already be destroyed)
+        }
         wavesurferRef.current = null;
         regionsPluginRef.current = null;
         activeRegionRef.current = null;

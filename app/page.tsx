@@ -19,9 +19,10 @@ import { useResourceMonitor, useHardwareCapability } from "@/hooks/useResourceMo
 import { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
 import { getFormatById } from "@/utils/audioFormats";
 import { getVideoFormatById } from "@/utils/videoFormats";
-import type { ActionType, CompressionType } from "@/components/ActionSelector";
+import type { ActionType, CompressionType, ActionOptions } from "@/components/ActionSelector";
 import { TranscriptionService } from "@/services/TranscriptionService";
 import { errorHandler } from "@/services/ErrorHandlingService";
+import { extractAudioSegment } from "@/utils/audioExtraction";
 
 // 🧪 TEST MODE: Set to true to only process first 30 seconds of audio
 const TEST_MODE = false;
@@ -78,6 +79,28 @@ export default function Home() {
     initFFmpeg();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps - only run once on mount
+
+  // Ensure FFmpeg is loaded when entering INSPECT state
+  // This handles cases where FFmpeg was reset/terminated and needs reloading
+  useEffect(() => {
+    const ensureFFmpegLoaded = async () => {
+      if (
+        stateMachine.state === "INSPECT" &&
+        !processor.isFFmpegLoaded &&
+        !processor.isFFmpegLoading
+      ) {
+        console.log("[App] FFmpeg not loaded in INSPECT state, reloading...");
+        try {
+          await processor.ffmpeg.load();
+          console.log("[App] FFmpeg reloaded successfully");
+        } catch (error) {
+          console.error("[App] FFmpeg reload failed:", error);
+        }
+      }
+    };
+
+    ensureFFmpegLoaded();
+  }, [stateMachine.state, processor.isFFmpegLoaded, processor.isFFmpegLoading, processor.ffmpeg]);
 
   // Probe file metadata when entering INSPECT state (only once per file)
   useEffect(() => {
@@ -143,7 +166,7 @@ export default function Home() {
   const handleAction = async (
     action: ActionType,
     formatId: string,
-    options?: { resolutionId?: string; normalizeAudio?: boolean; compressionType?: CompressionType }
+    options?: ActionOptions
   ) => {
     if (!stateMachine.selectedFile || !processor.isFFmpegLoaded) {
       return;
@@ -156,9 +179,36 @@ export default function Home() {
     });
 
     try {
+      let fileToProcess: File = stateMachine.selectedFile;
+      
+      // Handle segment extraction for audio files
+      if (options?.segment && stateMachine.selectedFile.type.startsWith("audio/")) {
+        console.log("[App] Extracting audio segment:", options.segment);
+        
+        // Create blob from the original audio file
+        const originalBlob = new Blob([await stateMachine.selectedFile.arrayBuffer()], {
+          type: stateMachine.selectedFile.type
+        });
+        
+        // Extract the segment
+        const segmentBlob = await extractAudioSegment(
+          originalBlob,
+          options.segment.startTime,
+          options.segment.endTime
+        );
+        
+        // Create a new File from the segment blob
+        const segmentFileName = `segment_${options.segment.startTime.toFixed(1)}-${options.segment.endTime.toFixed(1)}_${stateMachine.selectedFile.name}`;
+        fileToProcess = new File([segmentBlob], segmentFileName, {
+          type: "audio/wav"
+        });
+        
+        console.log("[App] Segment extracted:", fileToProcess.name, fileToProcess.size, "bytes");
+      }
+      
       // Run processing
       const result = await processor.processFile(
-        stateMachine.selectedFile,
+        fileToProcess,
         action,
         formatId,
         {
@@ -401,6 +451,7 @@ export default function Home() {
             onAction={handleAction}
             onBack={() => stateMachine.selectFile(null)}
             isFFmpegLoaded={processor.isFFmpegLoaded}
+            isFFmpegLoading={processor.isFFmpegLoading}
             isModelLoaded={processor.isModelLoaded}
             modelLoadingProgress={processor.transcriptionProgress}
           />

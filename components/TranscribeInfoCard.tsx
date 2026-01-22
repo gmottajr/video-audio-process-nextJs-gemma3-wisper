@@ -50,6 +50,10 @@ export function TranscribeInfoCard({ compact = false }: TranscribeInfoCardProps)
               <span className="w-2 h-2 bg-green-400 rounded-full"></span>
               <span>Export as TXT, JSON, or SRT</span>
             </div>
+            <div className="flex items-center gap-2 text-xs text-amber-400 mt-2">
+              <span className="w-2 h-2 bg-amber-400 rounded-full"></span>
+              <span>✂️ Segment transcription: Extract audio first, then select portions to transcribe</span>
+            </div>
           </div>
         </div>
       </div>
