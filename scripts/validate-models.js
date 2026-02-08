@@ -9,12 +9,19 @@ const fs = require('fs');
 const path = require('path');
 
 // Models with their full paths (organization/model-name)
-const MODELS = [
+// Required models (always validated)
+const REQUIRED_MODELS = [
   { name: 'whisper-tiny', path: 'Xenova/whisper-tiny' },
   { name: 'whisper-base', path: 'Xenova/whisper-base' },
   { name: 'whisper-small', path: 'Xenova/whisper-small' },
+];
+
+// Optional models (Fast Mode - only validated if present, warning if missing)
+const OPTIONAL_MODELS = [
   { name: 'distil-small.en', path: 'distil-whisper/distil-small.en' },
 ];
+
+const MODELS = [...REQUIRED_MODELS, ...OPTIONAL_MODELS];
 const REQUIRED_FILES = [
   'config.json',
   'tokenizer.json',
@@ -32,13 +39,20 @@ const issues = [];
 
 MODELS.forEach((model) => {
   const modelName = model.name;
+  const isOptional = OPTIONAL_MODELS.some(m => m.name === modelName);
   console.log(`📦 Checking ${model.path}...`);
   const modelPath = path.join(__dirname, '..', 'public', 'models', model.path);
 
   if (!fs.existsSync(modelPath)) {
-    issues.push(`❌ ${modelName}: Directory not found`);
-    allValid = false;
-    return;
+    if (isOptional) {
+      console.log(`   ⚠️  ${modelName}: Directory not found (optional - Fast Mode feature)`);
+      console.log('');
+      return; // Skip optional models that don't exist
+    } else {
+      issues.push(`❌ ${modelName}: Directory not found`);
+      allValid = false;
+      return;
+    }
   }
 
   REQUIRED_FILES.forEach((filename) => {

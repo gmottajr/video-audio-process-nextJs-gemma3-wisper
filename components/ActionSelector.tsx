@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import type { TranscriptionMode } from "@/types/fast-mode";
 import { Zap, AlertTriangle, Scissors } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { formatFileSize } from "@/utils/resourceEstimation";
@@ -47,6 +48,7 @@ interface ActionSelectorProps {
   isModelLoaded?: boolean;
   modelLoadingProgress?: number;
   selectedModelKey?: ModelKey; // NEW: For resource estimation
+  transcriptionMode?: 'standard' | 'fast'; // NEW: Fast Mode support
   className?: string;
 }
 
@@ -58,6 +60,7 @@ export function ActionSelector({
   isModelLoaded = false,
   modelLoadingProgress = 0,
   selectedModelKey = "base",
+  transcriptionMode = "standard",
   className,
 }: ActionSelectorProps) {
   const fileType = detectFileType(file);
@@ -74,6 +77,14 @@ export function ActionSelector({
   const [selectedResolution, setSelectedResolution] = useState<string>("original");
   const [normalizeAudio, setNormalizeAudio] = useState(false); // NEW: Audio normalization option
   const [compressionType, setCompressionType] = useState<CompressionType>("none"); // NEW: Audio compression option
+
+  // Auto-disable enhancements for Fast Mode
+  useEffect(() => {
+    if (transcriptionMode === 'fast') {
+      setCompressionType('none');
+      setNormalizeAudio(false);
+    }
+  }, [transcriptionMode]);
   
   // Waveform selection state (for audio files)
   const [waveformSelection, setWaveformSelection] = useState<WaveformSelection | null>(null);
@@ -610,7 +621,7 @@ export function ActionSelector({
 
       {/* Compact Audio Enhancement for Transcribe Mode */}
       {videoMode === "transcribe" && (
-        <div className="mt-4 bg-gradient-to-br from-indigo-950/30 to-purple-950/30 border border-indigo-500/30 rounded-lg p-4">
+        <div className={`mt-4 bg-gradient-to-br from-indigo-950/30 to-purple-950/30 border border-indigo-500/30 rounded-lg p-4 ${transcriptionMode === 'fast' ? 'opacity-60' : ''}`}>
           <div className="flex items-center gap-2 mb-3">
             <span className="text-sm font-bold text-zinc-100">
               🎵 Audio Enhancement (Optional)
@@ -618,7 +629,20 @@ export function ActionSelector({
             <span className="text-xs text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full">
               Improves accuracy
             </span>
+            {transcriptionMode === 'fast' && (
+              <span className="text-xs text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full font-medium">
+                Disabled in Fast Mode
+              </span>
+            )}
           </div>
+          
+          {transcriptionMode === 'fast' && (
+            <div className="mb-3 p-2.5 bg-amber-950/30 border border-amber-600/30 rounded-md">
+              <p className="text-xs text-amber-300 leading-relaxed">
+                <span className="font-semibold text-amber-200">⚡ Fast Mode:</span> Audio enhancements are disabled to maximize transcription speed. Distil-Whisper model provides fast, accurate transcription without preprocessing overhead.
+              </p>
+            </div>
+          )}
           
           <div className="space-y-2">
             {/* Compact Compression Selector */}
@@ -629,8 +653,8 @@ export function ActionSelector({
               <select
                 value={compressionType}
                 onChange={(e) => setCompressionType(e.target.value as CompressionType)}
-                disabled={disabled}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                disabled={disabled || transcriptionMode === 'fast'}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="none">⭕ No Compression (default)</option>
                 <option value="speech">🎙️ Speech - Meetings, Interviews (+15%)</option>
@@ -640,15 +664,15 @@ export function ActionSelector({
             </div>
             
             {/* Normalization Checkbox */}
-            <label className="flex items-center cursor-pointer group">
+            <label className={`flex items-center ${transcriptionMode === 'fast' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer group'}`}>
               <input
                 type="checkbox"
                 checked={normalizeAudio}
                 onChange={(e) => setNormalizeAudio(e.target.checked)}
-                disabled={disabled}
+                disabled={disabled || transcriptionMode === 'fast'}
                 className="w-4 h-4 rounded border-zinc-600 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-zinc-900"
               />
-              <span className="ml-2 text-sm text-zinc-100 group-hover:text-indigo-300 transition-colors">
+              <span className={`ml-2 text-sm text-zinc-100 ${transcriptionMode === 'fast' ? '' : 'group-hover:text-indigo-300 transition-colors'}`}>
                 🎵 Normalize Audio (EBU R128)
               </span>
             </label>

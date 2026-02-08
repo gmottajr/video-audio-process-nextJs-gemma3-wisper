@@ -5,6 +5,9 @@ import { MetadataDisplay } from "@/components/MetadataDisplay";
 import { ActionSelector, type ActionType, type ActionOptions } from "@/components/ActionSelector";
 import ModelSelector, { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
 import { PageHeader } from "@/components/PageHeader";
+import { TranscriptionModeSelector } from "@/components/fast-mode";
+import type { TranscriptionMode } from "@/types/fast-mode";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 
 interface InspectStateViewProps {
   file: File;
@@ -16,6 +19,10 @@ interface InspectStateViewProps {
   isModelLoading: boolean;
   isTranscribing: boolean;
   onModelSelect: (modelKey: ModelKey) => void;
+  
+  // Transcription mode (Fast Mode)
+  transcriptionMode: TranscriptionMode;
+  onModeChange: (mode: TranscriptionMode) => void;
   
   // Action handling
   onAction: (action: ActionType, formatId: string, options?: ActionOptions) => void;
@@ -40,6 +47,8 @@ export function InspectStateView({
   isModelLoading,
   isTranscribing,
   onModelSelect,
+  transcriptionMode,
+  onModeChange,
   onAction,
   onBack,
   isFFmpegLoaded,
@@ -47,6 +56,8 @@ export function InspectStateView({
   isModelLoaded,
   modelLoadingProgress,
 }: InspectStateViewProps) {
+  const fastModeEnabled = isFeatureEnabled('ENABLE_FAST_MODE');
+  
   return (
     <div className="animate-in fade-in duration-500">
       {/* Main Title & Subtitle */}
@@ -85,14 +96,25 @@ export function InspectStateView({
         </div>
       )}
 
+      {/* Transcription Mode Selector (Fast Mode) */}
+      {fastModeEnabled && (
+        <div className="mb-4">
+          <TranscriptionModeSelector
+            selectedMode={transcriptionMode}
+            onModeChange={onModeChange}
+            disabled={isTranscribing}
+          />
+        </div>
+      )}
+
       {/* Model Selector (for AI Transcription) */}
       <div className="mb-4">
         <ModelSelector
-          selectedModel={selectedModelKey}
+          selectedModel={transcriptionMode === 'fast' ? 'distil-small' : selectedModelKey}
           currentlyLoadedModel={currentModel}
           isLoading={isModelLoading}
           onModelSelect={onModelSelect}
-          disabled={isTranscribing}
+          disabled={isTranscribing || transcriptionMode === 'fast'}
           file={file}
         />
       </div>
@@ -117,7 +139,8 @@ export function InspectStateView({
           isModelLoading={isModelLoading}
           isModelLoaded={isModelLoaded}
           modelLoadingProgress={modelLoadingProgress}
-          selectedModelKey={selectedModelKey}
+          selectedModelKey={transcriptionMode === 'fast' ? 'distil-small' : selectedModelKey}
+          transcriptionMode={transcriptionMode}
         />
       </div>
 

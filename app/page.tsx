@@ -23,6 +23,10 @@ import type { ActionType, CompressionType, ActionOptions } from "@/components/Ac
 import { TranscriptionService } from "@/services/TranscriptionService";
 import { errorHandler } from "@/services/ErrorHandlingService";
 import { extractAudioSegment } from "@/utils/audioExtraction";
+import { useTranscriberFast } from "@/hooks/useTranscriberFast";
+import type { TranscriptionMode } from "@/types/fast-mode";
+import { isFeatureEnabled } from "@/lib/featureFlags";
+import { FastModeProgressIndicator } from "@/components/fast-mode";
 
 // 🧪 TEST MODE: Set to true to only process first 30 seconds of audio
 const TEST_MODE = false;
@@ -52,6 +56,19 @@ export default function Home() {
   
   // Model selection
   const [selectedModelKey, setSelectedModelKey] = useState<ModelKey>("base");
+  
+  // Transcription mode (Fast Mode)
+  const [transcriptionMode, setTranscriptionMode] = useState<TranscriptionMode>("standard");
+  const fastModeEnabled = isFeatureEnabled('ENABLE_FAST_MODE');
+  const fastTranscriber = useTranscriberFast();
+  
+  // Auto-select Distil-Whisper when Fast Mode enabled
+  useEffect(() => {
+    if (transcriptionMode === 'fast' && fastModeEnabled) {
+      setSelectedModelKey('distil-small');
+      processor.transcriber.loadModel(WHISPER_MODELS['distil-small'].id);
+    }
+  }, [transcriptionMode, fastModeEnabled, processor.transcriber]);
   
   // Hardware capability
   const hardwareCapability = useHardwareCapability();
@@ -207,16 +224,21 @@ export default function Home() {
       }
       
       // Run processing
+      // For Fast Mode, ensure Distil-Whisper is used and enhancements are disabled
+      const effectiveModelKey = transcriptionMode === 'fast' ? 'distil-small' : selectedModelKey;
+      const effectiveNormalizeAudio = transcriptionMode === 'fast' ? false : (options?.normalizeAudio ?? false);
+      const effectiveCompressionType = transcriptionMode === 'fast' ? 'none' : (options?.compressionType ?? 'none');
+      
       const result = await processor.processFile(
         fileToProcess,
         action,
         formatId,
         {
           resolutionId: options?.resolutionId,
-          modelKey: selectedModelKey,
+          modelKey: effectiveModelKey,
           testMode: TEST_MODE,
-          normalizeAudio: options?.normalizeAudio,
-          compressionType: options?.compressionType,
+          normalizeAudio: effectiveNormalizeAudio,
+          compressionType: effectiveCompressionType,
         }
       );
 
@@ -375,6 +397,17 @@ export default function Home() {
         stateMachine.state !== "DONE" &&
         stateMachine.state !== "ERROR" && <TranscriptionProgressScreen />}
 
+      {/* Fast Mode Progress Indicator */}
+      {fastModeEnabled &&
+        transcriptionMode === 'fast' &&
+        fastTranscriber.mode !== 'idle' &&
+        fastTranscriber.mode !== 'complete' &&
+        fastTranscriber.mode !== 'error' && (
+          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-40">
+            <FastModeProgressIndicator progress={fastTranscriber.progress} />
+          </div>
+        )}
+
       {/* Processing Overlay (FFmpeg operations) */}
       {stateMachine.state === "PROCESSING" && !processor.isTranscribing && (
         <ProcessingVisualizer
@@ -448,6 +481,8 @@ export default function Home() {
             isModelLoading={processor.isModelLoading}
             isTranscribing={processor.isTranscribing}
             onModelSelect={handleModelSelect}
+            transcriptionMode={transcriptionMode}
+            onModeChange={setTranscriptionMode}
             onAction={handleAction}
             onBack={() => stateMachine.selectFile(null)}
             isFFmpegLoaded={processor.isFFmpegLoaded}
