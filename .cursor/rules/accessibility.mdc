@@ -1,0 +1,85 @@
+---
+description: MediaForge accessibility requirements
+globs: ["components/**/*.tsx", "app/**/*.tsx"]
+alwaysApply: true
+---
+
+# Accessibility (A11y) Rules
+
+## Keyboard Navigation
+
+- All interactive elements MUST be keyboard accessible
+- Tab order MUST be logical (left-to-right, top-to-bottom)
+- Focus indicators MUST be visible (no `outline: none` without alternative)
+- Mode selector MUST support arrow key navigation between options
+
+## Screen Reader Support
+
+- Use semantic HTML elements (`<button>`, `<fieldset>`, `<legend>`)
+- Add `aria-label` for icon-only buttons
+- Mode changes MUST be announced (`aria-live="polite"`)
+- Progress updates MUST be announced periodically
+
+## Visual Requirements
+
+- Color contrast MUST meet WCAG AA (4.5:1 for text, 3:1 for UI)
+- Do NOT rely on color alone to convey information
+- Badges ("Beta", "Fast") MUST have text, not just color
+- Loading states MUST have text description, not just spinner
+
+## Form Controls
+
+- Radio buttons MUST be wrapped in `<fieldset>` with `<legend>`
+- Labels MUST be associated with inputs (`htmlFor` or wrapping)
+- Error messages MUST be associated with inputs (`aria-describedby`)
+
+## Testing
+
+- Test with keyboard-only navigation
+- Test with screen reader (NVDA, VoiceOver)
+- Run axe-core or similar automated check
+- Verify focus management during mode switching
+
+## TranscriptionModeSelector Requirements
+
+```tsx
+<fieldset>
+  <legend>Transcription Mode</legend>
+  <label>
+    <input type="radio" name="mode" value="standard" />
+    Standard Mode
+  </label>
+  <label>
+    <input type="radio" name="mode" value="fast" />
+    Fast Mode <span aria-label="Beta feature">(Beta)</span>
+  </label>
+</fieldset>
+```
+
+## Common Patterns
+
+### Icon Button with Label
+
+```tsx
+// Good
+<button aria-label="Download transcript">
+  <DownloadIcon />
+</button>
+
+// Bad
+<button>
+  <DownloadIcon />
+</button>
+```
+
+### Progress Announcements
+
+```tsx
+// Announce every 25% progress
+<div aria-live="polite" aria-atomic="true">
+  {progress >= 25 && progress < 50 && "Transcription 25% complete"}
+  {progress >= 50 && progress < 75 && "Transcription 50% complete"}
+  {progress >= 75 && progress < 100 && "Transcription 75% complete"}
+  {progress === 100 && "Transcription complete"}
+</div>
+```

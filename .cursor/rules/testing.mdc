@@ -1,0 +1,52 @@
+---
+description: MediaForge testing discipline
+globs: ["**/*.test.ts", "**/*.test.tsx", "**/*.test.js", "hooks/**", "services/**", "utils/**"]
+alwaysApply: true
+---
+
+# Testing Discipline (TDD)
+
+## Required Checks
+
+- Run `pnpm test` after ANY change to:
+  - Transcription pipeline
+  - Audio processing
+  - Model configuration
+  - Worker communication
+- Run `pnpm perf:benchmark` after core pipeline changes
+
+## Test Coverage Requirements
+
+- Critical paths: >= 95% coverage
+- New features: tests required before merge
+- Bug fixes: regression test required
+
+## No Shipping If
+
+- Any test fails
+- Performance regresses > 5% vs baseline
+- Flaky tests introduced
+- Coverage drops on critical paths
+
+## Test Organization
+
+- Unit tests: `__tests__/unit/`
+- Integration tests: `__tests__/integration/`
+- Performance tests: `__tests__/perf/` (new)
+
+## Test Patterns
+
+```typescript
+// Good: Specific, isolated test
+it('should transcribe 30s chunk in under 60s', async () => {
+  const result = await transcribe(thirtySecondAudio);
+  expect(result.text).toBeTruthy();
+  expect(result.duration).toBeLessThan(60000);
+});
+
+// Bad: Vague, coupled test
+it('should work', async () => {
+  const result = await doEverything();
+  expect(result).toBeTruthy();
+});
+```

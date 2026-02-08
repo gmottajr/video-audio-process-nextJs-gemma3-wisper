@@ -1,0 +1,36 @@
+---
+description: MediaForge privacy and architecture constraints
+globs: ["app/**", "components/**", "hooks/**", "services/**", "utils/**", "public/**/*.js"]
+alwaysApply: true
+---
+
+# Privacy & Architecture Rules (NON-NEGOTIABLE)
+
+## Data Handling
+
+- NEVER send media files to any server
+- NEVER send transcripts or audio data to external APIs
+- NEVER introduce backend dependencies for transcription
+- NEVER add analytics that transmit user content
+- All processing MUST remain 100% client-side
+
+## Network Usage
+
+- Model downloads from CDN are allowed (Hugging Face, jsDelivr)
+- FFmpeg.wasm core downloads are allowed
+- NO other network calls during processing
+- Verify with: Network tab should show zero requests during transcription
+
+## Storage
+
+- IndexedDB for model caching: allowed
+- LocalStorage for user preferences: allowed
+- No cookies for tracking
+- No external database connections
+
+## Verification
+
+Before any PR that touches audio/transcription code:
+1. Open DevTools → Network tab
+2. Run a transcription
+3. Confirm NO requests made during processing (only during initial model load)

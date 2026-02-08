@@ -1,0 +1,46 @@
+---
+description: MediaForge performance and optimization rules
+globs: ["public/transcription.worker.js", "hooks/useTranscriber.ts", "hooks/useFFmpeg.ts", "hooks/useMediaProcessor.ts", "components/ActionSelector.tsx", "utils/audioExtraction.ts"]
+alwaysApply: true
+---
+
+# Performance Rules
+
+## Measurement Discipline
+
+- ALWAYS run `pnpm perf:benchmark` before claiming improvements
+- ALWAYS compare against saved baseline with `pnpm perf:compare`
+- Document actual numbers, not estimates
+- Include test file sizes and durations in reports
+
+## Main Thread Protection
+
+- NEVER add synchronous CPU-intensive work to main thread
+- ALL Whisper inference MUST run in Web Workers
+- ALL FFmpeg processing MUST be non-blocking
+- Use transferable objects for large data (Float32Array)
+
+## Model Configuration
+
+- Quantized models (`quantized: true`) are required for browser
+- Distil models allowed if:
+  - Accuracy impact measured and documented
+  - User is informed (English-only warning)
+  - Standard model remains available as option
+- WebGPU optimizations MUST have WASM fallback
+
+## Audio Enhancement Changes
+
+- Default enhancements based on format:
+  - MP4/WebM: disabled (usually pre-processed)
+  - MKV/AVI/other: enabled (may need enhancement)
+- User can always override defaults
+- Time overhead must be displayed in UI
+
+## Chunking Configuration
+
+- Current: 30s chunks, 5s overlap (in worker)
+- Changes require:
+  - Accuracy testing at chunk boundaries
+  - UX validation (no word splitting)
+  - Performance measurement

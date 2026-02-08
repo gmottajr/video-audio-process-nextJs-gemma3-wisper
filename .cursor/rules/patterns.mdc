@@ -1,0 +1,72 @@
+---
+description: MediaForge implementation patterns and external references
+globs: ["lib/**", "hooks/**", "services/**", "public/**/*.js", "public/**/*.ts"]
+alwaysApply: true
+---
+
+# Implementation Patterns Rules
+
+## Prefer Validated Patterns
+
+When implementing or modifying Fast Mode parallel chunking:
+
+- PREFER patterns validated in existing open-source tools
+- PREFER established libraries (workerpool, Comlink) over custom solutions
+- PREFER algorithms from reference implementations (OpenAI Whisper, WhisperX)
+- AVOID "rolling your own" from scratch when proven patterns exist
+
+## Required References
+
+Before implementing parallel processing features, review:
+
+1. **Transformers.js examples** - Worker wiring patterns
+2. **workerpool API** - Task distribution, error recovery
+3. **OpenAI Whisper transcribe.py** - Chunking algorithm, merging logic
+4. **whisper.cpp** - Job queue model, progress reporting
+
+## Attribution
+
+Document pattern sources in code comments:
+
+```typescript
+// Pattern: Job queue with worker pool
+// Source: Adapted from workerpool API + whisper.cpp scheduling
+// Reference: https://github.com/josdejong/workerpool
+```
+
+## Chunking Algorithm Compliance
+
+Chunk creation and merging MUST follow OpenAI Whisper spec:
+
+- 30s chunks (configurable)
+- Overlap to prevent word splitting (5s standard, 3s fast mode)
+- Timestamp adjustment when merging
+- Results stitched in order regardless of completion order
+
+## Worker Pool Guidelines
+
+When using workerpool or similar:
+
+- Initialize pool once, reuse for all chunks
+- Terminate pool after processing complete
+- Handle worker crashes with re-queue to other workers
+- Fall back to sequential if all workers fail
+
+## Browser Adaptation
+
+When adapting non-browser patterns:
+
+- Replace threads with Web Workers
+- Replace shared memory with transferable objects (Float32Array)
+- Replace file I/O with Blob/ArrayBuffer handling
+- Ensure all processing stays client-side (privacy rule)
+
+## Knowledge Base Search
+
+When exploring new patterns, search across:
+
+- npm registry (npmjs.com)
+- Code sandboxes (CodePen, StackBlitz, JSFiddle)
+- Developer blogs and tutorials
+- Academic/research demo sites
+- NOT just GitHub

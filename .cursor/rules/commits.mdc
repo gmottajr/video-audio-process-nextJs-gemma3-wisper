@@ -1,0 +1,115 @@
+---
+description: MediaForge git commit standards and workflow
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Git Commit Rules
+
+## Commit Message Format
+
+Every commit message MUST be concise yet comprehensive:
+
+```
+<type>(<scope>): <subject>
+
+[Context] What area of the app this affects
+[Problem] What issue or need this addresses
+[Solution] What was implemented/changed
+[Location] Key files modified
+[Rationale] Why this approach was chosen
+[Behavior] Expected outcome after this change
+```
+
+### Type Values
+
+- `feat`: New feature
+- `fix`: Bug fix
+- `perf`: Performance improvement
+- `refactor`: Code restructuring (no behavior change)
+- `test`: Adding/updating tests
+- `docs`: Documentation only
+- `chore`: Build, config, tooling
+
+### Scope Values
+
+- `transcription`: Whisper/model related
+- `audio`: FFmpeg/audio processing
+- `ui`: Components/views
+- `worker`: Web Worker changes
+- `perf`: Performance infrastructure
+- `rules`: Cursor rules/AGENTS.md
+
+### Example - Source Change
+
+```
+feat(transcription): Add Fast Mode preset for 35%+ speedup
+
+[Context] Transcription performance optimization initiative
+[Problem] Current 1:1 real-time factor too slow for long videos
+[Solution] Created TranscriptionModeSelector with Standard/Fast toggle
+           Fast Mode auto-selects distil-whisper + disables enhancements
+[Location] components/TranscriptionModeSelector.tsx (NEW)
+           components/states/InspectStateView.tsx (modified)
+           app/page.tsx (added transcriptionMode state)
+[Rationale] UI preset reuses existing infrastructure vs service duplication
+[Behavior] Users can toggle Fast Mode for English-only 5-6x faster transcription
+```
+
+### Example - Test Change
+
+```
+test(transcription): Add unit tests for TranscriptionModeSelector
+
+[Context] Fast Mode feature test coverage
+[Problem] New component lacks test coverage
+[Solution] Added 12 test cases covering mode switching, state propagation
+[Location] __tests__/unit/TranscriptionModeSelector.test.tsx (NEW)
+[Rationale] TDD discipline requires tests before merge
+[Behavior] 100% coverage on mode selector, all edge cases validated
+```
+
+## Commit Timing Rules
+
+### MUST Commit When
+
+1. **End of each implementation phase**
+   - Phase 1 complete → commit
+   - Phase 2 complete → commit
+
+2. **Changeset exceeds 10 files**
+   - Use message: `wip(<scope>): <phase> progress - <brief summary>`
+
+3. **Before switching context**
+   - Moving to different feature/fix → commit current work first
+
+## Commit Hygiene
+
+- NEVER commit with failing tests
+- NEVER commit secrets, credentials, or .env files
+- ALWAYS run `pnpm test` before committing
+- ALWAYS use conventional commit format
+- Keep commits atomic (one logical change per commit)
+
+## Branch Strategy
+
+- Feature work: `feat/fast-transcription-mode`
+- Bug fixes: `fix/issue-description`
+- Performance: `perf/optimization-description`
+
+## Changelog Entry Format
+
+When releasing, update CHANGELOG.md:
+
+```markdown
+## [X.Y.Z] - YYYY-MM-DD
+
+### Added
+- Fast Transcription Mode (Beta) - 35-50% faster for English content
+
+### Changed
+- Model selector now respects selected mode
+
+### Performance
+- Distil-Whisper model reduces inference time by 5-6x
+```
