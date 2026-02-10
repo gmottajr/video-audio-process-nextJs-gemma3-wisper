@@ -67,6 +67,7 @@ interface ModelSelectorProps {
   onModelSelect: (model: ModelKey) => void;
   disabled?: boolean;
   file?: File | null; // NEW: For resource estimation
+  fastModeEnabled?: boolean; // NEW: Show parallel processing indicator
 }
 
 /**
@@ -80,6 +81,7 @@ export default function ModelSelector({
   onModelSelect,
   disabled = false,
   file = null,
+  fastModeEnabled = false,
 }: ModelSelectorProps) {
   // Get resource warning if file is provided
   const resourceWarning = file ? getResourceWarning(file, selectedModel) : null;
@@ -102,6 +104,14 @@ export default function ModelSelector({
         <p className="text-sm text-gray-600">
           Choose your model based on speed vs. accuracy needs
         </p>
+        {fastModeEnabled && (
+          <div className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-amber-100 border border-amber-300 rounded-lg">
+            <Zap className="w-4 h-4 text-amber-600" />
+            <span className="text-xs text-amber-800 font-medium">
+              Fast Mode: Parallel processing with multiple workers
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Resource Warning Banner */}

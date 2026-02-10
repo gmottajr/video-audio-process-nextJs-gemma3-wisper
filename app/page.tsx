@@ -62,13 +62,39 @@ export default function Home() {
   const fastModeEnabled = isFeatureEnabled('ENABLE_FAST_MODE');
   const fastTranscriber = useTranscriberFast();
   
-  // Auto-select Distil-Whisper when Fast Mode enabled
+  // Handle worker configuration changes from SystemCapabilitiesCard
+  const handleWorkerConfigChange = (config: { workers: number; useGPU: boolean; memoryBudgetMB: number; devicePreference: import('@/types/fast-mode').DevicePreference }) => {
+    console.log('[App] Worker configuration updated:', config);
+    fastTranscriber.updateConfig({
+      maxWorkers: config.workers,
+      memoryBudgetMB: config.memoryBudgetMB,
+      devicePreference: config.devicePreference,
+    });
+  };
+  
+  // Auto-load model when entering INSPECT state
+  // - Standard Mode: Load selected model for standard transcriber
+  // - Fast Mode: Skip (parallel workers load their own models dynamically)
   useEffect(() => {
-    if (transcriptionMode === 'fast' && fastModeEnabled) {
-      setSelectedModelKey('distil-small');
-      processor.transcriber.loadModel(WHISPER_MODELS['distil-small'].id);
+    if (stateMachine.state === 'INSPECT' && stateMachine.selectedFile) {
+      if (transcriptionMode === 'fast' && fastModeEnabled) {
+        // Fast Mode: Don't preload - workers will load the selected model when transcription starts
+        console.log(`[App] Fast Mode - workers will load model: ${WHISPER_MODELS[selectedModelKey].id}`);
+      } else {
+        // Standard Mode: Load the selected model
+        const modelToLoad = WHISPER_MODELS[selectedModelKey].id;
+        console.log('[App] Standard Mode - loading model:', modelToLoad);
+        processor.transcriber.loadModel(modelToLoad);
+      }
     }
-  }, [transcriptionMode, fastModeEnabled, processor.transcriber]);
+  }, [stateMachine.state, stateMachine.selectedFile, transcriptionMode, fastModeEnabled, selectedModelKey, processor.transcriber]);
+
+  // Debug: Log Fast Mode state changes
+  useEffect(() => {
+    console.log(`[App] 🎬 Fast Mode UI State: mode="${fastTranscriber.mode}", enabled=${fastModeEnabled}, transcriptionMode="${transcriptionMode}"`);
+    console.log(`[App] 🎬 Should show ModelLoadingScreen: ${fastModeEnabled && transcriptionMode === 'fast' && fastTranscriber.mode === 'initializing'}`);
+    console.log(`[App] 🎬 Should show Processing Overlay: ${fastModeEnabled && transcriptionMode === 'fast' && fastTranscriber.mode === 'processing'}`);
+  }, [fastTranscriber.mode, fastModeEnabled, transcriptionMode]);
   
   // Hardware capability
   const hardwareCapability = useHardwareCapability();
@@ -117,7 +143,8 @@ export default function Home() {
     };
 
     ensureFFmpegLoaded();
-  }, [stateMachine.state, processor.isFFmpegLoaded, processor.isFFmpegLoading, processor.ffmpeg]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stateMachine.state, processor.isFFmpegLoaded, processor.isFFmpegLoading]);
 
   // Probe file metadata when entering INSPECT state (only once per file)
   useEffect(() => {
@@ -141,7 +168,8 @@ export default function Home() {
     };
 
     probeFile();
-  }, [stateMachine.state, stateMachine.selectedFile, processor.isFFmpegLoaded, probedFileName, processor.ffmpeg]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stateMachine.state, stateMachine.selectedFile, processor.isFFmpegLoaded, probedFileName]);
 
   // Reset probed file name when returning to IDLE
   useEffect(() => {
@@ -223,8 +251,21 @@ export default function Home() {
         console.log("[App] Segment extracted:", fileToProcess.name, fileToProcess.size, "bytes");
       }
       
-      // Run processing
-      // For Fast Mode, ensure Distil-Whisper is used and enhancements are disabled
+      // Check if this is a transcription action with Fast Mode parallel processing enabled
+      const shouldUseFastMode = 
+        action === 'transcribe' && 
+        transcriptionMode === 'fast' && 
+        fastModeEnabled && 
+        isFeatureEnabled('ENABLE_PARALLEL_WORKERS');
+      
+      if (shouldUseFastMode) {
+        console.log("[App] 🚀 Using Fast Mode with parallel processing");
+        await handleFastModeTranscription(fileToProcess, options);
+        return;
+      }
+      
+      // Run standard processing
+      // For Fast Mode UI (without parallel), ensure Distil-Whisper is used and enhancements are disabled
       const effectiveModelKey = transcriptionMode === 'fast' ? 'distil-small' : selectedModelKey;
       const effectiveNormalizeAudio = transcriptionMode === 'fast' ? false : (options?.normalizeAudio ?? false);
       const effectiveCompressionType = transcriptionMode === 'fast' ? 'none' : (options?.compressionType ?? 'none');
@@ -251,6 +292,79 @@ export default function Home() {
         error instanceof Error ? error.message : "Unknown error";
       console.error("[App] Processing failed:", errorMessage);
       stateMachine.failProcessing(`Processing failed: ${errorMessage}`);
+    }
+  };
+  
+  /**
+   * Handle Fast Mode transcription with parallel processing
+   */
+  const handleFastModeTranscription = async (
+    file: File,
+    options?: ActionOptions
+  ) => {
+    try {
+      // Get the selected model ID for Fast Mode
+      const modelId = WHISPER_MODELS[selectedModelKey].id;
+      console.log(`[App] Starting Fast Mode transcription with model: ${modelId}`);
+      
+      // Update Fast Mode config with selected model
+      fastTranscriber.updateConfig({ modelId });
+      
+      // Prepare audio for AI (16kHz mono WAV)
+      const audioBlob = await processor.ffmpeg.prepareAudioForAI(
+        file,
+        undefined,
+        options?.testMode ? 30 : undefined
+      );
+      
+      // Extract audio data as Float32Array
+      const { extractAudioDataFromBlob, getAudioDuration } = await import('@/utils/audioDataExtraction');
+      const audioData = await extractAudioDataFromBlob(audioBlob);
+      const duration = await getAudioDuration(audioBlob);
+      
+      console.log(`[App] Audio prepared: ${audioData.length} samples, ${duration.toFixed(2)}s`);
+      
+      // Start fast transcription - get result directly (React state updates are async)
+      const transcriptionResult = await fastTranscriber.transcribe(audioData, duration);
+      
+      // Check for errors
+      if (fastTranscriber.error) {
+        throw new Error(fastTranscriber.error);
+      }
+      
+      // Get result - use the returned value directly instead of state
+      if (transcriptionResult) {
+        const result: ProcessingResult = {
+          type: "transcription",
+          transcription: {
+            text: transcriptionResult.text,
+            chunks: transcriptionResult.segments.map(seg => ({
+              text: seg.text,
+              timestamp: [seg.start, seg.end] as [number, number | null],
+            })),
+            // Include processingTime for StatisticsModal
+            processingTime: transcriptionResult.processingTime,
+          },
+          metadata: {
+            compressionType: 'none',
+            normalized: false,
+            fastMode: true,
+            workersUsed: transcriptionResult.workersUsed,
+            processingTime: transcriptionResult.processingTime,
+            modelId: WHISPER_MODELS[selectedModelKey].id,
+          },
+        };
+        
+        stateMachine.completeProcessing(result);
+        console.log("[App] ✅ Fast Mode transcription complete");
+      } else {
+        // No result returned - transcription was cancelled or failed silently
+        console.warn("[App] Fast Mode transcription returned no result");
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("[App] Fast Mode transcription failed:", errorMessage);
+      stateMachine.failProcessing(`Fast Mode transcription failed: ${errorMessage}`);
     }
   };
 
@@ -377,39 +491,93 @@ export default function Home() {
       {/* Font Selector - Fixed Position */}
       <FontSelector />
       
-      {/* Model Loading Screen (initial load) */}
-      {!processor.isModelLoaded && (
-        <div className="fixed inset-0 z-50">
-          <ModelLoadingScreen onComplete={() => {}} />
-        </div>
+      {/* NOTE: Initial model loading screen removed - models now load on-demand */}
+      {/* Standard Mode: Model loads when entering INSPECT state */}
+      {/* Fast Mode: Workers load their own models when transcription starts */}
+
+      {/* AI Model Loading Indicator (Standard Mode only) */}
+      {!(fastModeEnabled && transcriptionMode === 'fast') && (
+        <AILoadingIndicator
+          isLoading={processor.isModelLoading}
+          isLoaded={processor.isModelLoaded}
+          progress={processor.transcriptionProgress}
+          message={processor.transcriptionMessage}
+        />
       )}
 
-      {/* AI Model Loading Indicator */}
-      <AILoadingIndicator
-        isLoading={processor.isModelLoading}
-        isLoaded={processor.isModelLoaded}
-        progress={processor.transcriptionProgress}
-        message={processor.transcriptionMessage}
-      />
-
-      {/* Transcription Progress Overlay */}
+      {/* Transcription Progress Overlay (Standard Mode only) */}
       {processor.isTranscribing &&
         stateMachine.state !== "DONE" &&
-        stateMachine.state !== "ERROR" && <TranscriptionProgressScreen />}
+        stateMachine.state !== "ERROR" &&
+        !(fastModeEnabled && transcriptionMode === 'fast') && <TranscriptionProgressScreen />}
 
-      {/* Fast Mode Progress Indicator */}
+      {/* Fast Mode Model Loading Screen */}
       {fastModeEnabled &&
         transcriptionMode === 'fast' &&
-        fastTranscriber.mode !== 'idle' &&
-        fastTranscriber.mode !== 'complete' &&
-        fastTranscriber.mode !== 'error' && (
-          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-40">
-            <FastModeProgressIndicator progress={fastTranscriber.progress} />
+        fastTranscriber.mode === 'initializing' && (
+          <ModelLoadingScreen
+            progress={fastTranscriber.progress.percent}
+            modelName="Distil-Whisper (Fast Mode)"
+            onCancel={() => {
+              fastTranscriber.cancel();
+              stateMachine.cancelProcessing();
+            }}
+          />
+        )}
+
+      {/* Fast Mode Progress Indicator - Full Screen Overlay (Processing Only) */}
+      {fastModeEnabled &&
+        transcriptionMode === 'fast' &&
+        fastTranscriber.mode === 'processing' && (
+          <div className="fixed inset-0 z-50 bg-gradient-to-br from-amber-900 via-orange-900 to-red-900 flex flex-col">
+            {/* Breadcrumbs at top */}
+            <div className="container mx-auto px-4 pt-6 pb-4">
+              <Breadcrumbs 
+                currentState="PROCESSING" 
+                onNavigate={() => {}}
+              />
+            </div>
+
+            {/* Main content centered */}
+            <div className="flex-1 flex items-center justify-center">
+              <div className="max-w-md w-full mx-4">
+                {/* Icon */}
+                <div className="text-center mb-8">
+                  <div className="inline-block p-6 bg-white/10 rounded-full backdrop-blur-sm mb-4">
+                    <Zap className="w-16 h-16 text-amber-300 animate-pulse" />
+                  </div>
+                  <h1 className="text-3xl font-bold text-white mb-2">
+                    Fast Mode Processing
+                  </h1>
+                  <p className="text-amber-200">
+                    Parallel transcription with {fastTranscriber.progress.workersActive} worker{fastTranscriber.progress.workersActive !== 1 ? 's' : ''}
+                  </p>
+                </div>
+
+                {/* Fast Mode Progress Indicator */}
+                <FastModeProgressIndicator progress={fastTranscriber.progress} />
+                
+                {/* Cancel Button */}
+                <div className="mt-6 text-center">
+                  <button
+                    onClick={() => {
+                      fastTranscriber.cancel();
+                      stateMachine.cancelProcessing();
+                    }}
+                    className="px-6 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-200 rounded-lg border border-red-500/50 transition-colors"
+                  >
+                    Cancel Transcription
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
-      {/* Processing Overlay (FFmpeg operations) */}
-      {stateMachine.state === "PROCESSING" && !processor.isTranscribing && (
+      {/* Processing Overlay (FFmpeg operations - Standard Mode only for transcription) */}
+      {stateMachine.state === "PROCESSING" && 
+        !processor.isTranscribing && 
+        !(fastModeEnabled && transcriptionMode === 'fast' && stateMachine.currentAction === 'transcribe') && (
         <ProcessingVisualizer
           progress={processor.status.progress}
           speed={typeof processor.status.speed === 'number' ? processor.status.speed : null}
@@ -429,7 +597,7 @@ export default function Home() {
         />
       )}
 
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="container mx-auto px-4 py-4 max-w-7xl">
         {/* Breadcrumbs */}
         <Breadcrumbs 
           currentState={stateMachine.state} 
@@ -437,7 +605,7 @@ export default function Home() {
         />
 
         {/* Hardware Capability Badge */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-4">
           <div className="group relative">
             <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 border ${
               hardwareCapability.tier === "high"
@@ -483,6 +651,7 @@ export default function Home() {
             onModelSelect={handleModelSelect}
             transcriptionMode={transcriptionMode}
             onModeChange={setTranscriptionMode}
+            onWorkerConfigChange={handleWorkerConfigChange}
             onAction={handleAction}
             onBack={() => stateMachine.selectFile(null)}
             isFFmpegLoaded={processor.isFFmpegLoaded}

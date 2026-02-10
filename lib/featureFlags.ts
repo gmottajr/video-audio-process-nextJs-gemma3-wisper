@@ -20,6 +20,9 @@ export interface FeatureFlags {
   /** Future: WebGPU acceleration */
   ENABLE_WEBGPU: boolean;
   
+  /** Experimental: WebNN NPU acceleration */
+  ENABLE_WEBNN_NPU: boolean;
+  
   /** Debug: Show performance metrics in UI */
   SHOW_PERF_METRICS: boolean;
 }
@@ -36,6 +39,7 @@ export const DEFAULT_FLAGS: FeatureFlags = {
   ENABLE_PARALLEL_WORKERS: true,        // Phase 3 - enabled when fast mode is on
   MAX_WORKER_COUNT: 2,                  // Default: 2 workers (1.2GB memory budget)
   ENABLE_WEBGPU: false,                 // Future - experimental
+  ENABLE_WEBNN_NPU: true,               // Experimental - show NPU option if detected
   SHOW_PERF_METRICS: false,             // Debug only
 };
 

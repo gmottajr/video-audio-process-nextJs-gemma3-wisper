@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { WaveformViewer, WaveformSelection } from "@/components/WaveformViewer";
 import { TranscriptionViewer } from "@/components/TranscriptionViewer";
 import { TabbedTranscriptionView } from "@/components/TabbedTranscriptionView";
@@ -88,6 +88,25 @@ export function DoneStateView({
   
   // Get enhancer context (optional - may not be available)
   const enhancer = useEnhancerContextOptional();
+  
+  // Sync enhancer.lastResult to local state
+  // This ensures enhancement results persist through Hot Reload
+  useEffect(() => {
+    if (enhancer?.lastResult && !enhancedResult) {
+      console.log('[DoneStateView] Syncing enhancer.lastResult to local state');
+      setEnhancedResult(enhancer.lastResult);
+      setEnhancementEnabled(true);
+    }
+  }, [enhancer?.lastResult, enhancedResult]);
+  
+  // Also check if enhancement is complete via progress (backup sync)
+  useEffect(() => {
+    if (enhancer?.progress?.stage === 'complete' && enhancer?.lastResult && !enhancedResult) {
+      console.log('[DoneStateView] Enhancement complete detected via progress, syncing result');
+      setEnhancedResult(enhancer.lastResult);
+      setEnhancementEnabled(true);
+    }
+  }, [enhancer?.progress?.stage, enhancer?.lastResult, enhancedResult]);
   
   const format =
     result.type === "audio"
@@ -454,12 +473,13 @@ export function DoneStateView({
         ) : result.type === "transcription" && result.transcription ? (
           <>
             {/* AI-Enhanced Tabbed View (shown when enhancement is complete) */}
-            {enhancedResult ? (
+            {/* Use local enhancedResult OR fallback to enhancer.lastResult (for HMR resilience) */}
+            {(enhancedResult || enhancer?.lastResult) ? (
               <TabbedTranscriptionView
                 originalText={result.transcription.text}
-                enhancedText={enhancedResult.enhancedText}
+                enhancedText={(enhancedResult || enhancer?.lastResult)!.enhancedText}
                 qualityMetrics={qualityMetrics}
-                processingTime={enhancedResult.processingTime}
+                processingTime={(enhancedResult || enhancer?.lastResult)!.processingTime}
                 chunks={result.transcription.chunks}
                 metadata={{
                   contentType: enhancer?.lastMetadata?.contentType,
@@ -492,6 +512,59 @@ export function DoneStateView({
               />
             )}
             
+            {/* Enhancement Progress Bar */}
+            {enhancer?.isEnhancing && enhancer.progress && (
+              <div className="mt-4 p-4 bg-gradient-to-br from-purple-950/40 to-indigo-950/40 border border-purple-500/30 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
+                    <span className="text-sm font-medium text-purple-200">
+                      AI Enhancement in Progress
+                    </span>
+                  </div>
+                  <span className="text-sm font-mono text-purple-300">
+                    {enhancer.progress.progress}%
+                  </span>
+                </div>
+                
+                {/* Progress Bar */}
+                <div className="h-2 bg-purple-950/50 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-300 ease-out"
+                    style={{ width: `${enhancer.progress.progress}%` }}
+                  />
+                </div>
+                
+                {/* Status Message */}
+                <p className="mt-2 text-xs text-purple-300/80">
+                  {enhancer.progress.message || 'Processing...'}
+                </p>
+              </div>
+            )}
+            
+            {/* Model Loading Progress */}
+            {enhancer?.isModelLoading && (
+              <div className="mt-4 p-4 bg-gradient-to-br from-blue-950/40 to-cyan-950/40 border border-blue-500/30 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-blue-400 animate-spin" />
+                    <span className="text-sm font-medium text-blue-200">
+                      Loading AI Enhancement Model
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Indeterminate Progress Bar */}
+                <div className="h-2 bg-blue-950/50 rounded-full overflow-hidden">
+                  <div className="h-full w-1/3 bg-gradient-to-r from-blue-500 to-cyan-500 animate-pulse rounded-full" />
+                </div>
+                
+                <p className="mt-2 text-xs text-blue-300/80">
+                  First-time download may take 2-5 minutes...
+                </p>
+              </div>
+            )}
+            
             {/* Enhancement Error Display */}
             {enhancer?.error && (
               <div className="mt-4 p-4 bg-red-950/30 border border-red-500/30 rounded-lg">
@@ -518,7 +591,13 @@ export function DoneStateView({
         )}
 
         <button
-          onClick={() => setShowStats(true)}
+          onClick={() => {
+            console.log('[DoneStateView] Statistics button clicked, opening modal');
+            console.log('[DoneStateView] Result:', result);
+            console.log('[DoneStateView] processingStartTime:', processingStartTime);
+            console.log('[DoneStateView] processingEndTime:', processingEndTime);
+            setShowStats(true);
+          }}
           className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg font-bold text-lg transition-all duration-200 flex items-center justify-center gap-3 shadow-lg"
         >
           <BarChart3 className="w-5 h-5" />

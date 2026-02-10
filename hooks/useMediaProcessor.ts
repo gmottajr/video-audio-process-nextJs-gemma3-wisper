@@ -22,12 +22,17 @@ export interface ProcessingResult {
       text: string;
       timestamp: [number, number | null];
     }>;
+    processingTime?: number; // Actual AI inference time in milliseconds
   };
   metadata?: {
     normalized?: boolean; // Flag indicating if audio was normalized
     compressionType?: CompressionType; // NEW: Type of compression applied
     format?: string;
     size?: number;
+    fastMode?: boolean; // Fast Mode flag
+    workersUsed?: number; // Number of workers used
+    processingTime?: number; // Total processing time in ms (includes all overhead)
+    modelId?: string; // Model ID used for transcription
   };
 }
 
@@ -266,6 +271,9 @@ export function useMediaProcessor() {
 
               // Transcribe
               console.log("[MediaProcessor] Running AI transcription...");
+              
+              // NOTE: Fast Mode parallel processing is handled at the app level (app/page.tsx)
+              // This standard path remains unchanged for backward compatibility
               const transcriptionResult = await transcriber.transcribe(audioBlob);
 
               console.log("[MediaProcessor] ✅ Transcription result received:", 

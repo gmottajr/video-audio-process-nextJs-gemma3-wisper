@@ -6,6 +6,7 @@ import { ActionSelector, type ActionType, type ActionOptions } from "@/component
 import ModelSelector, { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
 import { PageHeader } from "@/components/PageHeader";
 import { TranscriptionModeSelector } from "@/components/fast-mode";
+import { SystemCapabilitiesCard } from "@/components/fast-mode/SystemCapabilitiesCard";
 import type { TranscriptionMode } from "@/types/fast-mode";
 import { isFeatureEnabled } from "@/lib/featureFlags";
 
@@ -23,6 +24,9 @@ interface InspectStateViewProps {
   // Transcription mode (Fast Mode)
   transcriptionMode: TranscriptionMode;
   onModeChange: (mode: TranscriptionMode) => void;
+  
+  // Worker configuration (Fast Mode)
+  onWorkerConfigChange?: (config: { workers: number; useGPU: boolean; memoryBudgetMB: number; devicePreference: import('@/types/fast-mode').DevicePreference }) => void;
   
   // Action handling
   onAction: (action: ActionType, formatId: string, options?: ActionOptions) => void;
@@ -49,6 +53,7 @@ export function InspectStateView({
   onModelSelect,
   transcriptionMode,
   onModeChange,
+  onWorkerConfigChange,
   onAction,
   onBack,
   isFFmpegLoaded,
@@ -107,15 +112,25 @@ export function InspectStateView({
         </div>
       )}
 
+      {/* System Capabilities Card (Fast Mode only) */}
+      {fastModeEnabled && transcriptionMode === 'fast' && (
+        <div className="mb-4">
+          <SystemCapabilitiesCard
+            onWorkerConfigChange={onWorkerConfigChange}
+          />
+        </div>
+      )}
+
       {/* Model Selector (for AI Transcription) */}
       <div className="mb-4">
         <ModelSelector
-          selectedModel={transcriptionMode === 'fast' ? 'distil-small' : selectedModelKey}
+          selectedModel={selectedModelKey}
           currentlyLoadedModel={currentModel}
           isLoading={isModelLoading}
           onModelSelect={onModelSelect}
-          disabled={isTranscribing || transcriptionMode === 'fast'}
+          disabled={isTranscribing}
           file={file}
+          fastModeEnabled={transcriptionMode === 'fast'}
         />
       </div>
 

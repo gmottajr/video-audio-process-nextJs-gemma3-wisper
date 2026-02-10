@@ -1,0 +1,23 @@
+docs(rules): Add agentic specs and design documentation for Fast Mode
+
+[Context] Fast Transcription Mode documentation and agentic AI guidance
+[Problem] Need comprehensive documentation for AI agents and design decisions
+[Solution] Added AGENTS.md updates, Cursor rules, plan files, and design documents
+ Updated AGENTS.md with Fast Mode architecture and reference implementations
+ Added 6 Cursor rules files for privacy, performance, testing, commits, patterns, accessibility
+ Created plan file for Fast Mode implementation tracking
+ Added design documents for transcription performance and parallel chunking architecture
+[Location] AGENTS.md (updated with Fast Mode context)
+ .cursor/rules/*.mdc (6 rule files for AI agent guidance)
+ .cursor/plans/fast-transcription-mode.plan.md (implementation plan)
+ docs/design/transcription-performance.md (Phase 2 design doc)
+ docs/design/parallel-chunking-architecture.md (Phase 3 architecture)
+ docs/design/adr-003-parallel-worker-implementation.md (ADR for worker pool)
+ docs/design/fast-mode-user-guide.md (end-user documentation)
+ docs/design/rollout-plan.md (gradual rollout strategy)
+[Rationale] Agentic specs enable consistent AI assistance across development sessions
+ Design docs capture architectural decisions and implementation details
+ Plan files track progress and provide context for future work
+[Behavior] AI agents will automatically load rules and project context
+ Developers can reference design docs for implementation guidance
+ Plan file tracks Fast Mode implementation status and next steps

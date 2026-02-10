@@ -1,0 +1,52 @@
+{
+  "version": "1.0",
+  "description": "Test audio fixtures for Fast Mode performance benchmarking",
+  "files": [
+    {
+      "name": "sample-5min-clean.wav",
+      "duration_seconds": 300,
+      "format": "wav",
+      "codec": "pcm",
+      "sample_rate": 16000,
+      "word_count_expected": 750,
+      "content_description": "Clean speech, single speaker, LibriVox excerpt"
+    },
+    {
+      "name": "sample-10min-noisy.wav",
+      "duration_seconds": 600,
+      "format": "wav",
+      "codec": "pcm",
+      "sample_rate": 16000,
+      "word_count_expected": 1500,
+      "content_description": "Background noise, office environment"
+    },
+    {
+      "name": "sample-15min-podcast.wav",
+      "duration_seconds": 900,
+      "format": "wav",
+      "codec": "pcm",
+      "sample_rate": 16000,
+      "word_count_expected": 2250,
+      "content_description": "Multi-speaker conversation, podcast format"
+    },
+    {
+      "name": "sample-30min-lecture.wav",
+      "duration_seconds": 1800,
+      "format": "wav",
+      "codec": "pcm",
+      "sample_rate": 16000,
+      "word_count_expected": 4500,
+      "content_description": "Academic lecture, single speaker"
+    },
+    {
+      "name": "sample-1min-short.wav",
+      "duration_seconds": 60,
+      "format": "wav",
+      "codec": "pcm",
+      "sample_rate": 16000,
+      "word_count_expected": 150,
+      "content_description": "Brief speech, edge case testing"
+    }
+  ],
+  "notes": "Test fixtures should be obtained from public domain sources (LibriVox, OpenSLR) or self-recorded for consistency."
+}

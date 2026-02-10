@@ -233,7 +233,7 @@ export function FileUploader({
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
           className={cn(
-            "relative border-2 border-dashed rounded-lg p-12 transition-all duration-200 cursor-pointer",
+            "relative border-2 border-dashed rounded-xl p-16 min-h-[400px] transition-all duration-200 cursor-pointer",
             "hover:border-blue-500 hover:bg-blue-950/20",
             isDragging
               ? "border-blue-500 bg-blue-950/30 scale-[1.02]"
@@ -248,35 +248,36 @@ export function FileUploader({
             className="hidden"
           />
 
-          <div className="flex flex-col items-center justify-center gap-4 text-center">
+          <div className="flex flex-col items-center justify-center gap-6 text-center h-full">
             <div
               className={cn(
-                "p-4 rounded-full transition-colors",
+                "p-6 rounded-full transition-colors",
                 isDragging ? "bg-blue-500/20" : "bg-zinc-800"
               )}
             >
               <Upload
                 className={cn(
-                  "w-12 h-12 transition-colors",
+                  "w-16 h-16 transition-colors",
                   isDragging ? "text-blue-400" : "text-zinc-400"
                 )}
               />
             </div>
 
             <div>
-              <p className="text-lg font-semibold text-zinc-100 mb-2">
+              <p className="text-2xl font-semibold text-zinc-100 mb-3">
                 {isDragging ? "Drop your file here" : "Drag & drop your file here"}
               </p>
-              <p className="text-sm text-zinc-400 mb-1">or click to browse</p>
-              <p className="text-xs text-zinc-500">
-                Supports MP4, MKV, WebM, AVI, MP3, WAV, AAC, OGG (max <span suppressHydrationWarning>{Math.floor(maxFileSize / 1024 / 1024)}</span>MB)
+              <p className="text-base text-zinc-400 mb-2">or click to browse</p>
+              <p className="text-sm text-zinc-500">
+                Supports MP4, MKV, WebM, AVI, MP3, WAV, AAC, OGG<br/>
+                <span className="text-xs">(max <span suppressHydrationWarning>{Math.floor(maxFileSize / 1024 / 1024)}</span>MB)</span>
               </p>
             </div>
 
             {!isDragging && (
               <button
                 type="button"
-                className="mt-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                className="mt-4 px-8 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors text-base"
               >
                 Browse Files
               </button>

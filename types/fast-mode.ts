@@ -11,6 +11,15 @@
 export type TranscriptionMode = 'standard' | 'fast';
 
 /**
+ * Device preference for AI inference acceleration
+ * - 'auto': Automatically select best available (NPU > GPU > CPU)
+ * - 'npu': Prefer NPU via WebNN (experimental)
+ * - 'gpu': Prefer GPU via WebGPU
+ * - 'cpu': Use CPU via WASM (most compatible)
+ */
+export type DevicePreference = 'auto' | 'npu' | 'gpu' | 'cpu';
+
+/**
  * Audio chunk with metadata for parallel processing
  */
 export interface AudioChunk {
@@ -92,6 +101,8 @@ export interface FastModeConfig {
   modelId: string;
   /** Sample rate (fixed at 16000 for Whisper) */
   sampleRate: number;
+  /** Device preference for inference (default: 'auto') */
+  devicePreference: DevicePreference;
 }
 
 /**

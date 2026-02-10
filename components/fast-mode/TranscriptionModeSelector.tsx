@@ -114,7 +114,7 @@ export function TranscriptionModeSelector({
               </span>
             </div>
             <p id="standard-mode-description" className="text-xs text-zinc-400 leading-relaxed">
-              Multilingual support • Word-level timestamps • Proven accuracy
+              Single worker • Word-level timestamps • Audio enhancements available
             </p>
             <div className="mt-2 flex items-center gap-3 text-xs text-zinc-500">
               <span className="flex items-center gap-1">
@@ -123,7 +123,7 @@ export function TranscriptionModeSelector({
               </span>
               <span className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
-                Standard speed
+                Sequential processing
               </span>
             </div>
           </div>
@@ -154,26 +154,23 @@ export function TranscriptionModeSelector({
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm font-semibold text-zinc-100 flex items-center gap-1">
                 <Zap className="w-3 h-3 text-amber-400" />
-                Fast Mode
+                Fast Mode (Parallel)
               </span>
               <span className="text-xs text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full font-medium">
                 Beta
               </span>
-              <span className="text-xs text-red-300 bg-red-500/20 px-2 py-0.5 rounded-full font-medium">
-                English Only
-              </span>
             </div>
             <p id="fast-mode-description" className="text-xs text-zinc-400 leading-relaxed">
-              English only • 35-50% faster • Sentence-level timestamps
+              Parallel workers • Uses all CPU cores • Choose any model below
             </p>
             <div className="mt-2 flex items-center gap-3 text-xs text-zinc-500">
               <span className="flex items-center gap-1 text-amber-400">
                 <Zap className="w-3 h-3" />
-                35-50% faster
+                Up to 16 workers
               </span>
-              <span className="flex items-center gap-1 text-red-400">
+              <span className="flex items-center gap-1 text-green-400">
                 <Globe className="w-3 h-3" />
-                English only
+                Any model
               </span>
             </div>
           </div>

@@ -26,12 +26,23 @@ jest.mock('@/hooks/useFFmpeg', () => ({
   }),
 }));
 
+// Mock URL.createObjectURL for blob handling
+global.URL.createObjectURL = jest.fn(() => 'blob:mock-url');
+global.URL.revokeObjectURL = jest.fn();
+
 jest.mock('@/contexts/TranscriberContext', () => ({
-  useTranscriber: () => ({
+  useTranscriberContext: () => ({
     transcribe: jest.fn().mockResolvedValue({ text: 'test transcription', chunks: [] }),
     isModelLoading: false,
     isModelLoaded: true,
     loadModel: jest.fn(),
+    isTranscribing: false,
+    progress: 0,
+    loadingMessage: '',
+    result: null,
+    error: null,
+    currentModel: 'Xenova/whisper-base',
+    clearResult: jest.fn(),
   }),
 }));
 

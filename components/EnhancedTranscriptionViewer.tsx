@@ -17,7 +17,8 @@ import {
   Sparkles, 
   ArrowRight,
   TrendingDown,
-  Zap
+  Zap,
+  Repeat
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import type { TranscriptionResult } from "@/contexts/TranscriberContext";
@@ -276,18 +277,32 @@ export function EnhancedTranscriptionViewer({
       {/* Enhancement Metrics (if enhanced and viewing enhanced) */}
       {hasEnhancement && enhancedResult && (viewMode === 'enhanced' || viewMode === 'comparison') && (
         <div className="p-4 border-b border-zinc-800 bg-gradient-to-r from-green-950/20 to-emerald-950/20">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="flex items-center gap-2">
               <div className="p-1.5 bg-green-500/20 rounded">
                 <TrendingDown className="w-4 h-4 text-green-400" />
               </div>
               <div>
-                <p className="text-xs text-zinc-500">Filler Words Removed</p>
+                <p className="text-xs text-zinc-500">Filler Words</p>
                 <p className="text-sm font-semibold text-green-400">
                   {enhancedResult.improvements.fillerCount}
                 </p>
               </div>
             </div>
+            {/* Hallucinations Removed (show only if > 0) */}
+            {(enhancedResult.improvements.hallucinationsRemoved ?? 0) > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-red-500/20 rounded">
+                  <Repeat className="w-4 h-4 text-red-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-zinc-500">Loops Removed</p>
+                  <p className="text-sm font-semibold text-red-400">
+                    {enhancedResult.improvements.hallucinationsRemoved}
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <div className="p-1.5 bg-blue-500/20 rounded">
                 <ArrowRight className="w-4 h-4 text-blue-400" />
@@ -315,7 +330,7 @@ export function EnhancedTranscriptionViewer({
                 <Zap className="w-4 h-4 text-orange-400" />
               </div>
               <div>
-                <p className="text-xs text-zinc-500">Processing Time</p>
+                <p className="text-xs text-zinc-500">Processing</p>
                 <p className="text-sm font-semibold text-orange-400">
                   {enhancedResult.processingTime.toFixed(1)}s
                 </p>

@@ -7,12 +7,29 @@ import { useTranscriberContext } from "@/contexts/TranscriberContext";
  * Model Loading Screen
  * 
  * Shows a beautiful loading screen while the AI model loads.
- * Once loaded, automatically shows the main app.
+ * Supports both standard mode (auto-loading from context) and Fast Mode (manual progress).
  */
-export default function ModelLoadingScreen({ onComplete }: { onComplete: () => void }) {
-  const { isModelLoading, isModelLoaded, progress, loadingMessage, error } = useTranscriberContext();
+interface ModelLoadingScreenProps {
+  onComplete?: () => void;
+  progress?: number;
+  modelName?: string;
+  onCancel?: () => void;
+}
 
-  // Model is auto-loading in TranscriberContext, we just display progress here
+export default function ModelLoadingScreen({ 
+  onComplete, 
+  progress: externalProgress, 
+  modelName, 
+  onCancel 
+}: ModelLoadingScreenProps) {
+  const context = useTranscriberContext();
+  
+  // Use external progress if provided (Fast Mode), otherwise use context (Standard Mode)
+  const isModelLoading = externalProgress !== undefined ? externalProgress < 100 : context.isModelLoading;
+  const isModelLoaded = externalProgress !== undefined ? externalProgress === 100 : context.isModelLoaded;
+  const progress = externalProgress !== undefined ? externalProgress : context.progress;
+  const loadingMessage = modelName ? `Loading ${modelName}...` : context.loadingMessage;
+  const error = context.error;
 
   // When model is loaded, notify parent (if callback provided)
   useEffect(() => {
@@ -112,6 +129,18 @@ export default function ModelLoadingScreen({ onComplete }: { onComplete: () => v
                   This may take 30-60 seconds on first load.<br />
                   Model files are cached for instant loading next time.
                 </p>
+                
+                {/* Cancel Button (Fast Mode only) */}
+                {onCancel && (
+                  <div className="mt-4 text-center">
+                    <button
+                      onClick={onCancel}
+                      className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-200 rounded-lg transition-colors text-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}

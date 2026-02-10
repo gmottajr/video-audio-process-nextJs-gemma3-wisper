@@ -99,7 +99,7 @@ function withTimeout(promise, timeoutMs, operationName = 'Operation') {
 // System Prompt for Transcript Enhancement
 // ============================================================================
 
-const ENHANCEMENT_SYSTEM_PROMPT = `You are a professional transcript editor. Your task is to clean up speech-to-text transcripts.
+const ENHANCEMENT_SYSTEM_PROMPT = `You are a professional transcript editor. Your task is to clean up speech-to-text transcripts that may contain errors from automatic speech recognition.
 
 ## Instructions:
 1. Remove ALL filler words: um, uh, like, you know, I mean, basically, actually, literally, so, well, right, okay, anyway
@@ -107,8 +107,10 @@ const ENHANCEMENT_SYSTEM_PROMPT = `You are a professional transcript editor. You
 3. Add proper punctuation (periods, commas, question marks)
 4. Fix capitalization (sentences, proper nouns)
 5. Break run-on sentences into clear, readable sentences
-6. Remove false starts and repeated words
+6. Remove false starts and repeated words/phrases
 7. Keep contractions natural (don't → don't, it's → it's)
+8. CRITICAL: If you see words or phrases repeated many times (hallucination artifacts), keep only ONE instance
+9. If a section is unintelligible gibberish, replace it with [unintelligible]
 
 ## Rules:
 - Preserve the EXACT meaning and intent
@@ -117,10 +119,143 @@ const ENHANCEMENT_SYSTEM_PROMPT = `You are a professional transcript editor. You
 - Don't over-formalize casual speech
 - Output ONLY the cleaned transcript
 - No explanations, preambles, or commentary
+- Never output the same word or phrase more than twice in a row
 
-## Example:
+## Examples:
 Input: "So um basically what I'm trying to say is like you know the the project is actually going really well and um we should be done by Friday I think"
-Output: "What I'm trying to say is the project is going really well, and we should be done by Friday."`;
+Output: "What I'm trying to say is the project is going really well, and we should be done by Friday."
+
+Input: "like, like, like, like, like, like, the project is going well"
+Output: "The project is going well."
+
+Input: "I'm going to say, I'm going to say, I'm going to say what happened"
+Output: "I'm going to say what happened."`;
+
+// ============================================================================
+// Hallucination Detection and Removal (Pre-processing)
+// ============================================================================
+
+/**
+ * Detect and remove Whisper hallucination loops where words/phrases repeat excessively
+ * This runs BEFORE sending to the LLM to reduce token count and improve results
+ * @param {string} text - Raw transcript text
+ * @returns {{cleaned: string, hallucinationsRemoved: number}} - Cleaned text and count
+ */
+function removeHallucinationLoops(text) {
+  let cleaned = text;
+  let hallucinationsRemoved = 0;
+  
+  // Pattern 1: Single word repeated 3+ times (e.g., "like, like, like, like")
+  // Match word followed by comma/space, repeated 3+ times
+  const singleWordRepeatRegex = /\b(\w+)(?:[,\s]+\1){2,}\b/gi;
+  cleaned = cleaned.replace(singleWordRepeatRegex, (match, word) => {
+    const count = (match.match(new RegExp(`\\b${word}\\b`, 'gi')) || []).length;
+    if (count >= 3) {
+      hallucinationsRemoved += count - 1;
+      console.log(`[Hallucination] Collapsed ${count}x "${word}" to 1x`);
+      return word;
+    }
+    return match;
+  });
+  
+  // Pattern 2: Phrase repeated 3+ times (e.g., "I'm going to say, I'm going to say")
+  // Match phrases of 2-6 words repeated
+  const phraseRepeatRegex = /\b((?:\w+[''']?\w*\s+){1,5}\w+[''']?\w*)(?:[,.\s]+\1){2,}/gi;
+  cleaned = cleaned.replace(phraseRepeatRegex, (match, phrase) => {
+    const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const count = (match.match(new RegExp(escapedPhrase, 'gi')) || []).length;
+    if (count >= 3) {
+      hallucinationsRemoved += count - 1;
+      console.log(`[Hallucination] Collapsed ${count}x "${phrase.substring(0, 30)}..." to 1x`);
+      return phrase;
+    }
+    return match;
+  });
+  
+  // Pattern 3: "I was sorry" type repetitions
+  const sorryRepeatRegex = /\b(I was sorry)(?:[,.\s]+I was sorry){2,}/gi;
+  cleaned = cleaned.replace(sorryRepeatRegex, (match) => {
+    const count = (match.match(/I was sorry/gi) || []).length;
+    hallucinationsRemoved += count - 1;
+    console.log(`[Hallucination] Collapsed ${count}x "I was sorry" to 1x`);
+    return 'I was sorry';
+  });
+  
+  // Pattern 4: Any word repeated more than 10 times consecutively (aggressive cleanup)
+  // This catches edge cases the above patterns might miss
+  const extremeRepeatRegex = /\b(\w+)(?:[,\s]+\1){9,}\b/gi;
+  cleaned = cleaned.replace(extremeRepeatRegex, (match, word) => {
+    const count = (match.match(new RegExp(`\\b${word}\\b`, 'gi')) || []).length;
+    hallucinationsRemoved += count - 1;
+    console.log(`[Hallucination] Removed extreme repetition: ${count}x "${word}"`);
+    return word;
+  });
+  
+  // Clean up multiple spaces and normalize
+  cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
+  
+  // Clean up orphaned commas and punctuation
+  cleaned = cleaned.replace(/,\s*,/g, ',');
+  cleaned = cleaned.replace(/,\s*\./g, '.');
+  cleaned = cleaned.replace(/^\s*,\s*/gm, '');
+  
+  return { cleaned, hallucinationsRemoved };
+}
+
+/**
+ * Analyze text for hallucination severity
+ * @param {string} text - Text to analyze
+ * @returns {{severity: string, score: number, examples: string[]}}
+ */
+function analyzeHallucinationSeverity(text) {
+  const words = text.toLowerCase().split(/\s+/);
+  const wordCounts = {};
+  let maxConsecutive = 0;
+  let currentWord = '';
+  let currentCount = 0;
+  
+  for (const word of words) {
+    const cleanWord = word.replace(/[,.']/g, '');
+    if (cleanWord === currentWord) {
+      currentCount++;
+      maxConsecutive = Math.max(maxConsecutive, currentCount);
+    } else {
+      currentWord = cleanWord;
+      currentCount = 1;
+    }
+    wordCounts[cleanWord] = (wordCounts[cleanWord] || 0) + 1;
+  }
+  
+  // Find most repeated words
+  const sorted = Object.entries(wordCounts)
+    .filter(([word]) => word.length > 2) // Ignore short words
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  
+  const totalWords = words.length;
+  const topWordRatio = sorted.length > 0 ? sorted[0][1] / totalWords : 0;
+  
+  let severity = 'none';
+  let score = 0;
+  
+  if (maxConsecutive > 50 || topWordRatio > 0.3) {
+    severity = 'severe';
+    score = 3;
+  } else if (maxConsecutive > 20 || topWordRatio > 0.15) {
+    severity = 'moderate';
+    score = 2;
+  } else if (maxConsecutive > 5 || topWordRatio > 0.08) {
+    severity = 'mild';
+    score = 1;
+  }
+  
+  return {
+    severity,
+    score,
+    maxConsecutiveRepeat: maxConsecutive,
+    examples: sorted.map(([word, count]) => `"${word}" (${count}x)`),
+  };
+}
 
 // ============================================================================
 // Filler Word Detection
@@ -160,9 +295,10 @@ function detectFillerWords(text) {
  * Calculate improvement metrics
  * @param {string} original - Original text
  * @param {string} enhanced - Enhanced text
+ * @param {number} hallucinationsRemoved - Count of hallucination repetitions removed in pre-processing
  * @returns {Object} - Improvement metrics
  */
-function calculateImprovements(original, enhanced) {
+function calculateImprovements(original, enhanced, hallucinationsRemoved = 0) {
   const fillerWordsRemoved = detectFillerWords(original);
   const originalWords = original.split(/\s+/).filter(w => w.length > 0);
   const enhancedWords = enhanced.split(/\s+/).filter(w => w.length > 0);
@@ -179,6 +315,7 @@ function calculateImprovements(original, enhanced) {
   return {
     fillerWordsRemoved,
     fillerCount: fillerWordsRemoved.length,
+    hallucinationsRemoved,
     grammarFixes,
     originalWordCount: originalWords.length,
     enhancedWordCount: enhancedWords.length,
@@ -516,16 +653,57 @@ async function enhanceTranscript(transcript, requestId, customPrompt = null, met
   
   try {
     console.log('[EnhancerWorker] Starting enhancement...');
-    console.log('[EnhancerWorker] Transcript length:', trimmedTranscript.length, 'chars');
+    console.log('[EnhancerWorker] Original transcript length:', trimmedTranscript.length, 'chars');
     
     // Create abort controller for this request
     abortController = new AbortController();
     
+    // =========================================================================
+    // STEP 1: Pre-process to remove Whisper hallucination loops
+    // =========================================================================
     self.postMessage({
       requestId,
       status: 'processing',
-      message: 'Starting transcript enhancement...',
-      progress: 0,
+      message: 'Analyzing transcript for hallucinations...',
+      progress: 2,
+    });
+    
+    // Analyze hallucination severity first
+    const hallucinationAnalysis = analyzeHallucinationSeverity(trimmedTranscript);
+    console.log('[EnhancerWorker] Hallucination analysis:', hallucinationAnalysis);
+    
+    if (hallucinationAnalysis.severity !== 'none') {
+      console.log(`[EnhancerWorker] ⚠️ Detected ${hallucinationAnalysis.severity} hallucinations`);
+      console.log('[EnhancerWorker] Top repeated words:', hallucinationAnalysis.examples.join(', '));
+    }
+    
+    // Remove hallucination loops
+    const { cleaned: preprocessedTranscript, hallucinationsRemoved } = removeHallucinationLoops(trimmedTranscript);
+    
+    if (hallucinationsRemoved > 0) {
+      console.log(`[EnhancerWorker] ✅ Pre-processing removed ${hallucinationsRemoved} hallucination repetitions`);
+      console.log(`[EnhancerWorker] Reduced from ${trimmedTranscript.length} to ${preprocessedTranscript.length} chars`);
+      
+      self.postMessage({
+        requestId,
+        status: 'processing',
+        message: `Removed ${hallucinationsRemoved} repetitive hallucinations...`,
+        progress: 5,
+      });
+    }
+    
+    // Use preprocessed transcript for enhancement
+    const transcriptToEnhance = preprocessedTranscript;
+    console.log('[EnhancerWorker] Transcript length after pre-processing:', transcriptToEnhance.length, 'chars');
+    
+    // =========================================================================
+    // STEP 2: Send to LLM for enhancement
+    // =========================================================================
+    self.postMessage({
+      requestId,
+      status: 'processing',
+      message: 'Starting AI enhancement...',
+      progress: 8,
     });
     
     const startTime = performance.now();
@@ -534,7 +712,7 @@ async function enhanceTranscript(transcript, requestId, customPrompt = null, met
     let lastProgressUpdate = Date.now();
     
     // Estimate expected tokens (roughly 1.3x input tokens for enhancement)
-    const estimatedInputTokens = Math.ceil(trimmedTranscript.split(/\s+/).length * 1.3);
+    const estimatedInputTokens = Math.ceil(transcriptToEnhance.split(/\s+/).length * 1.3);
     const estimatedOutputTokens = Math.ceil(estimatedInputTokens * 0.9);
     
     // Build messages based on whether we have a custom prompt (Phase 2)
@@ -553,7 +731,7 @@ async function enhanceTranscript(transcript, requestId, customPrompt = null, met
       console.log('[EnhancerWorker] Using Phase 1 simple prompt');
       messages = [
         { role: 'system', content: ENHANCEMENT_SYSTEM_PROMPT },
-        { role: 'user', content: trimmedTranscript },
+        { role: 'user', content: transcriptToEnhance },
       ];
     }
     
@@ -671,11 +849,12 @@ async function enhanceTranscript(transcript, requestId, customPrompt = null, met
       enhancedText = enhancedText.slice(1, -1);
     }
     
-    // Calculate improvements
-    const improvements = calculateImprovements(trimmedTranscript, enhancedText);
+    // Calculate improvements (pass original trimmed transcript for accurate metrics)
+    const improvements = calculateImprovements(trimmedTranscript, enhancedText, hallucinationsRemoved);
     
     console.log('[EnhancerWorker] Improvements:', {
       fillerCount: improvements.fillerCount,
+      hallucinationsRemoved: improvements.hallucinationsRemoved,
       reductionPercentage: improvements.reductionPercentage.toFixed(1) + '%',
       originalWords: improvements.originalWordCount,
       enhancedWords: improvements.enhancedWordCount,
@@ -805,7 +984,8 @@ self.addEventListener('message', async (event) => {
       case 'init':
         // Use f32 (32-bit float) models for maximum WebGPU compatibility
         // f16 models require the WebGPU f16 extension which isn't universally supported
-        await initEngine(data?.modelId || 'Llama-3.2-1B-Instruct-q4f32_1-MLC', requestId);
+        // Default to 3B model for better enhancement quality (matches DEFAULT_MODEL in types/enhancement.ts)
+        await initEngine(data?.modelId || 'Llama-3.2-3B-Instruct-q4f32_1-MLC', requestId);
         break;
         
       case 'enhance':

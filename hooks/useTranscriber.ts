@@ -11,6 +11,7 @@ export interface TranscriptionResult {
     text: string;
     timestamp: [number, number | null];
   }>;
+  processingTime?: number; // Actual AI inference time in milliseconds
 }
 
 /**

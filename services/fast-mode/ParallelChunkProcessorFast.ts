@@ -123,17 +123,20 @@ export class ParallelChunkProcessorFast {
       calculateProgress(completedRef.current, totalChunks, this.workerPool.getStatus().busy)
     );
 
+    // Track failed chunks for potential retry or reporting
+    const failedChunks: Array<{ index: number; error: string }> = [];
+
     // Submit ALL chunks immediately - worker pool handles queuing
     const promises = chunks.map(async (chunk) => {
       if (this.isCancelled) {
-        throw new Error('Processing cancelled');
+        return { status: 'cancelled' as const, chunk };
       }
 
       try {
         const result = await this.workerPool.processChunk(chunk);
 
         if (this.isCancelled) {
-          return null;
+          return { status: 'cancelled' as const, chunk };
         }
 
         // Immutable update: replace Set with new Set containing this index
@@ -150,25 +153,56 @@ export class ParallelChunkProcessorFast {
           );
         }
 
-        return result;
+        return { status: 'success' as const, result };
       } catch (error) {
         if (this.isCancelled) {
-          return null;
+          return { status: 'cancelled' as const, chunk };
         }
 
-        console.error(`[ParallelProcessor] Error processing chunk ${chunk.index}:`, error);
-        throw error;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[ParallelProcessor] Error processing chunk ${chunk.index}:`, errorMessage);
+        
+        // Track failed chunk but don't throw - allow other chunks to complete
+        failedChunks.push({ index: chunk.index, error: errorMessage });
+        return { status: 'error' as const, chunk, error: errorMessage };
       }
     });
 
-    // Wait for all chunks to complete
+    // Wait for all chunks to settle (don't fail on first error)
     const allResults = await Promise.all(promises);
-
-    // Filter out null results (from cancellation)
-    const validResults = allResults.filter((r): r is ChunkResult => r !== null);
 
     if (this.isCancelled) {
       throw new Error('Processing cancelled');
+    }
+
+    // Collect successful results
+    const validResults: ChunkResult[] = [];
+    for (const result of allResults) {
+      if (result.status === 'success') {
+        validResults.push(result.result);
+      }
+    }
+
+    // Log summary of failed chunks if any
+    if (failedChunks.length > 0) {
+      console.warn(
+        `[ParallelProcessor] ${failedChunks.length}/${totalChunks} chunks failed:`,
+        failedChunks.map(f => `chunk ${f.index}: ${f.error}`).join(', ')
+      );
+      
+      // If more than 20% of chunks failed, consider it a failure
+      const failureRate = failedChunks.length / totalChunks;
+      if (failureRate > 0.2) {
+        throw new Error(
+          `Too many chunks failed (${failedChunks.length}/${totalChunks}). ` +
+          `First error: ${failedChunks[0].error}`
+        );
+      }
+    }
+
+    // If we have at least some results, return them
+    if (validResults.length === 0) {
+      throw new Error('All chunks failed to process');
     }
 
     return validResults;

@@ -305,6 +305,7 @@ async function transcribe(audioData, requestId = null) {
       result: {
         text: output.text || '',
         chunks: output.chunks || [],
+        processingTime: Math.round(inferenceTime), // Actual AI inference time in milliseconds
       },
     });
 

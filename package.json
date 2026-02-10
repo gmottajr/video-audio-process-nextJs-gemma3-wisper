@@ -27,7 +27,9 @@
     "test:unit:worker-manager": "jest __tests__/unit/WorkerManager.test.ts",
     "test:unit:blob-manager": "jest __tests__/unit/BlobURLManager.test.ts",
     "test:unit:retry": "jest __tests__/unit/retry.test.ts",
-    "test:unit:arch": "jest __tests__/unit/WorkerManager.test.ts __tests__/unit/BlobURLManager.test.ts __tests__/unit/retry.test.ts"
+    "test:unit:arch": "jest __tests__/unit/WorkerManager.test.ts __tests__/unit/BlobURLManager.test.ts __tests__/unit/retry.test.ts",
+    "perf:benchmark:fast": "tsx scripts/perf-benchmark-fast.ts",
+    "perf:compare": "tsx scripts/perf-compare.ts"
   },
   "dependencies": {
     "@ffmpeg/core": "^0.12.6",

@@ -38,6 +38,7 @@ export interface ActionOptions {
   normalizeAudio?: boolean;
   compressionType?: CompressionType;
   segment?: { startTime: number; endTime: number };
+  testMode?: boolean;
 }
 
 interface ActionSelectorProps {

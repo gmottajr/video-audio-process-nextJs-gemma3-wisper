@@ -27,12 +27,24 @@ export function StatisticsModal({
   endTime,
   peakMemoryMB,
 }: StatisticsModalProps) {
+  console.log('[StatisticsModal] Render - isOpen:', isOpen, 'result:', result?.type, 'startTime:', startTime, 'endTime:', endTime);
+  
   if (!isOpen) return null;
+  
+  console.log('[StatisticsModal] Modal is open, rendering content');
 
   // Calculate metrics
-  const processingTimeMs = startTime && endTime ? endTime - startTime : 0;
-  const processingTimeSec = processingTimeMs / 1000;
-  const processingTimeMin = processingTimeSec / 60;
+  const totalTimeMs = startTime && endTime ? endTime - startTime : 0;
+  const totalTimeSec = totalTimeMs / 1000;
+  const totalTimeMin = totalTimeSec / 60;
+  
+  // Get actual AI processing time from transcription result (if available)
+  const aiProcessingTimeMs = result.transcription?.processingTime || 0;
+  const aiProcessingTimeSec = aiProcessingTimeMs / 1000;
+  const aiProcessingTimeMin = aiProcessingTimeSec / 60;
+  
+  // Use AI processing time for speed calculations if available, otherwise use total time
+  const processingTimeMin = aiProcessingTimeMs > 0 ? aiProcessingTimeMin : totalTimeMin;
 
   const fileSizeMB = file.size / (1024 * 1024);
   const processingSpeedMBPerMin = processingTimeMin > 0 ? fileSizeMB / processingTimeMin : 0;
@@ -97,7 +109,7 @@ export function StatisticsModal({
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-88px)]">
           {/* Performance Grade */}
-          {processingTimeMs > 0 && (
+          {(aiProcessingTimeMs > 0 || totalTimeMs > 0) && (
             <div className="mb-6 p-6 bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 border border-zinc-700 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
@@ -113,22 +125,40 @@ export function StatisticsModal({
               </div>
               <div className="mt-3 text-xs text-zinc-500">
                 {processingSpeedMBPerMin.toFixed(1)} MB/min • {transcriptionSpeedWPM > 0 ? `${Math.round(transcriptionSpeedWPM)} words/min` : 'N/A'}
+                {aiProcessingTimeMs > 0 && <span className="ml-2 text-green-400">• Based on AI inference time</span>}
               </div>
             </div>
           )}
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {/* Processing Time */}
-            {processingTimeMs > 0 && (
+            {/* AI Processing Time (Actual Inference) */}
+            {aiProcessingTimeMs > 0 && (
               <div className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <Clock className="w-4 h-4 text-blue-400" />
-                  <h3 className="text-sm font-semibold text-zinc-300">Processing Time</h3>
+                  <h3 className="text-sm font-semibold text-zinc-300">AI Processing Time</h3>
                 </div>
-                <p className="text-2xl font-bold text-zinc-100">{formatTime(processingTimeMs)}</p>
+                <p className="text-2xl font-bold text-zinc-100">{formatTime(aiProcessingTimeMs)}</p>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Actual transcription inference time
+                </p>
                 <p className="text-xs text-zinc-500 mt-1">
                   {processingSpeedMBPerMin.toFixed(2)} MB/min
+                </p>
+              </div>
+            )}
+            
+            {/* Total Time (includes overhead) */}
+            {totalTimeMs > 0 && (
+              <div className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-4 h-4 text-purple-400" />
+                  <h3 className="text-sm font-semibold text-zinc-300">Total Time</h3>
+                </div>
+                <p className="text-2xl font-bold text-zinc-100">{formatTime(totalTimeMs)}</p>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Includes audio decoding & overhead
                 </p>
                 {estimatedTimeStr && (
                   <p className="text-xs text-zinc-500 mt-1">
@@ -170,7 +200,7 @@ export function StatisticsModal({
             </div>
 
             {/* Processing Speed */}
-            {processingTimeMs > 0 && (
+            {processingTimeMin > 0 && (
               <div className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <Zap className="w-4 h-4 text-yellow-400" />
@@ -234,14 +264,41 @@ export function StatisticsModal({
           {/* Model Information */}
           {modelKey && (
             <div className="mb-6">
-              <h3 className="text-lg font-bold text-zinc-100 mb-3">🤖 AI Model</h3>
-              <div className="p-4 bg-zinc-800/30 border border-zinc-700 rounded-lg">
-                <p className="text-sm text-zinc-300">
-                  <span className="font-semibold">Whisper {modelKey.charAt(0).toUpperCase() + modelKey.slice(1)}</span>
-                </p>
-                <p className="text-xs text-zinc-500 mt-1">
-                  State-of-the-art speech recognition by OpenAI
-                </p>
+              <h3 className="text-lg font-bold text-zinc-100 mb-3">🤖 AI Model & Configuration</h3>
+              <div className="p-4 bg-zinc-800/30 border border-zinc-700 rounded-lg space-y-3">
+                <div>
+                  <p className="text-sm text-zinc-300">
+                    <span className="font-semibold">
+                      {modelKey === 'distil-small' ? 'Distil-Whisper Small' : `Whisper ${modelKey.charAt(0).toUpperCase() + modelKey.slice(1)}`}
+                    </span>
+                  </p>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    State-of-the-art speech recognition by OpenAI
+                  </p>
+                </div>
+                
+                {/* Fast Mode Indicator */}
+                {result.metadata?.fastMode && (
+                  <div className="flex items-center gap-2 pt-2 border-t border-zinc-700">
+                    <span className="px-3 py-1.5 bg-gradient-to-r from-amber-950/50 to-orange-950/50 border border-amber-500/30 text-amber-300 rounded-full text-sm font-semibold">
+                      ⚡ Fast Mode
+                    </span>
+                    {result.metadata.workersUsed && result.metadata.workersUsed > 1 && (
+                      <span className="px-3 py-1.5 bg-purple-950/50 border border-purple-500/30 text-purple-300 rounded-full text-sm">
+                        {result.metadata.workersUsed} Workers (Parallel)
+                      </span>
+                    )}
+                  </div>
+                )}
+                
+                {/* Standard Mode Indicator */}
+                {!result.metadata?.fastMode && (
+                  <div className="flex items-center gap-2 pt-2 border-t border-zinc-700">
+                    <span className="px-3 py-1.5 bg-blue-950/50 border border-blue-500/30 text-blue-300 rounded-full text-sm">
+                      🎯 Standard Mode
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}

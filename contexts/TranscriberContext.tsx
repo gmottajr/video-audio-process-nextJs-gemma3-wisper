@@ -80,36 +80,10 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
       workerManagerRef.current = new WorkerManager('/transcription.worker.js');
       console.log('[TranscriberContext] ✅ WorkerManager initialized');
       
-      // Auto-load default model
-      const autoLoad = async () => {
-        try {
-          const defaultModel = 'Xenova/whisper-base';
-          console.log('[TranscriberContext] 📥 Auto-loading default model:', defaultModel);
-          setCurrentModel(defaultModel);
-          setIsModelLoading(true);
-          setLoadingMessage('Loading AI model...');
-          
-          await workerManagerRef.current!.sendRequest('load', { model: defaultModel }, {
-            timeoutMs: 300000, // 5 minutes
-            onProgress: (prog, msg) => {
-              setProgress(prog);
-              setLoadingMessage(msg || 'Loading model...');
-            }
-          });
-          
-          setIsModelLoaded(true);
-          setIsModelLoading(false);
-          setProgress(100);
-          console.log('[TranscriberContext] ✅ Default model loaded');
-        } catch (error) {
-          console.error('[TranscriberContext] ❌ Auto-load failed:', error);
-          setIsModelLoading(false);
-          setError(error instanceof Error ? error.message : 'Failed to load model');
-        }
-      };
-      
-      // Small delay to let worker initialize
-      setTimeout(autoLoad, 100);
+      // NOTE: Auto-load disabled to prevent unnecessary model downloads
+      // Models are now loaded on-demand when user selects them in INSPECT state
+      // This is especially important for Fast Mode, which uses its own workers
+      console.log('[TranscriberContext] ℹ️ Model will be loaded on-demand (no auto-load)');
     } catch (error) {
       console.error('[TranscriberContext] ❌ Failed to initialize WorkerManager:', error);
       setError('Failed to initialize transcription worker');
@@ -134,6 +108,12 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
     // Skip if already loaded
     if (isModelLoaded && currentModel === modelName) {
       console.log('[TranscriberContext] ℹ️ Model already loaded:', modelName);
+      return;
+    }
+
+    // Skip if already loading the same model
+    if (isModelLoading && currentModel === modelName) {
+      console.log('[TranscriberContext] ℹ️ Model already loading:', modelName);
       return;
     }
 

@@ -54,20 +54,41 @@ export function FastModeInfoPopover({ trigger }: FastModeInfoPopoverProps) {
   }, [isOpen]);
 
   return (
-    <div className="relative">
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="text-zinc-500 hover:text-zinc-300 transition-colors"
-        aria-label="Learn about Fast Mode"
-        aria-expanded={isOpen}
-        aria-haspopup="dialog"
-      >
-        {trigger || (
+    <div className="relative inline-block">
+      {trigger ? (
+        // If custom trigger provided, wrap it in a span to avoid button nesting
+        <span
+          ref={triggerRef as any}
+          onClick={() => setIsOpen(!isOpen)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setIsOpen(!isOpen);
+            }
+          }}
+          aria-label="Learn about Fast Mode"
+          aria-expanded={isOpen}
+          aria-haspopup="dialog"
+          className="cursor-pointer"
+        >
+          {trigger}
+        </span>
+      ) : (
+        // Default trigger is a button
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="text-zinc-500 hover:text-zinc-300 transition-colors"
+          aria-label="Learn about Fast Mode"
+          aria-expanded={isOpen}
+          aria-haspopup="dialog"
+        >
           <AlertTriangle className="w-4 h-4" />
-        )}
-      </button>
+        </button>
+      )}
 
       {isOpen && (
         <div
