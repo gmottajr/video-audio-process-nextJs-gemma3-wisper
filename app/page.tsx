@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Image from "next/image";
 import { Zap, Cpu, AlertCircle } from "lucide-react";
 import { AILoadingIndicator } from "@/components/AILoadingIndicator";
 import ModelLoadingScreen from "@/components/ModelLoadingScreen";
@@ -529,9 +530,12 @@ export default function Home() {
       {fastModeEnabled &&
         transcriptionMode === 'fast' &&
         fastTranscriber.mode === 'processing' && (
-          <div className="fixed inset-0 z-50 bg-gradient-to-br from-amber-900 via-orange-900 to-red-900 flex flex-col">
+          <div className="fixed inset-0 z-50 bg-gradient-to-br from-zinc-950 via-zinc-900 to-slate-900 flex flex-col">
+            {/* Subtle background pattern */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-900/10 via-transparent to-transparent pointer-events-none" />
+            
             {/* Breadcrumbs at top */}
-            <div className="container mx-auto px-4 pt-6 pb-4">
+            <div className="relative container mx-auto px-4 pt-6 pb-4">
               <Breadcrumbs 
                 currentState="PROCESSING" 
                 onNavigate={() => {}}
@@ -539,18 +543,18 @@ export default function Home() {
             </div>
 
             {/* Main content centered */}
-            <div className="flex-1 flex items-center justify-center">
-              <div className="max-w-md w-full mx-4">
-                {/* Icon */}
-                <div className="text-center mb-8">
-                  <div className="inline-block p-6 bg-white/10 rounded-full backdrop-blur-sm mb-4">
-                    <Zap className="w-16 h-16 text-amber-300 animate-pulse" />
+            <div className="relative flex-1 flex items-center justify-center">
+              <div className="max-w-lg w-full mx-4">
+                {/* Header with icon */}
+                <div className="text-center mb-10">
+                  <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-amber-500/20 to-orange-500/10 rounded-3xl border border-amber-500/30 mb-6 shadow-lg shadow-amber-500/10">
+                    <Zap className="w-12 h-12 text-amber-400 animate-pulse" />
                   </div>
-                  <h1 className="text-3xl font-bold text-white mb-2">
-                    Fast Mode Processing
+                  <h1 className="text-4xl font-bold text-white mb-3 tracking-tight">
+                    Fast Mode
                   </h1>
-                  <p className="text-amber-200">
-                    Parallel transcription with {fastTranscriber.progress.workersActive} worker{fastTranscriber.progress.workersActive !== 1 ? 's' : ''}
+                  <p className="text-zinc-400 text-lg">
+                    Parallel transcription in progress
                   </p>
                 </div>
 
@@ -558,13 +562,13 @@ export default function Home() {
                 <FastModeProgressIndicator progress={fastTranscriber.progress} />
                 
                 {/* Cancel Button */}
-                <div className="mt-6 text-center">
+                <div className="mt-8 text-center">
                   <button
                     onClick={() => {
                       fastTranscriber.cancel();
                       stateMachine.cancelProcessing();
                     }}
-                    className="px-6 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-200 rounded-lg border border-red-500/50 transition-colors"
+                    className="px-8 py-3 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 hover:text-white rounded-xl border border-zinc-700 hover:border-zinc-600 transition-all duration-200 font-medium"
                   >
                     Cancel Transcription
                   </button>

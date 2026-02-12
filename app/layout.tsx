@@ -33,6 +33,10 @@ const barrio = Barrio({
 export const metadata: Metadata = {
   title: "Neural Groove Spectrum Divergent - AI Media Processing",
   description: "High-performance browser-based media processing using FFmpeg WebAssembly and AI",
+  icons: {
+    icon: "/branding/NeuralGrooveIcon.png",
+    apple: "/branding/NeuralGrooveIcon.png",
+  },
 };
 
 export default function RootLayout({
@@ -43,6 +47,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Favicon */}
+        <link rel="icon" href="/branding/NeuralGrooveIcon.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/branding/NeuralGrooveIcon.png" />
         {/* Preload Science Gothic from Google Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

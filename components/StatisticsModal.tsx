@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, Clock, MemoryStick, FileText, Zap, TrendingUp, Award } from "lucide-react";
+import { X, Clock, MemoryStick, FileText, Zap, TrendingUp, Award, Download, FileDown } from "lucide-react";
 import type { ProcessingResult } from "@/hooks/useMediaProcessor";
 import type { ModelKey } from "@/components/ModelSelector";
 import { formatFileSize, estimateRAMUsage, estimateProcessingTime } from "@/utils/resourceEstimation";
@@ -88,6 +88,187 @@ export function StatisticsModal({
     return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
   };
 
+  // Helper to sanitize filename for export
+  const sanitizeFilename = (name: string): string => 
+    name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9-_]/g, '_');
+
+  // Helper to download a blob
+  const downloadBlob = (blob: Blob, filename: string): void => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Collect all stats data into a structured object
+  const collectStatsData = () => ({
+    generatedAt: new Date().toISOString(),
+    file: {
+      name: file.name,
+      size: file.size,
+      sizeFormatted: formatFileSize(file.size),
+      sizeMB: fileSizeMB,
+    },
+    performance: {
+      grade: performanceGrade.grade,
+      description: performanceGrade.description,
+      processingSpeedMBPerMin: Number(processingSpeedMBPerMin.toFixed(2)),
+    },
+    timing: {
+      aiProcessingTimeMs,
+      aiProcessingTimeSec: Number(aiProcessingTimeSec.toFixed(2)),
+      aiProcessingTimeFormatted: aiProcessingTimeMs > 0 ? formatTime(aiProcessingTimeMs) : null,
+      totalTimeMs,
+      totalTimeSec: Number(totalTimeSec.toFixed(2)),
+      totalTimeFormatted: totalTimeMs > 0 ? formatTime(totalTimeMs) : null,
+      estimatedTime: estimatedTimeStr || null,
+      startTime: startTime ? new Date(startTime).toISOString() : null,
+      endTime: endTime ? new Date(endTime).toISOString() : null,
+    },
+    memory: {
+      peakMemoryMB: peakMemoryMB || null,
+      peakMemoryGB: actualRAMGB > 0 ? Number(actualRAMGB.toFixed(2)) : null,
+      estimatedRAMGB: estimatedRAM > 0 ? estimatedRAM : null,
+      accuracyPercent: ramAccuracy > 0 ? Number(ramAccuracy.toFixed(0)) : null,
+    },
+    transcription: transcription ? {
+      wordCount,
+      characterCount: charCount,
+      segmentCount,
+      wordsPerMinute: Math.round(transcriptionSpeedWPM),
+    } : null,
+    configuration: {
+      model: modelKey || null,
+      modelName: modelKey 
+        ? (modelKey === 'distil-small' ? 'Distil-Whisper Small' : `Whisper ${modelKey.charAt(0).toUpperCase() + modelKey.slice(1)}`)
+        : null,
+      fastMode: result.metadata?.fastMode || false,
+      workersUsed: result.metadata?.workersUsed || 1,
+      enhancements: {
+        compressionType: result.metadata?.compressionType || 'none',
+        normalized: result.metadata?.normalized || false,
+      },
+    },
+    processingType: result.type,
+    processingTypeLabel: result.type === 'transcription' ? 'AI Transcription' : result.type === 'audio' ? 'Audio Extraction' : 'Video Conversion',
+  });
+
+  // Generate markdown report
+  const generateMarkdownReport = (data: ReturnType<typeof collectStatsData>): string => {
+    const lines: string[] = [
+      '# Processing Statistics Report',
+      '',
+      `**Generated:** ${new Date(data.generatedAt).toLocaleString()}`,
+      `**File:** ${data.file.name}`,
+      `**Size:** ${data.file.sizeFormatted}`,
+      `**Type:** ${data.processingTypeLabel}`,
+      '',
+    ];
+
+    // Performance Grade
+    if (data.timing.aiProcessingTimeMs > 0 || data.timing.totalTimeMs > 0) {
+      lines.push(
+        '## Performance',
+        '',
+        `**Grade:** ${data.performance.grade} (${data.performance.description})`,
+        `**Speed:** ${data.performance.processingSpeedMBPerMin} MB/min`,
+        ''
+      );
+    }
+
+    // Timing
+    lines.push('## Timing', '');
+    if (data.timing.aiProcessingTimeFormatted) {
+      lines.push(`- **AI Processing Time:** ${data.timing.aiProcessingTimeFormatted}`);
+    }
+    if (data.timing.totalTimeFormatted) {
+      lines.push(`- **Total Time:** ${data.timing.totalTimeFormatted}`);
+    }
+    if (data.timing.estimatedTime) {
+      lines.push(`- **Estimated:** ${data.timing.estimatedTime}`);
+    }
+    if (data.timing.startTime) {
+      lines.push(`- **Started:** ${new Date(data.timing.startTime).toLocaleString()}`);
+    }
+    if (data.timing.endTime) {
+      lines.push(`- **Completed:** ${new Date(data.timing.endTime).toLocaleString()}`);
+    }
+    lines.push('');
+
+    // Memory
+    if (data.memory.peakMemoryGB) {
+      lines.push(
+        '## Memory Usage',
+        '',
+        `- **Peak Memory:** ${data.memory.peakMemoryGB} GB`,
+      );
+      if (data.memory.estimatedRAMGB) {
+        lines.push(`- **Estimated:** ${data.memory.estimatedRAMGB} GB`);
+      }
+      if (data.memory.accuracyPercent) {
+        lines.push(`- **Estimation Accuracy:** ${data.memory.accuracyPercent}%`);
+      }
+      lines.push('');
+    }
+
+    // Transcription Metrics
+    if (data.transcription) {
+      lines.push(
+        '## Transcription Metrics',
+        '',
+        `- **Words:** ${data.transcription.wordCount.toLocaleString()}`,
+        `- **Characters:** ${data.transcription.characterCount.toLocaleString()}`,
+        `- **Segments:** ${data.transcription.segmentCount}`,
+        `- **Speed:** ${data.transcription.wordsPerMinute} words/min`,
+        ''
+      );
+    }
+
+    // Configuration
+    lines.push('## Configuration', '');
+    if (data.configuration.modelName) {
+      lines.push(`- **Model:** ${data.configuration.modelName}`);
+    }
+    lines.push(`- **Mode:** ${data.configuration.fastMode ? 'Fast Mode' : 'Standard Mode'}`);
+    if (data.configuration.fastMode && data.configuration.workersUsed > 1) {
+      lines.push(`- **Workers:** ${data.configuration.workersUsed} (Parallel)`);
+    }
+    
+    // Enhancements
+    const enhancements: string[] = [];
+    if (data.configuration.enhancements.compressionType !== 'none') {
+      const compLabel = data.configuration.enhancements.compressionType === 'speech' ? 'Speech Compression' :
+                        data.configuration.enhancements.compressionType === 'studio' ? 'Studio Compression' : 'Both Compressions';
+      enhancements.push(compLabel);
+    }
+    if (data.configuration.enhancements.normalized) {
+      enhancements.push('Normalized');
+    }
+    lines.push(`- **Audio Enhancements:** ${enhancements.length > 0 ? enhancements.join(', ') : 'None'}`);
+    lines.push('');
+
+    lines.push('---', '', '*Generated by Neural Groove Spectrum Divergent*');
+
+    return lines.join('\n');
+  };
+
+  // Export as JSON
+  const exportAsJSON = (): void => {
+    const data = collectStatsData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    downloadBlob(blob, `stats-${sanitizeFilename(file.name)}.json`);
+  };
+
+  // Export as Markdown
+  const exportAsMarkdown = (): void => {
+    const data = collectStatsData();
+    const markdown = generateMarkdownReport(data);
+    const blob = new Blob([markdown], { type: 'text/markdown' });
+    downloadBlob(blob, `stats-${sanitizeFilename(file.name)}.md`);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 border-2 border-zinc-700 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
@@ -107,7 +288,7 @@ export function StatisticsModal({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-88px)]">
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-168px)]">
           {/* Performance Grade */}
           {(aiProcessingTimeMs > 0 || totalTimeMs > 0) && (
             <div className="mb-6 p-6 bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 border border-zinc-700 rounded-lg">
@@ -317,7 +498,25 @@ export function StatisticsModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-zinc-700 p-4 bg-zinc-900/50 flex justify-end">
+        <div className="border-t border-zinc-700 p-4 bg-zinc-900/50 flex justify-between items-center">
+          <div className="flex gap-2">
+            <button
+              onClick={exportAsJSON}
+              className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm flex items-center gap-2 transition-colors"
+              aria-label="Export statistics as JSON"
+            >
+              <Download className="w-4 h-4" />
+              Export JSON
+            </button>
+            <button
+              onClick={exportAsMarkdown}
+              className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm flex items-center gap-2 transition-colors"
+              aria-label="Export statistics as Markdown"
+            >
+              <FileDown className="w-4 h-4" />
+              Export MD
+            </button>
+          </div>
           <button
             onClick={onClose}
             className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-lg font-semibold text-sm transition-all duration-200"
