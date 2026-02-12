@@ -1,0 +1,337 @@
+commit bd9d4820fce9c9d2b7762538a9c316c67e2f9f85
+Author: Gerson Junior <jrmottagerson@gmail.com>
+Date:   Tue Feb 10 05:30:51 2026 -0300
+
+    refactor(fast-mode): Apply immutable patterns to ParallelChunkProcessorFast
+    
+    TASK 2.3 of BEND Functional Refactoring Plan.
+    
+    Extract pure functions: markComplete(), calculateETA(), calculateProgress(). Replace mutable counter with immutable Set updates. Add 14 unit tests for pure functions.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+diff --git a/__tests__/unit/fast-mode/ParallelChunkProcessorFast.test.ts b/__tests__/unit/fast-mode/ParallelChunkProcessorFast.test.ts
+new file mode 100644
+index 0000000..c0717d6
+--- /dev/null
++++ b/__tests__/unit/fast-mode/ParallelChunkProcessorFast.test.ts
+@@ -0,0 +1,114 @@
++/**
++ * Unit tests for ParallelChunkProcessorFast pure functions
++ *
++ * Tests the exported pure functions: markComplete, calculateETA, calculateProgress.
++ * The processor class is exercised via integration tests.
++ */
++
++import {
++  markComplete,
++  calculateETA,
++  calculateProgress,
++} from '@/services/fast-mode/ParallelChunkProcessorFast';
++
++describe('ParallelChunkProcessorFast pure functions', () => {
++  describe('markComplete', () => {
++    it('adds index to empty set', () => {
++      const result = markComplete(new Set(), 0);
++      expect(result.size).toBe(1);
++      expect(result.has(0)).toBe(true);
++    });
++
++    it('adds index to existing set', () => {
++      const prev = new Set([0, 1]);
++      const result = markComplete(prev, 2);
++      expect(result.size).toBe(3);
++      expect(result.has(0)).toBe(true);
++      expect(result.has(1)).toBe(true);
++      expect(result.has(2)).toBe(true);
++    });
++
++    it('returns new Set (immutable)', () => {
++      const prev = new Set([0, 1]);
++      const result = markComplete(prev, 2);
++      expect(result).not.toBe(prev);
++      expect(prev.size).toBe(2);
++    });
++
++    it('does not mutate ReadonlySet input', () => {
++      const prev = new Set([0, 1]) as ReadonlySet<number>;
++      markComplete(prev, 2);
++      expect(prev.size).toBe(2);
++    });
++  });
++
++  describe('calculateETA', () => {
++    it('returns undefined when completed is 0', () => {
++      expect(calculateETA(0, 10, 1000)).toBeUndefined();
++    });
++
++    it('returns undefined when completed >= total', () => {
++      expect(calculateETA(10, 10, 1000)).toBeUndefined();
++      expect(calculateETA(11, 10, 1000)).toBeUndefined();
++    });
++
++    it('calculates ETA based on remaining chunks and avg time', () => {
++      // 5 completed, 5 remaining, 2s per chunk = 10s total
++      const eta = calculateETA(5, 10, 2000);
++      expect(eta).toBe(10);
++    });
++
++    it('rounds to nearest second', () => {
++      const eta = calculateETA(1, 9, 1500);
++      expect(eta).toBe(Math.round(8 * 1.5));
++    });
++
++    it('handles single remaining chunk', () => {
++      const eta = calculateETA(4, 5, 3000);
++      expect(eta).toBe(3); // 1 remaining * 3s
++    });
++  });
++
++  describe('calculateProgress', () => {
++    it('creates progress with correct structure', () => {
++      const completed = new Set([0, 1]);
++      const progress = calculateProgress(completed, 10, 4);
++
++      expect(progress.phase).toBe('processing');
++      expect(progress.percent).toBe(20); // 2/10 * 100
++      expect(progress.chunksCompleted).toBe(2);
++      expect(progress.chunksTotal).toBe(10);
++      expect(progress.workersActive).toBe(4);
++    });
++
++    it('includes etaSeconds when lastChunkTimeMs provided', () => {
++      const completed = new Set([0, 1]);
++      const progress = calculateProgress(completed, 5, 2, 2000);
++
++      expect(progress.etaSeconds).toBe(6); // 3 remaining * 2s
++    });
++
++    it('excludes etaSeconds when lastChunkTimeMs not provided', () => {
++      const completed = new Set([0, 1]);
++      const progress = calculateProgress(completed, 5, 2);
++
++      expect(progress.etaSeconds).toBeUndefined();
++    });
++
++    it('returns 100 percent when all complete', () => {
++      const completed = new Set([0, 1, 2, 3, 4]);
++      const progress = calculateProgress(completed, 5, 0, 1000);
++
++      expect(progress.percent).toBe(100);
++      expect(progress.etaSeconds).toBeUndefined();
++    });
++
++    it('returns 0 percent when none complete', () => {
++      const completed = new Set<number>();
++      const progress = calculateProgress(completed, 10, 4);
++
++      expect(progress.percent).toBe(0);
++      expect(progress.chunksCompleted).toBe(0);
++    });
++  });
++});
+diff --git a/services/fast-mode/ParallelChunkProcessorFast.ts b/services/fast-mode/ParallelChunkProcessorFast.ts
+new file mode 100644
+index 0000000..043984a
+--- /dev/null
++++ b/services/fast-mode/ParallelChunkProcessorFast.ts
+@@ -0,0 +1,199 @@
++/**
++ * ParallelChunkProcessorFast
++ *
++ * Coordinates parallel chunk processing, tracks progress, and handles timeouts.
++ *
++ * BEND-inspired: Uses immutable Set updates and pure functions for progress
++ * calculation. No mutable counters - completed indices are the single source of truth.
++ */
++
++import type { AudioChunk, ChunkResult, FastModeProgress } from '@/types/fast-mode';
++import { WorkerPoolManagerFast } from './WorkerPoolManagerFast';
++
++export interface ProgressCallback {
++  (progress: FastModeProgress): void;
++}
++
++/**
++ * Pure function: Add index to completed set (immutable update)
++ *
++ * Returns a new Set instead of mutating. Used to prevent race conditions
++ * when multiple chunks complete in parallel.
++ *
++ * @param prev - Previous set of completed chunk indices
++ * @param index - Chunk index to mark complete
++ * @returns New Set with index added
++ */
++export const markComplete = (
++  prev: ReadonlySet<number>,
++  index: number
++): Set<number> => new Set([...prev, index]);
++
++/**
++ * Pure function: Calculate ETA based on completion rate
++ *
++ * Uses last chunk processing time as estimate for remaining chunks.
++ *
++ * @param completedCount - Number of chunks completed
++ * @param total - Total number of chunks
++ * @param lastChunkTimeMs - Processing time of most recent chunk in ms
++ * @returns Estimated seconds remaining, or undefined if done/unknown
++ */
++export const calculateETA = (
++  completedCount: number,
++  total: number,
++  lastChunkTimeMs: number
++): number | undefined => {
++  if (completedCount === 0 || completedCount >= total) {
++    return undefined;
++  }
++
++  const remaining = total - completedCount;
++  const avgTimePerChunkSec = lastChunkTimeMs / 1000;
++  const estimatedSeconds = remaining * avgTimePerChunkSec;
++
++  return Math.round(estimatedSeconds);
++};
++
++/**
++ * Pure function: Calculate progress from completed set
++ *
++ * @param completedIndices - Set of completed chunk indices
++ * @param totalChunks - Total number of chunks
++ * @param workersActive - Number of busy workers
++ * @param lastChunkTimeMs - Optional; used for ETA calculation
++ * @returns FastModeProgress object
++ */
++export const calculateProgress = (
++  completedIndices: ReadonlySet<number>,
++  totalChunks: number,
++  workersActive: number,
++  lastChunkTimeMs?: number
++): FastModeProgress => ({
++  phase: 'processing',
++  percent: Math.round((completedIndices.size / totalChunks) * 100),
++  chunksCompleted: completedIndices.size,
++  chunksTotal: totalChunks,
++  workersActive,
++  etaSeconds: lastChunkTimeMs !== undefined
++    ? calculateETA(completedIndices.size, totalChunks, lastChunkTimeMs)
++    : undefined,
++});
++
++export class ParallelChunkProcessorFast {
++  private workerPool: WorkerPoolManagerFast;
++  private progressCallback?: ProgressCallback;
++  private isCancelled: boolean = false;
++
++  constructor(workerPool: WorkerPoolManagerFast) {
++    this.workerPool = workerPool;
++  }
++
++  /**
++   * Set progress callback
++   */
++  onProgress(callback: ProgressCallback): void {
++    this.progressCallback = callback;
++  }
++
++  /**
++   * Process all chunks in parallel with automatic queuing
++   *
++   * Submits all chunks immediately - WorkerPoolManagerFast handles queuing
++   * internally when workers are busy. This achieves true parallelism.
++   *
++   * Uses immutable Set for completed tracking; progress derived via pure calculateProgress().
++   *
++   * @param chunks - Array of audio chunks to process
++   * @returns Array of chunk results (may be out-of-order)
++   */
++  async processChunks(chunks: AudioChunk[]): Promise<ChunkResult[]> {
++    if (chunks.length === 0) {
++      return [];
++    }
++
++    this.isCancelled = false;
++    const totalChunks = chunks.length;
++
++    // Immutable tracking: ref holds current Set; we replace with new Set on each completion
++    const completedRef: { current: Set<number> } = { current: new Set() };
++
++    // Emit initial progress via pure function
++    this.emitProgress(
++      calculateProgress(completedRef.current, totalChunks, this.workerPool.getStatus().busy)
++    );
++
++    // Submit ALL chunks immediately - worker pool handles queuing
++    const promises = chunks.map(async (chunk) => {
++      if (this.isCancelled) {
++        throw new Error('Processing cancelled');
++      }
++
++      try {
++        const result = await this.workerPool.processChunk(chunk);
++
++        if (this.isCancelled) {
++          return null;
++        }
++
++        // Immutable update: replace Set with new Set containing this index
++        if (!completedRef.current.has(chunk.index)) {
++          completedRef.current = markComplete(completedRef.current, chunk.index);
++
++          this.emitProgress(
++            calculateProgress(
++              completedRef.current,
++              totalChunks,
++              this.workerPool.getStatus().busy,
++              result.processingTime
++            )
++          );
++        }
++
++        return result;
++      } catch (error) {
++        if (this.isCancelled) {
++          return null;
++        }
++
++        console.error(`[ParallelProcessor] Error processing chunk ${chunk.index}:`, error);
++        throw error;
++      }
++    });
++
++    // Wait for all chunks to complete
++    const allResults = await Promise.all(promises);
++
++    // Filter out null results (from cancellation)
++    const validResults = allResults.filter((r): r is ChunkResult => r !== null);
++
++    if (this.isCancelled) {
++      throw new Error('Processing cancelled');
++    }
++
++    return validResults;
++  }
++
++  /**
++   * Cancel processing
++   */
++  cancel(): void {
++    this.isCancelled = true;
++    this.emitProgress({
++      phase: 'error',
++      percent: 0,
++      chunksCompleted: 0,
++      chunksTotal: 0,
++      workersActive: 0,
++    });
++  }
++
++  /**
++   * Emit progress update
++   */
++  private emitProgress(progress: FastModeProgress): void {
++    if (this.progressCallback) {
++      this.progressCallback(progress);
++    }
++  }
++}
