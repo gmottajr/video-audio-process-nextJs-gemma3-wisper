@@ -9,40 +9,27 @@ import { TranscriptionModeSelector } from "@/components/fast-mode";
 import { SystemCapabilitiesCard } from "@/components/fast-mode/SystemCapabilitiesCard";
 import type { TranscriptionMode } from "@/types/fast-mode";
 import { isFeatureEnabled } from "@/lib/featureFlags";
+import { MediaPreview } from "@/components/MediaPreview";
 
 interface InspectStateViewProps {
   file: File;
   metrics: any;
-  
-  // Model selection
   selectedModelKey: ModelKey;
   currentModel: string | null;
   isModelLoading: boolean;
   isTranscribing: boolean;
   onModelSelect: (modelKey: ModelKey) => void;
-  
-  // Transcription mode (Fast Mode)
   transcriptionMode: TranscriptionMode;
   onModeChange: (mode: TranscriptionMode) => void;
-  
-  // Worker configuration (Fast Mode)
   onWorkerConfigChange?: (config: { workers: number; useGPU: boolean; memoryBudgetMB: number; devicePreference: import('@/types/fast-mode').DevicePreference }) => void;
-  
-  // Action handling
   onAction: (action: ActionType, formatId: string, options?: ActionOptions) => void;
   onBack: () => void;
-  
-  // Status
   isFFmpegLoaded: boolean;
   isFFmpegLoading?: boolean;
   isModelLoaded: boolean;
   modelLoadingProgress: number;
 }
 
-/**
- * INSPECT State View
- * Shows file metadata and action selection
- */
 export function InspectStateView({
   file,
   metrics,
@@ -62,46 +49,34 @@ export function InspectStateView({
   modelLoadingProgress,
 }: InspectStateViewProps) {
   const fastModeEnabled = isFeatureEnabled('ENABLE_FAST_MODE');
-  
+
   return (
     <div className="animate-in fade-in duration-500">
-      {/* Main Title & Subtitle */}
-      <PageHeader 
-        subtitle="Configure Processing"
-        description="Review your file details and choose your desired output format and options."
-        icon="⚙️"
-      />
-
-      <div className="mb-6 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-cyan-600 rounded-full mb-4">
-          <span className="text-3xl font-bold text-white">2</span>
-        </div>
-        <h3 className="text-xl font-bold mb-2">Review & Configure</h3>
-        <p className="text-zinc-400">
-          Check your file details and choose the output format
-        </p>
-      </div>
+      <PageHeader showLogo={true} />
 
       {/* FFmpeg Loading Banner */}
       {!isFFmpegLoaded && (
-        <div className="mb-6 p-4 bg-blue-950/50 border border-blue-500/50 rounded-lg">
-          <div className="flex items-center gap-3">
-            <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-            <div>
-              <p className="text-sm font-medium text-blue-300">
-                {isFFmpegLoading ? "Loading processing engine..." : "Processing engine not loaded"}
-              </p>
-              <p className="text-xs text-blue-400/70">
-                {isFFmpegLoading 
-                  ? "Please wait while FFmpeg WebAssembly initializes" 
-                  : "Click any action to reload the processing engine"}
-              </p>
-            </div>
+        <div
+          className="mb-6 p-4 rounded-xl flex items-center gap-3"
+          style={{
+            background: "oklch(22% 0.025 280)",
+            border: "1px solid oklch(60% 0.28 290 / 0.25)",
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          <Loader2 className="w-4 h-4 animate-spin shrink-0" style={{ color: "oklch(74% 0.16 290)" }} />
+          <div>
+            <p className="text-sm font-medium text-aura-text">
+              {isFFmpegLoading ? "Initializing processing engine…" : "Processing engine not loaded"}
+            </p>
+            <p className="text-xs text-aura-muted">
+              {isFFmpegLoading ? "FFmpeg WebAssembly is loading" : "Click any action to reload"}
+            </p>
           </div>
         </div>
       )}
 
-      {/* Transcription Mode Selector (Fast Mode) */}
+      {/* Transcription Mode Selector */}
       {fastModeEnabled && (
         <div className="mb-4">
           <TranscriptionModeSelector
@@ -112,17 +87,22 @@ export function InspectStateView({
         </div>
       )}
 
-      {/* System Capabilities Card (Fast Mode only) */}
+      {/* System Capabilities (Fast Mode only) */}
       {fastModeEnabled && transcriptionMode === 'fast' && (
         <div className="mb-4">
-          <SystemCapabilitiesCard
-            onWorkerConfigChange={onWorkerConfigChange}
-          />
+          <SystemCapabilitiesCard onWorkerConfigChange={onWorkerConfigChange} />
         </div>
       )}
 
-      {/* Model Selector (for AI Transcription) */}
-      <div className="mb-4">
+      {/* Model Selector */}
+      <div
+        className="mb-4 p-5 rounded-xl"
+        style={{
+          background: "oklch(22% 0.025 280)",
+          border: "1px solid oklch(38% 0.02 280 / 0.35)",
+          backdropFilter: "blur(8px)",
+        }}
+      >
         <ModelSelector
           selectedModel={selectedModelKey}
           currentlyLoadedModel={currentModel}
@@ -134,19 +114,21 @@ export function InspectStateView({
         />
       </div>
 
-      {/* File Information - Compact Single Row */}
-      <div className="mb-6">
-        <h3 className="text-sm font-medium mb-2 text-zinc-400">
-          File Information
-        </h3>
+      {/* File Info */}
+      <div className="mb-4">
+        <p className="text-xs text-aura-muted font-mono tracking-wide uppercase mb-2 pl-1">File Information</p>
         <MetadataDisplay metrics={metrics} file={file} variant="compact" />
       </div>
 
-      {/* Action Selector - Full Width */}
+      {/* Media Preview */}
+      <div className="mb-4">
+        <p className="text-xs text-aura-muted font-mono tracking-wide uppercase mb-2 pl-1">Preview</p>
+        <MediaPreview file={file} />
+      </div>
+
+      {/* Action Selector */}
       <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-3 text-zinc-300">
-          Choose Action
-        </h3>
+        <p className="text-xs text-aura-muted font-mono tracking-wide uppercase mb-2 pl-1">Choose Action</p>
         <ActionSelector
           file={file}
           onAction={onAction}
@@ -159,11 +141,16 @@ export function InspectStateView({
         />
       </div>
 
-      {/* Back button */}
+      {/* Back */}
       <div className="text-center">
         <button
           onClick={onBack}
-          className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-semibold transition-all duration-200"
+          className="px-6 py-2.5 rounded-xl text-sm transition-all duration-200 hover:scale-[1.02]"
+          style={{
+            background: "oklch(22% 0.025 280)",
+            border: "1px solid oklch(38% 0.02 280 / 0.35)",
+            color: "var(--text-muted)",
+          }}
         >
           ← Choose Different File
         </button>
@@ -171,6 +158,3 @@ export function InspectStateView({
     </div>
   );
 }
-
-
-
