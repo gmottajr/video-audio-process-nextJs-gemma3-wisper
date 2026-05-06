@@ -3,28 +3,96 @@
 @tailwind utilities;
 
 :root {
-  --background: #0a1525;
-  --foreground: #ededed;
-  --background-dark: #060d17;
-  --background-light: #0f1d30;
-}
+  /* ── OKLCH DESIGN SYSTEM ────────────────────────────────────────────────
+   * Perceptually uniform — equal steps look equally different to the eye.
+   * Three accents are ~120° apart on the OKLCH hue wheel → harmonious.
+   * H=280 backgrounds are cooler/more neutral = "tool-first" trust layer.
+   *
+   *  violet oklch(60% 0.20 290)  — neural / spectrum / brand identity
+   *  amber  oklch(72% 0.16  55)  — neurodiversity gold / music / emotion  ← keep rare
+   *  teal   oklch(66% 0.17 195)  — audio signal / waveform / interaction
+   */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a1525;
-    --foreground: #ededed;
-  }
+  /* Backgrounds — cooler hue (H=280) reads as neutral tool, not creative space */
+  --bg:              oklch(14% 0.02 280);   /* near-black, cool-neutral         */
+  --surface:         oklch(24% 0.025 280);  /* +10L card lift — clear separation */
+  --elevated:        oklch(28% 0.025 280);  /* modals, dropdowns                */
+  --border:          oklch(38% 0.02 280 / 0.35); /* tinted border, system-consistent */
+
+  /* Accents */
+  --violet:          oklch(60% 0.20 290);
+  --violet-dim:      oklch(50% 0.20 290);
+  --amber:           oklch(72% 0.16  55);
+  --amber-dim:       oklch(63% 0.16  55);
+  --teal:            oklch(66% 0.17 195);
+  --teal-dim:        oklch(58% 0.17 195);
+
+  /* Text — three levels for proper hierarchy */
+  --text:            oklch(94% 0.01 280);   /* primary — brighter for readability */
+  --text-secondary:  oklch(78% 0.015 280);  /* labels, metadata, timestamps       */
+  --text-muted:      oklch(62% 0.02 280);   /* captions, disabled                 */
+
+  /* Legacy aliases kept for component compatibility */
+  --background:       var(--bg);
+  --foreground:       var(--text);
+  --background-dark:  oklch(9% 0.02 280);
+  --background-light: var(--surface);
+  --aura-accent:      var(--violet);
+  --aura-accent-dim:  var(--violet-dim);
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Neural Groove Fonts */
 .font-orbitron {
   font-family: 'Orbitron', sans-serif;
+}
+
+@font-face {
+  font-family: 'Tchaikovsky';
+  src: url('/fonts/Tchaikovsky.ttf') format('truetype');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Jazz';
+  src: url('/fonts/JazzJazgarzewszczyzna.ttf') format('truetype');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'AlphaMusicMan';
+  src: url('/fonts/AlphaMusicMan.ttf') format('truetype');
+  font-display: swap;
+}
+
+.font-tchaikovsky   { font-family: 'Tchaikovsky', serif; }
+.font-jazz          { font-family: 'Jazz', serif; }
+.font-alphamusicman { font-family: 'AlphaMusicMan', sans-serif; }
+
+@font-face {
+  font-family: 'Jazzbob';
+  src: url('/fonts/Jazzbob.ttf') format('truetype');
+  font-display: swap;
+}
+
+.font-jazzbob { font-family: 'Jazzbob', sans-serif; }
+
+@font-face {
+  font-family: 'ChaoticCircuit';
+  src: url('/fonts/ChaoticCircuit.ttf') format('truetype');
+  font-display: swap;
+}
+
+.font-chaotic { font-family: 'ChaoticCircuit', sans-serif; }
+
+.text-xl {
+  font-size: 1.0rem;
+  line-height: 1.75rem;
 }
 
 /* Gradient Animation */
@@ -40,6 +108,170 @@ body {
 .animate-gradient {
   background-size: 200% 200%;
   animation: gradient 8s ease infinite;
+}
+
+/* === DYNAMIC COLOR MOVEMENT ANIMATIONS === */
+
+/* Aurora orb 1 — slow drift, wide arc */
+@keyframes aurora-float-1 {
+  0%   { transform: translate(0%,   0%)   scale(1);    }
+  20%  { transform: translate(2%,  -4%)   scale(1.05); }
+  45%  { transform: translate(-3%,  2%)   scale(0.97); }
+  70%  { transform: translate(4%,   3%)   scale(1.03); }
+  100% { transform: translate(0%,   0%)   scale(1);    }
+}
+
+/* Aurora orb 2 — medium drift, counter motion */
+@keyframes aurora-float-2 {
+  0%   { transform: translate(0%,   0%)   scale(1);    }
+  30%  { transform: translate(-4%,  3%)   scale(1.07); }
+  65%  { transform: translate(3%,  -2%)   scale(0.95); }
+  100% { transform: translate(0%,   0%)   scale(1);    }
+}
+
+/* Aurora orb 3 — slow, large blob */
+@keyframes aurora-float-3 {
+  0%   { transform: translate(0%,   0%)   scale(1);    }
+  40%  { transform: translate(3%,   4%)   scale(1.04); }
+  75%  { transform: translate(-2%,  -3%)  scale(0.98); }
+  100% { transform: translate(0%,   0%)   scale(1);    }
+}
+
+/* Radial glow breathing — inhale / exhale */
+@keyframes glow-breathe {
+  0%, 100% { opacity: 1;   }
+  50%       { opacity: 0.5; }
+}
+
+/* Orb vibrancy breathing — each at a different rate for async feel */
+@keyframes orb-breathe {
+  0%, 100% { opacity: 0.45; }
+  50%       { opacity: 1.00; }
+}
+.animate-orb-breathe-a { animation: orb-breathe 11s ease-in-out infinite; }
+.animate-orb-breathe-b { animation: orb-breathe  8s ease-in-out infinite -2.5s; }
+.animate-orb-breathe-c { animation: orb-breathe 15s ease-in-out infinite -5s; }
+.animate-orb-breathe-d { animation: orb-breathe  9s ease-in-out infinite -7.5s; }
+
+/* Gradient text color shift */
+@keyframes text-gradient-flow {
+  0%   { background-position: 0%   50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0%   50%; }
+}
+
+/* Card border glow color cycle */
+@keyframes card-glow-shift {
+  0%,  100% { box-shadow: 0 0 0 1px rgba(131,98,237,0.18),  0 0 24px rgba(131,98,237,0.07);  }
+  33%        { box-shadow: 0 0 0 1px rgba(0,176,178,0.18),   0 0 24px rgba(0,176,178,0.08);   }
+  66%        { box-shadow: 0 0 0 1px rgba(239,133,46,0.18),  0 0 24px rgba(239,133,46,0.07);  }
+}
+
+/* Icon ring color cycle */
+@keyframes icon-glow-shift {
+  0%,  100% { box-shadow: 0 0 12px rgba(131,98,237,0.28);  }
+  33%        { box-shadow: 0 0 12px rgba(0,176,178,0.28);   }
+  66%        { box-shadow: 0 0 12px rgba(239,133,46,0.25);  }
+}
+
+/* Subtle vertical float for elements */
+@keyframes subtle-float {
+  0%, 100% { transform: translateY(0px);  }
+  50%       { transform: translateY(-5px); }
+}
+
+/* Conic border spin for accent dividers */
+@keyframes line-glow-pulse {
+  0%, 100% { opacity: 0.6; background-position: 0%   50%; }
+  50%       { opacity: 1.0; background-position: 100% 50%; }
+}
+
+/* === UTILITY CLASSES === */
+
+.animate-aurora-1 { animation: aurora-float-1 20s ease-in-out infinite; }
+.animate-aurora-2 { animation: aurora-float-2 26s ease-in-out infinite; }
+.animate-aurora-3 { animation: aurora-float-3 22s ease-in-out infinite; }
+
+/* Comet sweep — slow rotate for the arc orb */
+@keyframes aurora-sweep {
+  0%, 100% { transform: rotate(0deg)   scale(1);    opacity: 0.85; }
+  50%       { transform: rotate(-25deg) scale(1.06); opacity: 1;    }
+}
+.animate-aurora-sweep { animation: aurora-sweep 14s ease-in-out infinite; }
+
+/* ── ORB COLOR-MORPHING LAYERS ──
+   Stack multiple colored divs at the same position;
+   fade them in / out on different schedules → color shifts. */
+@keyframes orb-layer-a {
+  0%,  20%, 100% { opacity: 1;    }
+  50%,  70%      { opacity: 0.05; }
+}
+@keyframes orb-layer-b {
+  0%,  100%      { opacity: 0.05; }
+  35%,  60%      { opacity: 1;    }
+}
+@keyframes orb-layer-c {
+  0%,  40%, 100% { opacity: 0.05; }
+  65%,  85%      { opacity: 0.90; }
+}
+
+.orb-layer-a { animation: orb-layer-a 9s  ease-in-out infinite; }
+.orb-layer-b { animation: orb-layer-b 9s  ease-in-out infinite; }
+.orb-layer-c { animation: orb-layer-c 9s  ease-in-out infinite; }
+
+/* Stagger variants */
+.orb-layer-a-s2 { animation: orb-layer-a 9s ease-in-out infinite -3s; }
+.orb-layer-b-s2 { animation: orb-layer-b 9s ease-in-out infinite -3s; }
+.orb-layer-c-s2 { animation: orb-layer-c 9s ease-in-out infinite -3s; }
+
+.orb-layer-a-s4 { animation: orb-layer-a 9s ease-in-out infinite -6s; }
+.orb-layer-b-s4 { animation: orb-layer-b 9s ease-in-out infinite -6s; }
+.orb-layer-c-s4 { animation: orb-layer-c 9s ease-in-out infinite -6s; }
+
+/* Bright inner core — pulses brightness in sync */
+@keyframes core-pulse {
+  0%, 100% { opacity: 0.9; transform: scale(1);    }
+  50%       { opacity: 0.5; transform: scale(0.92); }
+}
+.animate-core-pulse { animation: core-pulse 4s ease-in-out infinite; }
+
+.animate-glow-breathe { animation: glow-breathe 7s ease-in-out infinite; }
+
+.animate-card-glow {
+  animation: card-glow-shift 9s ease-in-out infinite;
+}
+
+.animate-icon-glow {
+  animation: icon-glow-shift 9s ease-in-out infinite;
+}
+
+.animate-subtle-float { animation: subtle-float 5s ease-in-out infinite; }
+
+.animate-text-gradient {
+  background: linear-gradient(90deg,
+    var(--violet), var(--amber), var(--teal), var(--violet));
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: text-gradient-flow 7s ease infinite;
+}
+
+.animate-line-glow {
+  background: linear-gradient(90deg,
+    transparent, var(--violet), var(--amber), var(--teal), transparent);
+  background-size: 300% 100%;
+  animation: line-glow-pulse 5s ease-in-out infinite;
+}
+
+/* ── WAVEFORM VISUALIZER ── */
+@keyframes waveform-pulse {
+  from { transform: scaleY(0.18); }
+  to   { transform: scaleY(1); }
+}
+.waveform-bar {
+  transform-origin: bottom;
+  animation: waveform-pulse var(--wf-dur, 1.5s) var(--wf-delay, 0s) ease-in-out infinite alternate;
 }
 
 @layer utilities {
@@ -59,5 +291,59 @@ body {
   .animate-shimmer {
     animation: shimmer 2s infinite;
   }
+}
+
+/* ── SCROLL SCENE 3D UTILITIES ────────────────────────────────────────────── */
+
+/* Section wrapper: fills the viewport slot in the fixed 3D scene */
+.scroll-section {
+  position: absolute;
+  inset: 0;
+  will-change: transform, opacity;
+}
+
+/* Inner wrapper for parallax counter-movement */
+.scroll-section-inner {
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
+/* Allow sections to use the full viewport height minus nav */
+.section-viewport {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding-top: 68px; /* nav clearance */
+  overflow: hidden;
+}
+
+/* Centered variant — vertically centers content below nav */
+.section-viewport-center {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 68px;
+  overflow: hidden;
+}
+
+/* 3D entrance animation for the Forge page */
+@keyframes forge-enter {
+  from {
+    opacity: 0;
+    transform: perspective(1100px) translateZ(-320px) scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(1100px) translateZ(0px) scale(1);
+  }
+}
+
+.forge-3d-enter {
+  animation: forge-enter 1.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
