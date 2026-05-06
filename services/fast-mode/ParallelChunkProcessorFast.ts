@@ -190,9 +190,9 @@ export class ParallelChunkProcessorFast {
         failedChunks.map(f => `chunk ${f.index}: ${f.error}`).join(', ')
       );
       
-      // If more than 20% of chunks failed, consider it a failure
+      // Only hard-fail if the majority of chunks failed AND we have no usable result
       const failureRate = failedChunks.length / totalChunks;
-      if (failureRate > 0.2) {
+      if (failureRate >= 0.5 && validResults.length === 0) {
         throw new Error(
           `Too many chunks failed (${failedChunks.length}/${totalChunks}). ` +
           `First error: ${failedChunks[0].error}`
