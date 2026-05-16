@@ -1,12 +1,31 @@
 import type { Metadata } from "next";
-import { Inter, Audiowide, Special_Elite, Barrio } from "next/font/google";
-import localFont from "next/font/local";
+import { Inter, Audiowide, Special_Elite, Barrio, Space_Grotesk, Syne, DM_Sans } from "next/font/google";
 import "./globals.css";
+
 import { TranscriberProvider } from "@/contexts/TranscriberContext";
 import { FontProvider } from "@/contexts/FontContext";
 import { EnhancerProvider } from "@/contexts/EnhancerContext";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-space-grotesk",
+});
+
+const syne = Syne({
+  subsets: ["latin"],
+  weight: ["400", "600", "700", "800"],
+  variable: "--font-syne",
+});
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-dm-sans",
+});
 
 // Neural Groove Fonts
 const audiowide = Audiowide({ 
@@ -55,7 +74,9 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet" />
       </head>
-      <body className={`${inter.className} ${audiowide.variable} ${specialElite.variable} ${barrio.variable}`}>
+      <body
+        className={`${inter.className} ${inter.variable} ${spaceGrotesk.variable} ${syne.variable} ${dmSans.variable} ${audiowide.variable} ${specialElite.variable} ${barrio.variable}`}
+      >
         <FontProvider>
           <TranscriberProvider>
             <EnhancerProvider>

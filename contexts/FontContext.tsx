@@ -21,7 +21,7 @@ const fontClasses: Record<FontType, string> = {
 };
 
 export function FontProvider({ children }: { children: ReactNode }) {
-  const [currentFont, setCurrentFont] = useState<FontType>('audiowide');
+  const [currentFont, setCurrentFont] = useState<FontType>('default');
 
   // Load font preference from localStorage
   useEffect(() => {
