@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { transciberLog as log } from "@/lib/logger";
 
 /**
  * Transcription Result
@@ -34,8 +35,8 @@ export function useTranscriber() {
    * Initialize the Web Worker
    */
   useEffect(() => {
-    console.log('[useTranscriber] Initializing worker...');
-    
+    log.info('Initializing worker...');
+
     // 🔥 CRITICAL: Reset states when worker is (re)created
     // This is especially important for React Strict Mode
     setIsModelLoaded(false);
@@ -43,18 +44,26 @@ export function useTranscriber() {
     setIsTranscribing(false);
     setProgress(0);
     setError(null);
-    
+
     // Create worker as ES module (type: 'module')
     // Cache-bust to ensure latest worker code is loaded
     const workerUrl = `/transcription.worker.js?v=${Date.now()}`;
-    const worker = new Worker(workerUrl, { type: 'module' });
+    log.info('Creating worker', { url: workerUrl });
+    let worker: Worker;
+    try {
+      worker = new Worker(workerUrl, { type: 'module' });
+    } catch (err) {
+      log.error('Failed to create worker', { err: String(err) });
+      setError('Worker creation failed: ' + String(err));
+      return;
+    }
     workerRef.current = worker;
 
     // Set up message handler
     worker.onmessage = (event) => {
       const { status, message, progress: prog, result: res } = event.data;
 
-      console.log('[useTranscriber] Worker message:', status, message);
+      log.info('Worker message', { status, message, progress: prog });
 
       switch (status) {
         case 'loading':
@@ -68,7 +77,7 @@ export function useTranscriber() {
           setIsModelLoaded(true);
           setLoadingMessage('Model ready');
           setProgress(100);
-          console.log('[useTranscriber] Model is ready');
+          log.info('Model is ready');
           break;
 
         case 'transcribing':
@@ -82,33 +91,33 @@ export function useTranscriber() {
           setProgress(100);
           setResult(res);
           setLoadingMessage('Complete');
-          console.log('[useTranscriber] Transcription complete');
+          log.info('Transcription complete');
           break;
 
         case 'error':
           setIsModelLoading(false);
           setIsTranscribing(false);
           setError(message || 'Unknown error');
-          console.error('[useTranscriber] Error:', message);
+          log.error('Worker reported error', { message });
           break;
 
         default:
-          console.warn('[useTranscriber] Unknown status:', status);
+          log.warn('Unknown status from worker', { status });
       }
     };
 
     worker.onerror = (err) => {
-      console.error('[useTranscriber] Worker error:', err);
+      log.error('Worker crashed', { message: err.message, filename: err.filename, lineno: err.lineno });
       setError('Worker crashed: ' + err.message);
       setIsModelLoading(false);
       setIsTranscribing(false);
     };
 
-    console.log('[useTranscriber] Worker initialized');
+    log.info('Worker initialized successfully');
 
     // Cleanup
     return () => {
-      console.log('[useTranscriber] Terminating worker');
+      log.info('Terminating worker');
       worker.postMessage({ type: 'terminate' });
       worker.terminate();
     };
@@ -119,56 +128,67 @@ export function useTranscriber() {
    */
   const loadModel = useCallback(async (modelName = 'Xenova/whisper-tiny'): Promise<void> => {
     if (!workerRef.current) {
+      log.error('loadModel called but worker is not initialized');
       throw new Error('Worker not initialized');
     }
 
     // Check current loading state without adding to dependencies
     if (isModelLoaded) {
-      console.log('[useTranscriber] Model already loaded, skipping');
+      log.info('Model already loaded, skipping', { modelName });
       return Promise.resolve();
     }
 
     if (isModelLoading) {
-      console.log('[useTranscriber] Model already loading, skipping duplicate call');
+      log.info('Model already loading, skipping duplicate call', { modelName });
       return Promise.resolve();
     }
 
-    console.log('[useTranscriber] Loading model:', modelName);
-    
+    log.info('Loading model', { modelName });
+
     // 🔥 CRITICAL: Set loading state IMMEDIATELY before sending message
     setIsModelLoading(true);
     setLoadingMessage('Initializing model...');
     setProgress(0);
     setError(null);
     setResult(null);
-    
+
+    // Generate a unique requestId — the worker REQUIRES this or it silently drops the message
+    const requestId = `load-${Date.now()}`;
+    log.info('Sending load message to worker', { requestId, modelName });
+
     // Create a promise that resolves when the model is loaded
     return new Promise((resolve, reject) => {
       const handleMessage = (event: MessageEvent) => {
-        const { status, message } = event.data;
-        
+        const { status, message, requestId: rId } = event.data;
+        // Only handle responses for our requestId
+        if (rId !== requestId) return;
+
         if (status === 'ready') {
           workerRef.current?.removeEventListener('message', handleMessage);
+          log.info('Worker confirmed model ready', { requestId });
           resolve();
         } else if (status === 'error') {
           workerRef.current?.removeEventListener('message', handleMessage);
           setIsModelLoading(false);
+          log.error('Worker reported error during load', { requestId, message });
           reject(new Error(message || 'Failed to load model'));
         }
       };
-      
+
       workerRef.current?.addEventListener('message', handleMessage);
-      
-      // Send load message
+
+      // Send load message WITH requestId (worker silently drops messages without one)
       workerRef.current?.postMessage({
+        requestId,
         type: 'load',
         data: { model: modelName },
       });
-      
-      // Set a timeout in case the worker never responds
+
+      // Timeout safety net
       setTimeout(() => {
         workerRef.current?.removeEventListener('message', handleMessage);
         setIsModelLoading(false);
+        log.error('Model loading timed out after 60s', { requestId, modelName });
         reject(new Error('Model loading timed out after 60 seconds'));
       }, 60000);
     });
@@ -238,27 +258,26 @@ export function useTranscriber() {
         console.log('   • Size:', (audioSamples.length * 4 / 1024 / 1024).toFixed(2), 'MB');
         console.log('   • Range:', `[${audioSamples[0].toFixed(4)} ... ${audioSamples[audioSamples.length-1].toFixed(4)}]`);
         
+        // Generate a unique requestId for this transcription
+        const transcribeRequestId = `transcribe-${Date.now()}`;
+        log.info('Starting transcription', { requestId: transcribeRequestId, samples: audioSamples.length, duration: (audioSamples.length / 16000).toFixed(2) + 's' });
+
         // Set up one-time listener for completion
         const handleComplete = (event: MessageEvent) => {
-          const { status, message: errorMsg } = event.data;
-          
+          const { status, message: errorMsg, requestId: rId } = event.data;
+          if (rId !== transcribeRequestId) return;
+
           if (status === 'complete') {
             workerRef.current?.removeEventListener('message', handleComplete);
             clearTimeout(timeout);
-            console.log('\n' + '='.repeat(80));
-            console.log('✅ TRANSCRIPTION COMPLETED SUCCESSFULLY');
-            console.log('='.repeat(80) + '\n');
-            audioContext.close(); // Clean up
+            log.info('Transcription completed successfully', { requestId: transcribeRequestId });
+            audioContext.close();
             resolve();
           } else if (status === 'error') {
             workerRef.current?.removeEventListener('message', handleComplete);
             clearTimeout(timeout);
-            console.log('\n' + '='.repeat(80));
-            console.log('❌ TRANSCRIPTION FAILED');
-            console.log('='.repeat(80));
-            console.error('Error:', errorMsg);
-            console.log('');
-            audioContext.close(); // Clean up
+            log.error('Transcription failed', { requestId: transcribeRequestId, error: errorMsg });
+            audioContext.close();
             reject(new Error(errorMsg || 'Transcription failed'));
           }
         };
@@ -296,16 +315,16 @@ export function useTranscriber() {
         console.log('   • Worker will receive ownership of the buffer');
         
         const transferStartTime = performance.now();
+        // requestId is REQUIRED — worker silently drops messages without it
         workerRef.current?.postMessage({
+          requestId: transcribeRequestId,
           type: 'transcribe',
-          data: { audio: audioSamples }, // Send Float32Array directly
-        }, [audioSamples.buffer]); // Transfer ownership for performance
-        
-        console.log('✓ Data transferred in', (performance.now() - transferStartTime).toFixed(0), 'ms');
-        console.log('⏳ Waiting for worker to process...\n');
-        
+          data: { audio: audioSamples },
+        }, [audioSamples.buffer]);
+        log.info('Audio transferred to worker', { ms: (performance.now() - transferStartTime).toFixed(0) });
+
       } catch (error: any) {
-        console.error('[useTranscriber] ❌ Audio decoding error:', error);
+        log.error('Audio decoding error', { error: error.message });
         reject(new Error(`Audio decoding failed: ${error.message}`));
       }
     });
