@@ -2,126 +2,139 @@
 
 import { FileUploader } from "@/components/FileUploader";
 import { PageHeader } from "@/components/PageHeader";
-import { Video, Music, Brain, Shield, Lock, Server } from "lucide-react";
+import { Video, Music, Brain, Shield, Lock, Server, Lightbulb } from "lucide-react";
 
 interface IdleStateViewProps {
   onFileSelect: (file: File | null) => void;
   isLoading: boolean;
-  maxFileSize: number;
-  recommendedFileSize: number;
+  recommendedFileSize?: number;
 }
 
-/**
- * IDLE State View
- * Shows when user first arrives or after reset
- * Includes features overview and privacy notice
- */
+const FEATURES = [
+  {
+    icon: Video,
+    title: "Video Processing",
+    desc: "Convert & extract audio from video files. MP4, MKV, WebM, AVI supported.",
+  },
+  {
+    icon: Music,
+    title: "Audio Conversion",
+    desc: "Convert formats, compress, and normalize audio. WAV, MP3, AAC, OGG.",
+  },
+  {
+    icon: Brain,
+    title: "AI Transcription",
+    desc: "Speech-to-text with OpenAI Whisper. Word timestamps & SRT export.",
+  },
+];
+
 export function IdleStateView({
   onFileSelect,
   isLoading,
-  maxFileSize,
   recommendedFileSize,
 }: IdleStateViewProps) {
   return (
     <div className="w-full max-w-7xl mx-auto animate-in fade-in duration-500 px-4">
-      {/* Main Title - Logo Only */}
       <div className="mb-6">
         <PageHeader showLogo={true} />
       </div>
 
-      {/* 2-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        
+
         {/* LEFT COLUMN: Features & Info */}
-        <div className="space-y-4">
-          {/* Features Grid */}
-          <div className="grid grid-cols-1 gap-3">
-            {/* Video Conversion */}
-            <div className="bg-gradient-to-br from-purple-950/40 to-indigo-950/40 border border-purple-500/20 rounded-xl p-4 hover:border-purple-500/40 transition-all">
+        <div className="space-y-3">
+
+          {/* Feature cards */}
+          {FEATURES.map(({ icon: Icon, title, desc }) => (
+            <div
+              key={title}
+              className="rounded-xl p-4 transition-all duration-200 hover:border-[oklch(60%_0.20_290/0.35)]"
+              style={{
+                background: "oklch(24% 0.025 280 / 0.60)",
+                border: "1px solid oklch(38% 0.02 280 / 0.35)",
+                backdropFilter: "blur(8px)",
+              }}
+            >
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-purple-600/30 rounded-lg">
-                  <Video className="w-5 h-5 text-purple-400" />
+                <div
+                  className="p-2 rounded-lg flex-shrink-0"
+                  style={{
+                    background: "oklch(60% 0.20 290 / 0.10)",
+                    border: "1px solid oklch(60% 0.20 290 / 0.20)",
+                  }}
+                >
+                  <Icon className="w-4 h-4" style={{ color: "oklch(74% 0.16 290)" }} />
                 </div>
-                <h3 className="font-bold text-zinc-100">Video Processing</h3>
+                <h3 className="font-jazz text-base" style={{ color: "var(--text)" }}>{title}</h3>
               </div>
-              <p className="text-sm text-zinc-400 mb-2">
-                Convert & extract audio from video files. MP4, MKV, WebM, AVI supported.
-              </p>
-              <div className="flex items-center gap-1.5 text-xs text-green-400">
-                <Lock className="w-3 h-3" />
-                <span>No server upload</span>
+              <p className="text-sm text-aura-muted leading-relaxed pl-[2.375rem]">{desc}</p>
+              <div className="flex items-center gap-1.5 mt-2 pl-[2.375rem]">
+                <Lock className="w-3 h-3 text-aura-muted opacity-60" />
+                <span className="text-xs text-aura-muted opacity-60">No server upload</span>
               </div>
             </div>
+          ))}
 
-            {/* Audio Conversion */}
-            <div className="bg-gradient-to-br from-blue-950/40 to-cyan-950/40 border border-blue-500/20 rounded-xl p-4 hover:border-blue-500/40 transition-all">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-blue-600/30 rounded-lg">
-                  <Music className="w-5 h-5 text-blue-400" />
-                </div>
-                <h3 className="font-bold text-zinc-100">Audio Conversion</h3>
-              </div>
-              <p className="text-sm text-zinc-400 mb-2">
-                Convert formats, compress, and normalize audio. WAV, MP3, AAC, OGG.
-              </p>
-              <div className="flex items-center gap-1.5 text-xs text-green-400">
-                <Lock className="w-3 h-3" />
-                <span>No server upload</span>
-              </div>
-            </div>
-
-            {/* AI Transcription */}
-            <div className="bg-gradient-to-br from-emerald-950/40 to-teal-950/40 border border-emerald-500/20 rounded-xl p-4 hover:border-emerald-500/40 transition-all">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-emerald-600/30 rounded-lg">
-                  <Brain className="w-5 h-5 text-emerald-400" />
-                </div>
-                <h3 className="font-bold text-zinc-100">AI Transcription</h3>
-              </div>
-              <p className="text-sm text-zinc-400 mb-2">
-                Speech-to-text with OpenAI Whisper. Word timestamps & SRT export.
-              </p>
-              <div className="flex items-center gap-1.5 text-xs text-green-400">
-                <Lock className="w-3 h-3" />
-                <span>No server upload</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Pro Tip: Segment Transcription */}
-          <div className="bg-gradient-to-r from-amber-950/30 via-orange-950/30 to-amber-950/30 border border-amber-500/30 rounded-xl p-4">
+          {/* Pro Tip */}
+          <div
+            className="rounded-xl p-4"
+            style={{
+              background: "oklch(24% 0.025 280 / 0.40)",
+              border: "1px solid oklch(60% 0.20 290 / 0.18)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
             <div className="flex items-start gap-3">
-              <span className="text-xl">✂️</span>
+              <div
+                className="flex-shrink-0 p-2 rounded-lg"
+                style={{ background: "oklch(60% 0.20 290 / 0.10)" }}
+              >
+                <Lightbulb className="w-4 h-4" style={{ color: "oklch(74% 0.16 290)" }} />
+              </div>
               <div>
-                <h4 className="font-bold text-amber-200 text-sm mb-1">Pro Tip: Transcribe Specific Segments</h4>
-                <p className="text-xs text-amber-300/80">
-                  Want to transcribe only part of a video? Select <span className="font-semibold text-amber-200">"Extract Audio"</span> first, 
-                  then use the waveform viewer to select and transcribe specific sections. Perfect for long recordings!
+                <h4 className="font-jazz text-sm mb-1" style={{ color: "oklch(74% 0.16 290)" }}>
+                  Transcribe Specific Segments
+                </h4>
+                <p className="text-xs text-aura-muted leading-relaxed">
+                  Select <span className="text-aura-text font-medium">"Extract Audio"</span> first, then use the waveform viewer to select and transcribe specific sections. Perfect for long recordings.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Privacy Banner */}
-          <div className="bg-gradient-to-r from-green-950/30 via-emerald-950/30 to-green-950/30 border border-green-500/30 rounded-xl p-4">
+          {/* Privacy */}
+          <div
+            className="rounded-xl p-4"
+            style={{
+              background: "oklch(24% 0.025 280 / 0.40)",
+              border: "1px solid oklch(66% 0.17 195 / 0.18)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-600/20 rounded-full">
-                  <Shield className="w-5 h-5 text-green-400" />
+                <div
+                  className="flex-shrink-0 p-2 rounded-lg"
+                  style={{ background: "oklch(66% 0.17 195 / 0.10)" }}
+                >
+                  <Shield className="w-4 h-4" style={{ color: "oklch(66% 0.17 195)" }} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-green-300 text-sm">100% Private & Offline</h4>
-                  <p className="text-xs text-green-400/80">All processing happens in your browser</p>
+                  <h4 className="font-jazz text-sm" style={{ color: "var(--text)" }}>100% Private & Offline</h4>
+                  <p className="text-xs text-aura-muted">All processing happens in your browser</p>
                 </div>
               </div>
-              <div className="h-px bg-green-500/20" />
+              <div className="h-px" style={{ background: "oklch(66% 0.17 195 / 0.10)" }} />
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-600/20 rounded-full">
-                  <Server className="w-5 h-5 text-green-400 opacity-50" />
+                <div
+                  className="flex-shrink-0 p-2 rounded-lg"
+                  style={{ background: "oklch(66% 0.17 195 / 0.10)" }}
+                >
+                  <Server className="w-4 h-4 opacity-60" style={{ color: "oklch(66% 0.17 195)" }} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-green-300 text-sm">Zero Data Collection</h4>
-                  <p className="text-xs text-green-400/80">Your files never leave your device</p>
+                  <h4 className="font-jazz text-sm" style={{ color: "var(--text)" }}>Zero Data Collection</h4>
+                  <p className="text-xs text-aura-muted">Your files never leave your device</p>
                 </div>
               </div>
             </div>
@@ -132,26 +145,31 @@ export function IdleStateView({
         <div className="flex flex-col h-full">
           <div className="flex-1 flex flex-col justify-center">
             <div className="mb-6 text-center">
-              <h3 className="text-2xl font-bold mb-2 text-zinc-100">Select Your Media File</h3>
-              <p className="text-zinc-400 text-sm">
+              <h3 className="font-display text-2xl font-semibold tracking-tight mb-2 animate-text-gradient">Select Your Media File</h3>
+              <p className="text-aura-muted text-sm">
                 {isLoading
                   ? "Initializing processing engine..."
                   : "Drag and drop or click to browse your files"}
               </p>
             </div>
-            
+
             <FileUploader
               onFileSelect={onFileSelect}
-              maxFileSize={maxFileSize}
               recommendedFileSize={recommendedFileSize}
             />
 
-            {/* Legal Notice for Transcription */}
             <div className="mt-6">
-              <div className="bg-zinc-900/50 border border-zinc-700/50 rounded-lg p-4">
-                <p className="text-xs text-zinc-500 text-center leading-relaxed">
-                  <span className="text-zinc-400 font-medium">⚖️ Legal Notice:</span> AI transcription is provided for personal use. 
-                  You are responsible for obtaining proper consent when transcribing recordings of others. 
+              <div
+                className="rounded-lg p-4"
+                style={{
+                  background: "oklch(24% 0.025 280 / 0.40)",
+                  border: "1px solid oklch(38% 0.02 280 / 0.25)",
+                  backdropFilter: "blur(8px)",
+                }}
+              >
+                <p className="text-xs text-aura-muted text-center leading-relaxed">
+                  <span className="text-aura-text font-medium">Legal Notice:</span> AI transcription is provided for personal use.
+                  You are responsible for obtaining proper consent when transcribing recordings of others.
                   Accuracy may vary; always review transcripts before relying on them for official purposes.
                   The AI models run entirely in your browser—no audio data is transmitted to external servers.
                 </p>
@@ -163,6 +181,3 @@ export function IdleStateView({
     </div>
   );
 }
-
-
-

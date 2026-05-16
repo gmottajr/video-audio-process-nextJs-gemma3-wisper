@@ -8,13 +8,11 @@ interface FileUploaderProps {
   onFileSelect: (file: File | null) => void;
   accept?: string;
   className?: string;
-  maxFileSize?: number; // in bytes - dynamic based on hardware
-  recommendedFileSize?: number; // in bytes - warning threshold
+  recommendedFileSize?: number; // in bytes - informational warning threshold (no rejection)
 }
 
-// Default limits (fallback if not provided)
-const DEFAULT_MAX_FILE_SIZE = 2048 * 1024 * 1024; // 2GB
-const DEFAULT_RECOMMENDED_FILE_SIZE = 500 * 1024 * 1024; // 500MB
+// Default warning threshold (informational only, no rejection)
+const DEFAULT_RECOMMENDED_FILE_SIZE = 500 * 1024 * 1024; // 500MB - shows info note for larger files
 
 // Supported file types (including MKV)
 const SUPPORTED_VIDEO_TYPES = [
@@ -41,7 +39,6 @@ export function FileUploader({
   onFileSelect, 
   accept, 
   className,
-  maxFileSize = DEFAULT_MAX_FILE_SIZE,
   recommendedFileSize = DEFAULT_RECOMMENDED_FILE_SIZE,
 }: FileUploaderProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -54,7 +51,7 @@ export function FileUploader({
   const blobUrlsRef = useRef<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Validate file type and size
+  // Validate file type only (no size restrictions)
   const validateFile = useCallback((file: File): { valid: boolean; error?: string; warning?: string } => {
     // Check file type (MIME type)
     let isSupported = ALL_SUPPORTED_TYPES.includes(file.type);
@@ -73,24 +70,16 @@ export function FileUploader({
       };
     }
 
-    // Check max file size (hard limit)
-    if (file.size > maxFileSize) {
-      return {
-        valid: false,
-        error: `File size exceeds ${maxFileSize / 1024 / 1024}MB limit. Please choose a smaller file.`,
-      };
-    }
-
-    // Check recommended file size (warning)
+    // Informational warning for very large files (no rejection)
     if (file.size > recommendedFileSize) {
       return {
         valid: true,
-        warning: `Warning: File size is ${(file.size / 1024 / 1024).toFixed(2)}MB. Files over ${recommendedFileSize / 1024 / 1024}MB may cause performance issues or browser crashes.`,
+        warning: `Note: File size is ${(file.size / 1024 / 1024).toFixed(2)}MB. Very large files may take longer to process.`,
       };
     }
 
     return { valid: true };
-  }, [maxFileSize, recommendedFileSize]);
+  }, [recommendedFileSize]);
 
   // Handle file selection
   const handleFile = useCallback(
@@ -233,11 +222,11 @@ export function FileUploader({
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
           className={cn(
-            "relative border-2 border-dashed rounded-xl p-16 min-h-[400px] transition-all duration-200 cursor-pointer",
-            "hover:border-blue-500 hover:bg-blue-950/20",
+            "relative border-2 border-dashed rounded-xl p-16 min-h-[400px] transition-all duration-200 cursor-pointer backdrop-blur-[2px]",
+            "hover:border-[oklch(60%_0.20_290/0.6)] hover:bg-[oklch(60%_0.20_290/0.06)]",
             isDragging
-              ? "border-blue-500 bg-blue-950/30 scale-[1.02]"
-              : "border-zinc-700 bg-zinc-900/50"
+              ? "border-[oklch(60%_0.20_290)] scale-[1.01] bg-[oklch(60%_0.20_290/0.10)] shadow-[0_0_40px_-12px_rgba(131,98,237,0.45)]"
+              : "border-white/[0.12] bg-neutral-950/40"
           )}
         >
           <input
@@ -251,33 +240,38 @@ export function FileUploader({
           <div className="flex flex-col items-center justify-center gap-6 text-center h-full">
             <div
               className={cn(
-                "p-6 rounded-full transition-colors",
-                isDragging ? "bg-blue-500/20" : "bg-zinc-800"
+                "p-6 rounded-full transition-all duration-300",
+                isDragging
+                  ? "bg-[oklch(60%_0.30_290/0.22)] ring-1 ring-[oklch(60%_0.30_290/0.50)] shadow-[0_0_32px_rgba(148,68,255,0.35)]"
+                  : "bg-neutral-900/80 ring-1 ring-white/[0.08] shadow-[0_0_18px_rgba(148,68,255,0.12)]"
               )}
             >
               <Upload
                 className={cn(
                   "w-16 h-16 transition-colors",
-                  isDragging ? "text-blue-400" : "text-zinc-400"
+                  isDragging ? "text-[oklch(74%_0.28_290)]" : "text-[oklch(62%_0.22_290)]"
                 )}
               />
             </div>
 
             <div>
-              <p className="text-2xl font-semibold text-zinc-100 mb-3">
+              <p className="font-jazz text-2xl text-zinc-100 mb-3">
                 {isDragging ? "Drop your file here" : "Drag & drop your file here"}
               </p>
-              <p className="text-base text-zinc-400 mb-2">or click to browse</p>
-              <p className="text-sm text-zinc-500">
-                Supports MP4, MKV, WebM, AVI, MP3, WAV, AAC, OGG<br/>
-                <span className="text-xs">(max <span suppressHydrationWarning>{Math.floor(maxFileSize / 1024 / 1024)}</span>MB)</span>
+              <p className="text-base text-aura-muted mb-2">or click to browse</p>
+              <p className="text-sm text-aura-muted opacity-60 font-mono tracking-wide">
+                MP4 · MKV · WebM · AVI · MP3 · WAV · AAC · OGG
               </p>
             </div>
 
             {!isDragging && (
               <button
                 type="button"
-                className="mt-4 px-8 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors text-base"
+                className="mt-4 px-8 py-3 rounded-lg font-jazz text-base transition-all duration-200 hover:scale-[1.03]"
+                style={{
+                  background: "oklch(60% 0.28 290)",
+                  boxShadow: "0 0 24px rgba(148,68,255,0.40)",
+                }}
               >
                 Browse Files
               </button>
@@ -306,9 +300,9 @@ export function FileUploader({
               ) : (
                 <div className="w-32 h-32 rounded-lg bg-zinc-800 flex items-center justify-center">
                   {isAudio ? (
-                    <FileAudio className="w-12 h-12 text-blue-400" />
+                    <FileAudio className="w-12 h-12 text-[oklch(66%_0.17_195)]" />
                   ) : (
-                    <FileVideo className="w-12 h-12 text-blue-400" />
+                    <FileVideo className="w-12 h-12 text-[oklch(74%_0.16_290)]" />
                   )}
                 </div>
               )}
@@ -343,11 +337,9 @@ export function FileUploader({
                 </div>
               )}
 
-              {/* File size breakdown */}
+              {/* File size info */}
               <div className="flex items-center gap-4 text-xs text-zinc-500">
-                <span suppressHydrationWarning>Max: {Math.floor(maxFileSize / 1024 / 1024)}MB</span>
-                <span>•</span>
-                <span suppressHydrationWarning>Recommended: &lt;{Math.floor(recommendedFileSize / 1024 / 1024)}MB</span>
+                <span>No file size limit</span>
               </div>
             </div>
           </div>

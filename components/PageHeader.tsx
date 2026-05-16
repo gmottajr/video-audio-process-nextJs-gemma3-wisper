@@ -37,9 +37,9 @@ export function PageHeader({ subtitle, description, icon, showLogo = true }: Pag
       {/* Divider - only show if there's a subtitle */}
       {subtitle && (
         <div className="flex items-center justify-center gap-3 my-4">
-          <div className="h-px w-16 bg-gradient-to-r from-transparent via-blue-500 to-transparent"></div>
-          <Zap className="w-4 h-4 text-blue-400" />
-          <div className="h-px w-16 bg-gradient-to-r from-transparent via-blue-500 to-transparent"></div>
+          <div className="h-px w-16 animate-line-glow opacity-80" />
+          <Zap className="w-4 h-4 text-[oklch(74%_0.16_290)] animate-subtle-float" aria-hidden />
+          <div className="h-px w-16 animate-line-glow opacity-80 [animation-delay:-2.5s]" />
         </div>
       )}
 
@@ -49,7 +49,7 @@ export function PageHeader({ subtitle, description, icon, showLogo = true }: Pag
           {icon && (
             <div className="text-2xl">{icon}</div>
           )}
-          <h2 className={`text-2xl sm:text-3xl font-bold text-zinc-200 ${fontClass}`}>
+          <h2 className={`font-display text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-100 ${fontClass}`}>
             {subtitle}
           </h2>
         </div>
@@ -57,14 +57,14 @@ export function PageHeader({ subtitle, description, icon, showLogo = true }: Pag
 
       {/* Description */}
       {description && (
-        <p className="text-zinc-400 mt-3 max-w-2xl mx-auto">
+        <p className="text-zinc-400 mt-3 max-w-2xl mx-auto text-[15px] leading-relaxed">
           {description}
         </p>
       )}
 
       {/* Animated underline - only show if there's a subtitle */}
       {subtitle && (
-        <div className="mt-4 h-1 w-32 mx-auto bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-50"></div>
+        <div className="mt-4 h-0.5 w-28 mx-auto rounded-full animate-line-glow" />
       )}
     </div>
   );

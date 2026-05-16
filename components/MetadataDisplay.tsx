@@ -44,59 +44,39 @@ export function MetadataDisplay({ metrics, file, className, variant = "default" 
   const isVideo = file && file.type.startsWith("video/");
   const isAudio = file && file.type.startsWith("audio/");
 
-  // Compact variant - single row with key info
+  // Compact variant — single row
   if (variant === "compact") {
+    const iconColor = isVideo ? "oklch(74% 0.16 290)" : isAudio ? "oklch(66% 0.17 195)" : "oklch(45% 0.02 280)";
     return (
-      <div className={cn("bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-3", className)}>
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          {/* File icon and name */}
+      <div
+        className={cn("px-4 py-3 rounded-xl", className)}
+        style={{
+          background: "oklch(22% 0.025 280)",
+          border: "1px solid oklch(38% 0.02 280 / 0.35)",
+          backdropFilter: "blur(8px)",
+        }}
+      >
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="p-1.5 bg-zinc-800 rounded shrink-0">
-              {isVideo ? (
-                <FileVideo className="w-4 h-4 text-blue-400" />
-              ) : isAudio ? (
-                <FileAudio className="w-4 h-4 text-cyan-400" />
-              ) : (
-                <Disc className="w-4 h-4 text-zinc-500" />
-              )}
-            </div>
-            <span className="font-mono text-sm text-zinc-100 truncate max-w-[200px]" title={file?.name}>
+            {isVideo ? <FileVideo className="w-3.5 h-3.5 shrink-0" style={{ color: iconColor }} />
+              : isAudio ? <FileAudio className="w-3.5 h-3.5 shrink-0" style={{ color: iconColor }} />
+              : <Disc className="w-3.5 h-3.5 shrink-0 text-aura-muted" />}
+            <span className="font-mono text-sm text-aura-text truncate max-w-[200px]" title={file?.name}>
               {file?.name || "—"}
             </span>
           </div>
-
-          {/* Divider */}
-          <div className="h-4 w-px bg-zinc-700 hidden sm:block" />
-
-          {/* Size */}
-          <div className="flex items-center gap-1.5">
-            <Disc className="w-3.5 h-3.5 text-zinc-500" />
-            <span className="text-xs text-zinc-400">Size:</span>
-            <span className="font-mono text-sm text-zinc-200">{file ? formatFileSize(file.size) : "—"}</span>
-          </div>
-
-          {/* Duration */}
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-zinc-500" />
-            <span className="text-xs text-zinc-400">Duration:</span>
-            <span className="font-mono text-sm text-zinc-200">{formatDuration(metrics.duration)}</span>
-          </div>
-
-          {/* Resolution (video only) */}
-          {isVideo && metrics.resolution && (
-            <div className="flex items-center gap-1.5">
-              <Gauge className="w-3.5 h-3.5 text-zinc-500" />
-              <span className="text-xs text-zinc-400">Res:</span>
-              <span className="font-mono text-sm text-zinc-200">{metrics.resolution}</span>
+          <div className="h-3.5 w-px hidden sm:block" style={{ background: "oklch(38% 0.02 280 / 0.40)" }} />
+          {[
+            { label: "Size",     value: file ? formatFileSize(file.size) : "—" },
+            { label: "Duration", value: formatDuration(metrics.duration) },
+            ...(isVideo && metrics.resolution ? [{ label: "Resolution", value: metrics.resolution }] : []),
+            { label: "Format",   value: file?.type.split("/")[1].toUpperCase() || "—" },
+          ].map(({ label, value }) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <span className="text-xs text-aura-muted">{label}:</span>
+              <span className="font-mono text-xs text-aura-text">{value}</span>
             </div>
-          )}
-
-          {/* Format */}
-          <div className="flex items-center gap-1.5">
-            <Film className="w-3.5 h-3.5 text-zinc-500" />
-            <span className="text-xs text-zinc-400">Format:</span>
-            <span className="font-mono text-sm text-zinc-200">{file?.type.split("/")[1].toUpperCase() || "—"}</span>
-          </div>
+          ))}
         </div>
       </div>
     );

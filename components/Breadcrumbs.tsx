@@ -1,7 +1,8 @@
 "use client";
 
 import Image from 'next/image';
-import { ChevronRight, Home } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronRight, Check } from 'lucide-react';
 import type { AppState } from '@/hooks/useAppStateMachine';
 
 interface BreadcrumbsProps {
@@ -10,95 +11,93 @@ interface BreadcrumbsProps {
 }
 
 const stateLabels: Record<AppState, string> = {
-  IDLE: 'Select',
-  INSPECT: 'Configure',
+  IDLE:       'Select',
+  INSPECT:    'Configure',
   PROCESSING: 'Processing',
-  DONE: 'Complete',
-  ERROR: 'Error'
+  DONE:       'Complete',
+  ERROR:      'Error',
 };
 
-const stateIcons: Record<AppState, string> = {
-  IDLE: '📁',
-  INSPECT: '⚙️',
-  PROCESSING: '⚡',
-  DONE: '✓',
-  ERROR: '⚠️'
+const stateNumbers: Record<AppState, number> = {
+  IDLE: 1, INSPECT: 2, PROCESSING: 3, DONE: 4, ERROR: 0,
 };
 
-export function Breadcrumbs({ currentState, onNavigate }: BreadcrumbsProps) {
-  const states: AppState[] = ['IDLE', 'INSPECT', 'PROCESSING', 'DONE'];
-  const currentIndex = states.indexOf(currentState);
-  
-  // If error state, show it separately
+const STEPS: AppState[] = ['IDLE', 'INSPECT', 'PROCESSING', 'DONE'];
+
+export function Breadcrumbs({ currentState }: BreadcrumbsProps) {
+  const currentIndex = STEPS.indexOf(currentState);
   const isError = currentState === 'ERROR';
-  
-  return (
-    <nav className="flex items-center space-x-3 text-base mb-6 overflow-x-auto">
-      {/* Brand Icon */}
-      <div className="flex items-center mr-4">
-        <Image
-          src="/branding/NeuralGrooveIcon.png"
-          alt="Neural Groove"
-          width={56}
-          height={56}
-          className="rounded-lg"
-        />
-      </div>
 
-      {/* Home/Start */}
-      <button
-        onClick={onNavigate}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-amber-950/30 border border-transparent hover:border-amber-500/30 transition-colors group"
-        title="Start Over"
-      >
-        <Home className="w-5 h-5 text-amber-400 group-hover:text-amber-300" />
-        <span className="text-amber-400 group-hover:text-amber-300 font-medium">Home</span>
-      </button>
+  return (
+    <nav className="flex items-center gap-2 mb-6 overflow-x-auto">
+      {/* Brand */}
+      <Link href="/" className="flex items-center gap-2.5 mr-2 opacity-80 hover:opacity-100 transition-opacity shrink-0">
+        <Image src="/branding/NeuralGrooveIcon.png" alt="Neural Groove" width={48} height={48} className="rounded-lg" />
+        <span className="font-tchaikovsky tracking-[0.12em] text-xl text-aura-muted hidden sm:inline">Neural Groove</span>
+      </Link>
+
+      <div className="h-5 w-px shrink-0" style={{ background: "oklch(38% 0.02 280 / 0.40)" }} />
 
       {isError ? (
-        <>
-          <ChevronRight className="w-5 h-5 text-zinc-600" />
-          <div className="flex items-center gap-2.5 px-4 py-2 rounded-lg bg-red-950/30 border border-red-500/20">
-            <span className="text-xl">{stateIcons.ERROR}</span>
-            <span className="text-red-400 font-semibold">{stateLabels.ERROR}</span>
-          </div>
-        </>
+        <div
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+          style={{ background: "oklch(30% 0.08 25 / 0.40)", border: "1px solid oklch(55% 0.18 25 / 0.35)" }}
+        >
+          <span className="font-jazz text-sm" style={{ color: "oklch(72% 0.14 25)" }}>Error</span>
+        </div>
       ) : (
-        <>
-          {states.map((state, index) => {
+        <div className="flex items-center gap-1">
+          {STEPS.map((state, index) => {
             const isActive = state === currentState;
-            const isPast = index < currentIndex;
-            const isFuture = index > currentIndex;
+            const isPast   = index < currentIndex;
 
             return (
-              <div key={state} className="flex items-center">
-                <ChevronRight className="w-5 h-5 text-zinc-600 mx-1" />
+              <div key={state} className="flex items-center gap-1">
+                {index > 0 && (
+                  <ChevronRight
+                    className="w-3.5 h-3.5 shrink-0"
+                    style={{ color: isPast || isActive ? "oklch(50% 0.12 290)" : "oklch(38% 0.02 280 / 0.50)" }}
+                  />
+                )}
                 <div
-                  className={`flex items-center gap-2.5 px-4 py-2 rounded-lg transition-all duration-200 ${
-                    isActive
-                      ? 'bg-blue-950/40 border border-blue-500/30 text-blue-300 shadow-lg shadow-blue-500/10'
-                      : isPast
-                      ? 'text-zinc-500'
-                      : 'text-zinc-600'
-                  }`}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 shrink-0"
+                  style={{
+                    background: isActive ? "oklch(60% 0.28 290 / 0.15)" : "transparent",
+                    border:     isActive ? "1px solid oklch(60% 0.28 290 / 0.35)" : "1px solid transparent",
+                  }}
                 >
-                  <span className={`text-xl ${isActive ? 'scale-110' : ''} transition-transform`}>
-                    {stateIcons[state]}
-                  </span>
-                  <span className={`font-medium ${isActive ? 'font-semibold' : ''}`}>
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                    style={{
+                      background: isActive
+                        ? "oklch(60% 0.28 290)"
+                        : isPast
+                        ? "oklch(66% 0.17 195 / 0.25)"
+                        : "oklch(38% 0.02 280 / 0.35)",
+                    }}
+                  >
+                    {isPast ? (
+                      <Check className="w-3 h-3" style={{ color: "oklch(66% 0.17 195)" }} />
+                    ) : (
+                      <span className="text-[10px] font-bold" style={{ color: isActive ? "white" : "oklch(45% 0.02 280)" }}>
+                        {stateNumbers[state]}
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    className="font-jazz text-sm tracking-widest"
+                    style={{
+                      color: isActive ? "oklch(84% 0.20 290)" : isPast ? "oklch(55% 0.02 280)" : "oklch(40% 0.02 280)",
+                    }}
+                  >
                     {stateLabels[state]}
                   </span>
-                  {isPast && (
-                    <span className="text-sm text-green-400">✓</span>
-                  )}
                 </div>
               </div>
             );
           })}
-        </>
+        </div>
       )}
     </nav>
   );
 }
-
-

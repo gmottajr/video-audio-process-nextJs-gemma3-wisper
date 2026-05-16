@@ -27,14 +27,14 @@ export function FontSelector() {
       <div className="relative group">
         {/* Trigger Button */}
         <button
-          className="p-3 bg-zinc-900/90 backdrop-blur-sm border border-zinc-700 hover:border-zinc-600 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+          className="p-3 rounded-lg border border-white/[0.1] bg-neutral-950/80 backdrop-blur-md shadow-lg transition-all duration-200 hover:border-blue-500/30 hover:shadow-blue-500/5"
           title="Change Font"
         >
           <Type className="w-5 h-5 text-zinc-400" />
         </button>
 
         {/* Dropdown */}
-        <div className="absolute right-0 mt-2 w-56 bg-zinc-900/95 backdrop-blur-md border border-zinc-700 rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+        <div className="absolute right-0 mt-2 w-56 rounded-lg border border-white/[0.1] bg-neutral-950/95 backdrop-blur-md shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
           <div className="p-2">
             <div className="text-xs text-zinc-500 font-semibold uppercase tracking-wider px-2 py-1 mb-1">
               Choose Font Style

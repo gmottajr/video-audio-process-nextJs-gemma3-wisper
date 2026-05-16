@@ -158,13 +158,13 @@ export function ActionSelector({
   // Get smart recommendation
   const getSmartRecommendation = (): string | null => {
     if (isMeetingContent && compressionType !== "speech") {
-      return "💡 Tip: Speech compression recommended for multi-speaker content";
+      return "Speech compression recommended for multi-speaker content";
     }
     if (isPodcastContent && compressionType !== "studio") {
-      return "💡 Tip: Studio compression recommended for professional broadcasting";
+      return "Studio compression recommended for professional broadcasting";
     }
     if (normalizeAudio && compressionType !== "none") {
-      return "✨ Full audio enhancement active - optimal for transcription";
+      return "Full audio enhancement active — optimal for transcription";
     }
     return null;
   };
@@ -174,48 +174,47 @@ export function ActionSelector({
     const hasCompression = compressionType !== "none";
     const hasNormalization = normalizeAudio;
     const formatName = selectedAudioConfig?.name || "";
-    
+
     if (fileType === "video" && videoMode === "extract") {
       if (hasCompression && hasNormalization) {
-        return "🎵 Extract & Process Audio (Full Enhancement)";
+        return "Extract & Process Audio (Full Enhancement)";
       }
       if (compressionType === "speech") {
-        return "🎙️ Extract & Compress Audio (Speech)";
+        return "Extract & Compress Audio (Speech)";
       }
       if (compressionType === "studio") {
-        return "🎚️ Extract & Compress Audio (Studio)";
+        return "Extract & Compress Audio (Studio)";
       }
       if (compressionType === "both") {
-        return "🎛️ Extract & Enhance Audio (Full)";
+        return "Extract & Enhance Audio (Full)";
       }
       if (hasNormalization) {
-        return "🎵 Extract & Normalize Audio";
+        return "Extract & Normalize Audio";
       }
       return "Extract Audio";
     }
-    
+
     if (fileType === "audio") {
-      const segmentPrefix = waveformSelection ? "✂️ " : "";
       const segmentSuffix = waveformSelection ? " Segment" : "";
-      
+
       if (hasCompression && hasNormalization) {
-        return `${segmentPrefix}🎵 Normalize & Convert${segmentSuffix} to ${formatName}`;
+        return `Normalize & Convert${segmentSuffix} to ${formatName}`;
       }
       if (compressionType === "speech") {
-        return `${segmentPrefix}🎙️ Compress & Convert${segmentSuffix} to ${formatName}`;
+        return `Compress & Convert${segmentSuffix} to ${formatName}`;
       }
       if (compressionType === "studio") {
-        return `${segmentPrefix}🎚️ Compress & Convert${segmentSuffix} to ${formatName}`;
+        return `Compress & Convert${segmentSuffix} to ${formatName}`;
       }
       if (compressionType === "both") {
-        return `${segmentPrefix}🎛️ Enhance & Convert${segmentSuffix} to ${formatName}`;
+        return `Enhance & Convert${segmentSuffix} to ${formatName}`;
       }
       if (hasNormalization) {
-        return `${segmentPrefix}🎵 Normalize & Convert${segmentSuffix} to ${formatName}`;
+        return `Normalize & Convert${segmentSuffix} to ${formatName}`;
       }
-      return `${segmentPrefix}Convert${segmentSuffix} to ${formatName}`;
+      return `Convert${segmentSuffix} to ${formatName}`;
     }
-    
+
     return "Start Processing";
   };
   
@@ -280,42 +279,43 @@ export function ActionSelector({
       "videoCodec" in format &&
       canRemux(file, format.id) &&
       selectedResolution === "original";
-    
+
     if (isRemux) {
       return (
-        <div className="px-2 py-1 rounded-full text-xs font-black shadow-lg flex items-center gap-1 bg-gradient-to-r from-yellow-500 to-orange-500">
-          <span>⚡</span>
-          <span>INSTANT</span>
+        <div
+          className="px-2 py-0.5 rounded-full text-xs font-bold"
+          style={{ background: "oklch(66% 0.17 195 / 0.20)", color: "oklch(74% 0.13 195)", border: "1px solid oklch(66% 0.17 195 / 0.35)" }}
+        >
+          Instant
         </div>
       );
     }
-    
+
     if (format.badge) {
       return (
-        <div className="px-2 py-1 rounded-full text-xs font-black shadow-lg bg-gradient-to-r from-purple-600 to-pink-600">
+        <div
+          className="px-2 py-0.5 rounded-full text-xs font-bold"
+          style={{ background: "oklch(60% 0.28 290 / 0.18)", color: "oklch(74% 0.16 290)", border: "1px solid oklch(60% 0.28 290 / 0.35)" }}
+        >
           {format.badge}
         </div>
       );
     }
-    
+
     return null;
   };
 
   // Unknown file type handling
   if (fileType === "unknown") {
     return (
-      <div className={cn("bg-zinc-900 border border-zinc-800 rounded-lg p-6", className)}>
+      <div className={cn("rounded-xl p-6", className)} style={{ background: "oklch(22% 0.025 280)", border: "1px solid oklch(38% 0.02 280 / 0.35)" }}>
         <div className="text-center py-8">
-          <div className="w-16 h-16 bg-red-950/50 border border-red-500/30 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">⚠️</span>
+          <div className="w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: "oklch(30% 0.08 25 / 0.40)", border: "1px solid oklch(55% 0.18 25 / 0.30)" }}>
+            <AlertTriangle className="w-7 h-7" style={{ color: "oklch(70% 0.14 25)" }} />
           </div>
-          <h3 className="text-xl font-bold text-red-400 mb-2">Unsupported File Type</h3>
-          <p className="text-sm text-zinc-400 mb-4">
-            This file type is not recognized as video or audio.
-          </p>
-          <p className="text-xs text-zinc-500">
-            Supported: MP4, AVI, MOV, MKV, WebM, MP3, WAV, AAC, OGG
-          </p>
+          <h3 className="font-jazz text-lg mb-2 text-aura-text">Unsupported File Type</h3>
+          <p className="text-sm text-aura-muted mb-2">This file type is not recognized as video or audio.</p>
+          <p className="text-xs text-aura-muted opacity-60 font-mono">MP4 · AVI · MOV · MKV · WebM · MP3 · WAV · AAC · OGG</p>
         </div>
       </div>
     );
@@ -323,25 +323,19 @@ export function ActionSelector({
 
   // Render main component
   return (
-    <div className={cn("bg-zinc-900 border border-zinc-800 rounded-lg p-6", className)}>
+    <div className={cn("rounded-xl p-5", className)} style={{ background: "oklch(22% 0.025 280)", border: "1px solid oklch(38% 0.02 280 / 0.35)", backdropFilter: "blur(8px)" }}>
       {/* Header */}
-      <div className="mb-6">
-        <h3 className="text-lg font-bold text-zinc-100 mb-2 flex items-center gap-2">
-          <Zap className="w-5 h-5 text-blue-400" />
+      <div className="mb-5">
+        <h3 className="font-jazz text-base text-aura-text mb-1 flex items-center gap-2">
+          <Zap className="w-4 h-4" style={{ color: "oklch(74% 0.16 290)" }} />
           {fileType === "video"
-            ? videoMode === "extract"
-              ? "Extract Audio from Video"
-              : videoMode === "transcribe"
-              ? "AI Transcription"
-              : "Convert Video Container"
-            : "Convert Audio Format"}
+            ? videoMode === "extract" ? "Extract Audio" : videoMode === "transcribe" ? "AI Transcription" : "Convert Video"
+            : "Convert Audio"}
         </h3>
-        <p className="text-sm text-zinc-400">
+        <p className="text-xs text-aura-muted pl-6">
           {fileType === "video"
-            ? videoMode === "extract"
-              ? "Extract the audio track from your video file"
-              : videoMode === "transcribe"
-              ? "Generate text transcript using AI (Whisper model)"
+            ? videoMode === "extract" ? "Extract the audio track from your video file"
+              : videoMode === "transcribe" ? "Generate text transcript using Whisper AI"
               : "Convert your video to a different container format"
             : "Convert your audio to a different format"}
         </p>
@@ -371,15 +365,16 @@ export function ActionSelector({
       {fileType === "audio" && audioUrl && (
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-aura-muted">
               Click and drag on the waveform to select a segment (optional)
             </p>
             {waveformSelection && (
               <button
                 onClick={() => setWaveformSelection(null)}
-                className="text-xs text-blue-400 hover:text-blue-300 underline"
+                className="text-xs underline transition-colors"
+                style={{ color: "oklch(74% 0.16 290)" }}
               >
-                Clear Selection
+                Clear selection
               </button>
             )}
           </div>
@@ -390,31 +385,28 @@ export function ActionSelector({
               setWaveformSelection(selection);
             }}
           />
-          
+
           {/* Segment Info Card (when selection exists) */}
           {segmentMetadata && (
-            <div className="mt-4 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-500/20 rounded-lg">
-                    <Scissors className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-blue-100">
-                      Segment Selected
-                    </h4>
-                    <p className="text-xs text-blue-300/70 mt-0.5">
-                      {formatSegmentLabel(segmentMetadata)}
+            <div
+              className="mt-4 rounded-lg p-4"
+              style={{ background: "oklch(28% 0.04 290 / 0.40)", border: "1px solid oklch(60% 0.28 290 / 0.30)" }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-1.5 rounded-lg" style={{ background: "oklch(60% 0.28 290 / 0.18)" }}>
+                  <Scissors className="w-4 h-4" style={{ color: "oklch(74% 0.16 290)" }} />
+                </div>
+                <div>
+                  <h4 className="font-jazz text-sm text-aura-text">Segment Selected</h4>
+                  <p className="text-xs text-aura-muted mt-0.5">{formatSegmentLabel(segmentMetadata)}</p>
+                  {estimatedSegmentSize && (
+                    <p className="text-xs text-aura-muted opacity-60 mt-0.5 font-mono">
+                      ~{(estimatedSegmentSize / 1024 / 1024).toFixed(1)} MB
                     </p>
-                    {estimatedSegmentSize && (
-                      <p className="text-xs text-zinc-500 mt-0.5">
-                        ~{(estimatedSegmentSize / 1024 / 1024).toFixed(1)} MB
-                      </p>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
-              <p className="mt-3 text-xs text-blue-300/80">
+              <p className="mt-3 text-xs text-aura-muted">
                 All actions below will apply to this segment only.
               </p>
             </div>
@@ -474,147 +466,84 @@ export function ActionSelector({
 
       {/* Audio Compression Selector (for extract and convert_audio only - NOT transcribe) */}
       {(videoMode === "extract" || fileType === "audio") && videoMode !== "transcribe" && (
-        <div className="mt-4 bg-gradient-to-br from-purple-950/30 to-indigo-950/30 border border-purple-500/30 rounded-lg p-5">
+        <div
+          className="mt-4 rounded-xl p-5"
+          style={{ background: "oklch(19% 0.02 280)", border: "1px solid oklch(38% 0.02 280 / 0.35)" }}
+        >
           <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-base font-bold text-zinc-100">
-                🎚️ Audio Compression
-              </span>
-              <span className="text-xs text-purple-300 bg-purple-500/20 px-2.5 py-1 rounded-full font-bold">
+            <div className="flex items-center gap-2 mb-1">
+              <p className="font-jazz text-sm text-aura-text">Audio Compression</p>
+              <span
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{ background: "oklch(60% 0.28 290 / 0.18)", color: "oklch(74% 0.16 290)", border: "1px solid oklch(60% 0.28 290 / 0.30)" }}
+              >
                 Professional
               </span>
             </div>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              Choose compression type based on your content
-            </p>
+            <p className="text-xs text-aura-muted">Choose compression type based on your content</p>
           </div>
 
-          <div className="space-y-2.5">
-            {/* No Compression */}
-            <label className="flex items-start cursor-pointer group p-3 rounded-lg border border-zinc-700/50 hover:border-zinc-600 hover:bg-zinc-800/30 transition-all">
-              <input
-                type="radio"
-                name="compression"
-                value="none"
-                checked={compressionType === "none"}
-                onChange={(e) => setCompressionType(e.target.value as CompressionType)}
-                disabled={disabled}
-                className="mt-1 w-4 h-4 text-zinc-600 border-zinc-600 focus:ring-zinc-500 focus:ring-offset-zinc-900"
-              />
-              <div className="ml-3 flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-semibold text-zinc-100">⭕ No Compression</span>
-                  <span className="text-xs text-zinc-500 bg-zinc-700/50 px-2 py-0.5 rounded-full">
-                    default
-                  </span>
-                </div>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Keep natural dynamics • Use for high-quality recordings
-                </p>
-              </div>
-            </label>
-
-            {/* Speech Compression */}
-            <label className="flex items-start cursor-pointer group p-3 rounded-lg border border-green-700/50 hover:border-green-600 hover:bg-green-950/20 transition-all">
-              <input
-                type="radio"
-                name="compression"
-                value="speech"
-                checked={compressionType === "speech"}
-                onChange={(e) => setCompressionType(e.target.value as CompressionType)}
-                disabled={disabled}
-                className="mt-1 w-4 h-4 text-green-600 border-zinc-600 focus:ring-green-500 focus:ring-offset-zinc-900"
-              />
-              <div className="ml-3 flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-semibold text-zinc-100">🎙️ Speech Compression</span>
-                  <span className="text-xs text-green-300 bg-green-500/20 px-2 py-0.5 rounded-full font-medium">
-                    +15% time
-                  </span>
-                </div>
-                <p className="text-xs text-zinc-300 font-medium mb-1">
-                  Best for: Meetings, interviews, conversations
-                </p>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Effect: Balances different speaker volumes
-                </p>
-                <p className="text-xs text-zinc-500 mt-1">
-                  Technical: Dynamic frame-based normalization (dynaudnorm)
-                </p>
-              </div>
-            </label>
-
-            {/* Studio Compression */}
-            <label className="flex items-start cursor-pointer group p-3 rounded-lg border border-blue-700/50 hover:border-blue-600 hover:bg-blue-950/20 transition-all">
-              <input
-                type="radio"
-                name="compression"
-                value="studio"
-                checked={compressionType === "studio"}
-                onChange={(e) => setCompressionType(e.target.value as CompressionType)}
-                disabled={disabled}
-                className="mt-1 w-4 h-4 text-blue-600 border-zinc-600 focus:ring-blue-500 focus:ring-offset-zinc-900"
-              />
-              <div className="ml-3 flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-semibold text-zinc-100">🎚️ Studio Compression</span>
-                  <span className="text-xs text-blue-300 bg-blue-500/20 px-2 py-0.5 rounded-full font-medium">
-                    +12% time
-                  </span>
-                </div>
-                <p className="text-xs text-zinc-300 font-medium mb-1">
-                  Best for: Podcasts, broadcasts, professional content
-                </p>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Effect: Professional smooth compression
-                </p>
-                <p className="text-xs text-zinc-500 mt-1">
-                  Technical: Traditional threshold/ratio compression (acompressor)
-                </p>
-              </div>
-            </label>
-
-            {/* Both Compressions */}
-            <label className="flex items-start cursor-pointer group p-3 rounded-lg border border-orange-700/50 hover:border-orange-600 hover:bg-orange-950/20 transition-all">
-              <input
-                type="radio"
-                name="compression"
-                value="both"
-                checked={compressionType === "both"}
-                onChange={(e) => setCompressionType(e.target.value as CompressionType)}
-                disabled={disabled}
-                className="mt-1 w-4 h-4 text-orange-600 border-zinc-600 focus:ring-orange-500 focus:ring-offset-zinc-900"
-              />
-              <div className="ml-3 flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-semibold text-zinc-100">🎛️ Both (Experimental)</span>
-                  <span className="text-xs text-orange-300 bg-orange-500/20 px-2 py-0.5 rounded-full font-medium">
-                    +25% time
-                  </span>
-                </div>
-                <p className="text-xs text-zinc-300 font-medium mb-1">
-                  Best for: Maximum dynamic range control
-                </p>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Effect: Speech balancing + studio smoothing
-                </p>
-                <p className="text-xs text-zinc-500 mt-1">
-                  Technical: Sequential compression (may be overkill)
-                </p>
-                <p className="text-xs text-orange-400 mt-1.5 flex items-center gap-1">
-                  <span>⚠️</span>
-                  <span>May over-compress, test with your content</span>
-                </p>
-              </div>
-            </label>
+          <div className="space-y-2">
+            {[
+              { value: "none",   label: "No Compression",        sub: "Meetings, interviews, conversations",   badge: "Default",  badgeMuted: true },
+              { value: "speech", label: "Speech Compression",    sub: "Balances different speaker volumes",    badge: "+15% time", badgeMuted: false },
+              { value: "studio", label: "Studio Compression",    sub: "Podcasts, broadcasts, professional",    badge: "+12% time", badgeMuted: false },
+              { value: "both",   label: "Both (Experimental)",   sub: "Speech balancing + studio smoothing",  badge: "+25% time", badgeMuted: false },
+            ].map(({ value, label, sub, badge, badgeMuted }) => {
+              const isSelected = compressionType === value;
+              return (
+                <label
+                  key={value}
+                  className="flex items-start cursor-pointer p-3 rounded-lg transition-all duration-150"
+                  style={{
+                    background: isSelected ? "oklch(25% 0.04 290)" : "oklch(21% 0.025 280)",
+                    border: isSelected
+                      ? "1px solid oklch(60% 0.28 290 / 0.45)"
+                      : "1px solid oklch(38% 0.02 280 / 0.30)",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="compression"
+                    value={value}
+                    checked={isSelected}
+                    onChange={(e) => setCompressionType(e.target.value as CompressionType)}
+                    disabled={disabled}
+                    className="mt-0.5 w-4 h-4 shrink-0"
+                  />
+                  <div className="ml-3 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className="text-sm text-aura-text">{label}</span>
+                      <span
+                        className="text-xs px-1.5 py-0.5 rounded-full font-mono"
+                        style={
+                          badgeMuted
+                            ? { background: "oklch(32% 0.02 280 / 0.60)", color: "oklch(55% 0.02 280)" }
+                            : { background: "oklch(66% 0.17 195 / 0.18)", color: "oklch(74% 0.13 195)" }
+                        }
+                      >
+                        {badge}
+                      </span>
+                    </div>
+                    <p className="text-xs text-aura-muted leading-relaxed">{sub}</p>
+                    {value === "both" && (
+                      <p className="text-xs mt-1" style={{ color: "oklch(72% 0.16 55)" }}>
+                        May over-compress — test with your content
+                      </p>
+                    )}
+                  </div>
+                </label>
+              );
+            })}
           </div>
 
           {/* Smart Recommendation */}
           {getSmartRecommendation() && (
-            <div className="mt-4 text-xs bg-gradient-to-r from-cyan-950/50 to-blue-950/50 border border-cyan-500/30 p-3 rounded-lg animate-in fade-in duration-300">
-              <p className="text-cyan-200 font-medium">
-                {getSmartRecommendation()}
-              </p>
+            <div
+              className="mt-4 text-xs p-3 rounded-lg animate-in fade-in duration-300"
+              style={{ background: "oklch(28% 0.04 290 / 0.30)", border: "1px solid oklch(60% 0.28 290 / 0.30)" }}
+            >
+              <p style={{ color: "oklch(80% 0.12 290)" }}>{getSmartRecommendation()}</p>
             </div>
           )}
         </div>
@@ -622,83 +551,95 @@ export function ActionSelector({
 
       {/* Compact Audio Enhancement for Transcribe Mode */}
       {videoMode === "transcribe" && (
-        <div className={`mt-4 bg-gradient-to-br from-indigo-950/30 to-purple-950/30 border border-indigo-500/30 rounded-lg p-4 ${transcriptionMode === 'fast' ? 'opacity-60' : ''}`}>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-sm font-bold text-zinc-100">
-              🎵 Audio Enhancement (Optional)
-            </span>
-            <span className="text-xs text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full">
+        <div
+          className={`mt-4 rounded-xl p-4 ${transcriptionMode === "fast" ? "opacity-60" : ""}`}
+          style={{ background: "oklch(19% 0.02 280)", border: "1px solid oklch(38% 0.02 280 / 0.35)" }}
+        >
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <p className="font-jazz text-sm text-aura-text">Audio Enhancement</p>
+            <span
+              className="text-xs px-2 py-0.5 rounded-full"
+              style={{ background: "oklch(66% 0.17 195 / 0.15)", color: "oklch(74% 0.13 195)" }}
+            >
               Improves accuracy
             </span>
-            {transcriptionMode === 'fast' && (
-              <span className="text-xs text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full font-medium">
+            {transcriptionMode === "fast" && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{ background: "oklch(72% 0.16 55 / 0.18)", color: "oklch(80% 0.14 55)" }}
+              >
                 Disabled in Fast Mode
               </span>
             )}
           </div>
-          
-          {transcriptionMode === 'fast' && (
-            <div className="mb-3 p-2.5 bg-amber-950/30 border border-amber-600/30 rounded-md">
-              <p className="text-xs text-amber-300 leading-relaxed">
-                <span className="font-semibold text-amber-200">⚡ Fast Mode:</span> Audio enhancements are disabled to maximize transcription speed. Distil-Whisper model provides fast, accurate transcription without preprocessing overhead.
+
+          {transcriptionMode === "fast" && (
+            <div
+              className="mb-3 p-2.5 rounded-md"
+              style={{ background: "oklch(72% 0.16 55 / 0.10)", border: "1px solid oklch(72% 0.16 55 / 0.25)" }}
+            >
+              <p className="text-xs leading-relaxed" style={{ color: "oklch(80% 0.14 55)" }}>
+                <span className="font-semibold" style={{ color: "oklch(86% 0.14 55)" }}>Fast Mode:</span>{" "}
+                Audio enhancements are disabled to maximize transcription speed.
               </p>
             </div>
           )}
-          
+
           <div className="space-y-2">
-            {/* Compact Compression Selector */}
             <div>
-              <label className="text-xs font-medium text-zinc-300 mb-1.5 block">
-                Compression Type:
-              </label>
+              <label className="text-xs text-aura-muted mb-1.5 block">Compression Type:</label>
               <select
                 value={compressionType}
                 onChange={(e) => setCompressionType(e.target.value as CompressionType)}
-                disabled={disabled || transcriptionMode === 'fast'}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={disabled || transcriptionMode === "fast"}
+                className="w-full rounded-lg px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none"
+                style={{
+                  background: "oklch(24% 0.025 280 / 0.80)",
+                  border: "1px solid oklch(38% 0.02 280 / 0.50)",
+                  color: "var(--text)",
+                }}
               >
-                <option value="none">⭕ No Compression (default)</option>
-                <option value="speech">🎙️ Speech - Meetings, Interviews (+15%)</option>
-                <option value="studio">🎚️ Studio - Podcasts, Broadcasts (+12%)</option>
-                <option value="both">🎛️ Both - Maximum Enhancement (+25%)</option>
+                <option value="none">No Compression (default)</option>
+                <option value="speech">Speech — Meetings, Interviews (+15%)</option>
+                <option value="studio">Studio — Podcasts, Broadcasts (+12%)</option>
+                <option value="both">Both — Maximum Enhancement (+25%)</option>
               </select>
             </div>
-            
-            {/* Normalization Checkbox */}
-            <label className={`flex items-center ${transcriptionMode === 'fast' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer group'}`}>
+
+            <label className={`flex items-center gap-2 ${transcriptionMode === "fast" ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
               <input
                 type="checkbox"
                 checked={normalizeAudio}
                 onChange={(e) => setNormalizeAudio(e.target.checked)}
-                disabled={disabled || transcriptionMode === 'fast'}
-                className="w-4 h-4 rounded border-zinc-600 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-zinc-900"
+                disabled={disabled || transcriptionMode === "fast"}
+                className="w-4 h-4 rounded"
               />
-              <span className={`ml-2 text-sm text-zinc-100 ${transcriptionMode === 'fast' ? '' : 'group-hover:text-indigo-300 transition-colors'}`}>
-                🎵 Normalize Audio (EBU R128)
-              </span>
+              <span className="text-sm text-aura-text">Normalize Audio (EBU R128)</span>
             </label>
           </div>
 
           {/* Smart Recommendation */}
           {getSmartRecommendation() && (
-            <div className="mt-3 bg-blue-500/10 border border-blue-500/30 rounded-md p-2.5">
-              <p className="text-xs text-blue-300 leading-relaxed">
-                {getSmartRecommendation()}
-              </p>
+            <div
+              className="mt-3 p-2.5 rounded-md animate-in fade-in duration-300"
+              style={{ background: "oklch(28% 0.04 290 / 0.30)", border: "1px solid oklch(60% 0.28 290 / 0.30)" }}
+            >
+              <p className="text-xs" style={{ color: "oklch(80% 0.12 290)" }}>{getSmartRecommendation()}</p>
             </div>
           )}
-          
-          {/* Time Warning - shows when any enhancement is enabled */}
-          <EnhancementTimeWarning 
-            compressionType={compressionType} 
-            normalizeAudio={normalizeAudio} 
-          />
-          
+
+          {/* Time Warning */}
+          <EnhancementTimeWarning compressionType={compressionType} normalizeAudio={normalizeAudio} />
+
           {/* Segment Transcription Tip */}
-          <div className="mt-3 p-2.5 bg-amber-950/30 border border-amber-600/30 rounded-md">
-            <p className="text-xs text-amber-300/90 leading-relaxed">
-              <span className="font-semibold text-amber-200">✂️ Tip:</span> Need to transcribe only a portion? 
-              Use <span className="font-semibold text-amber-200">"Extract Audio"</span> first, then select segments from the waveform.
+          <div
+            className="mt-3 p-2.5 rounded-md"
+            style={{ background: "oklch(72% 0.16 55 / 0.08)", border: "1px solid oklch(72% 0.16 55 / 0.20)" }}
+          >
+            <p className="text-xs leading-relaxed" style={{ color: "oklch(78% 0.13 55)" }}>
+              Need to transcribe only a portion? Use{" "}
+              <span className="font-semibold" style={{ color: "oklch(84% 0.14 55)" }}>"Extract Audio"</span>{" "}
+              first, then select segments from the waveform.
             </p>
           </div>
         </div>
@@ -706,29 +647,31 @@ export function ActionSelector({
 
       {/* Audio Normalization Option (for extract and convert_audio only - NOT transcribe) */}
       {(videoMode === "extract" || fileType === "audio") && videoMode !== "transcribe" && (
-        <div className="mt-4 bg-gradient-to-br from-blue-950/30 to-cyan-950/30 border border-blue-500/30 rounded-lg p-4">
-          <label className="flex items-start cursor-pointer group">
+        <div
+          className="mt-4 rounded-xl p-4"
+          style={{ background: "oklch(19% 0.02 280)", border: "1px solid oklch(38% 0.02 280 / 0.35)" }}
+        >
+          <label className="flex items-start cursor-pointer gap-3">
             <input
               type="checkbox"
               checked={normalizeAudio}
               onChange={(e) => setNormalizeAudio(e.target.checked)}
               disabled={disabled}
-              className="mt-1 w-5 h-5 text-blue-600 border-zinc-600 rounded focus:ring-blue-500 focus:ring-offset-zinc-900"
+              className="mt-0.5 w-4 h-4 shrink-0 rounded"
             />
-            <div className="ml-3 flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-bold text-zinc-100 group-hover:text-blue-300 transition-colors">
-                  🎵 Normalize Audio Levels
-                </span>
-                <span className="text-xs text-blue-300 bg-blue-500/20 px-2 py-0.5 rounded-full font-medium">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="font-jazz text-sm text-aura-text">Normalize Audio Levels</span>
+                <span
+                  className="text-xs px-1.5 py-0.5 rounded-full font-mono"
+                  style={{ background: "oklch(66% 0.17 195 / 0.18)", color: "oklch(74% 0.13 195)" }}
+                >
                   +10% time
                 </span>
               </div>
-              <p className="text-xs text-zinc-300 leading-relaxed">
-                Standardize volume to consistent level using EBU R128 loudnorm filter
-              </p>
-              <p className="text-xs text-zinc-400 mt-1">
-                Recommended for quiet or inconsistent audio to improve transcription quality
+              <p className="text-xs text-aura-muted leading-relaxed">
+                Standardize volume to a consistent level using EBU R128 loudnorm.
+                Recommended for quiet or inconsistent audio.
               </p>
             </div>
           </label>
@@ -756,51 +699,52 @@ export function ActionSelector({
             : isModelLoaded
             ? hasMultipleEnhancements
               ? compressionType !== "none" && normalizeAudio
-                ? "🎵 Transcribe (Enhanced Audio)"
+                ? "Transcribe (Enhanced Audio)"
                 : compressionType === "speech"
-                ? "🎙️ Transcribe (Speech Compressed)"
+                ? "Transcribe (Speech Compressed)"
                 : compressionType === "studio"
-                ? "🎚️ Transcribe (Studio Compressed)"
+                ? "Transcribe (Studio Compressed)"
                 : compressionType === "both"
-                ? "🎛️ Transcribe (Full Enhancement)"
-                : "🎵 Transcribe (Normalized Audio)"
+                ? "Transcribe (Full Enhancement)"
+                : "Transcribe (Normalized Audio)"
               : "Start AI Transcription"
             : "Waiting for Model...")}
         {fileType === "audio" && getButtonText()}
       </ProgressButton>
 
       {/* Hint text */}
-      <p className="mt-4 text-xs text-center text-zinc-500">
+      <p className="mt-4 text-xs text-center text-aura-muted">
         {videoMode === "transcribe"
           ? isModelLoading
-            ? `🤖 AI model is pre-loading in background... ${Math.round(
-                modelLoadingProgress
-              )}%`
+            ? `AI model loading… ${Math.round(modelLoadingProgress)}%`
             : isModelLoaded
             ? hasMultipleEnhancements
-              ? "🤖 AI model ready • Audio will be enhanced before transcription • Better accuracy"
-              : "🤖 AI model ready • Word-level timestamps • Export as TXT/JSON/SRT"
-            : "⏳ Waiting for AI model to start loading..."
+              ? "Model ready · Audio will be enhanced before transcription"
+              : "Model ready · Word-level timestamps · Export as TXT / JSON / SRT"
+            : "Waiting for AI model to start loading…"
           : willRemux
-          ? "⚡ This will be instant (remux only, no re-encoding)"
-          : "Processing will happen in your browser using FFmpeg WebAssembly"}
+          ? "Instant — remux only, no re-encoding"
+          : "Processing happens in your browser via FFmpeg WebAssembly"}
       </p>
 
       {/* Separate AI Transcription Section (for audio files or non-transcribe video mode) */}
       {(fileType === "audio" || (fileType === "video" && videoMode !== "transcribe")) && (
-        <div className="mt-6 pt-6 border-t border-zinc-800">
+        <div
+          className="mt-6 pt-6"
+          style={{ borderTop: "1px solid oklch(38% 0.02 280 / 0.35)" }}
+        >
           <TranscribeInfoCard compact />
-          
+
           {/* Resource Warning for Audio File Transcription */}
           {fileType === "audio" && (
-            <ResourceWarningCard 
-              file={file} 
+            <ResourceWarningCard
+              file={file}
               modelKey={selectedModelKey}
               className="mb-4"
               minRAMThreshold={50}
             />
           )}
-          
+
           <ProgressButton
             onClick={handleTranscribeAudio}
             disabled={disabled || !isModelLoaded || isModelLoading}
@@ -810,29 +754,29 @@ export function ActionSelector({
             icon="brain"
           >
             {isModelLoading
-              ? `Loading AI Model... ${Math.round(modelLoadingProgress)}%`
+              ? `Loading AI Model… ${Math.round(modelLoadingProgress)}%`
               : isModelLoaded
               ? hasMultipleEnhancements
                 ? compressionType !== "none" && normalizeAudio
-                  ? waveformSelection ? "✂️ 🎵 Transcribe Segment (Enhanced)" : "🎵 Transcribe with Enhanced Audio"
+                  ? waveformSelection ? "Transcribe Segment (Enhanced)" : "Transcribe with Enhanced Audio"
                   : compressionType === "speech"
-                  ? waveformSelection ? "✂️ 🎙️ Transcribe Segment (Speech)" : "🎙️ Transcribe with Speech Compression"
+                  ? waveformSelection ? "Transcribe Segment (Speech)" : "Transcribe with Speech Compression"
                   : compressionType === "studio"
-                  ? waveformSelection ? "✂️ 🎚️ Transcribe Segment (Studio)" : "🎚️ Transcribe with Studio Compression"
+                  ? waveformSelection ? "Transcribe Segment (Studio)" : "Transcribe with Studio Compression"
                   : compressionType === "both"
-                  ? waveformSelection ? "✂️ 🎛️ Transcribe Segment (Full)" : "🎛️ Transcribe with Full Enhancement"
-                  : waveformSelection ? "✂️ 🎵 Transcribe Segment (Normalized)" : "🎵 Transcribe with Normalized Audio"
-                : waveformSelection ? "✂️ Transcribe Selected Segment" : "Transcribe Audio to Text"
-              : "Waiting for Model..."}
+                  ? waveformSelection ? "Transcribe Segment (Full)" : "Transcribe with Full Enhancement"
+                  : waveformSelection ? "Transcribe Segment (Normalized)" : "Transcribe with Normalized Audio"
+                : waveformSelection ? "Transcribe Selected Segment" : "Transcribe Audio to Text"
+              : "Waiting for Model…"}
           </ProgressButton>
-          <p className="mt-2 text-xs text-center text-zinc-500">
+          <p className="mt-2 text-xs text-center text-aura-muted">
             {isModelLoading
-              ? `Loading model... ${Math.round(modelLoadingProgress)}%`
+              ? `Loading model… ${Math.round(modelLoadingProgress)}%`
               : isModelLoaded
               ? hasMultipleEnhancements
-                ? "🎵 Audio will be enhanced before transcription for better accuracy"
-                : "First run: ~40MB model download • Word-level timestamps • Export as TXT/JSON/SRT"
-              : "⏳ Waiting for AI model to start loading..."}
+                ? "Audio will be enhanced before transcription for better accuracy"
+                : "First run: ~40 MB model download · Word-level timestamps · Export as TXT / JSON / SRT"
+              : "Waiting for AI model to start loading…"}
           </p>
         </div>
       )}

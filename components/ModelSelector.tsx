@@ -1,12 +1,9 @@
 "use client";
 
 import React from "react";
-import { Brain, Zap, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Brain, Zap, CheckCircle2 } from "lucide-react";
 import { getResourceWarning, formatFileSize } from "@/utils/resourceEstimation";
 
-/**
- * Whisper Model Information
- */
 export const WHISPER_MODELS = {
   tiny: {
     id: "Xenova/whisper-tiny",
@@ -15,9 +12,6 @@ export const WHISPER_MODELS = {
     speed: "Very Fast",
     quality: "Basic",
     description: "Quick transcriptions, lower accuracy",
-    color: "text-green-600",
-    bgColor: "bg-green-50",
-    borderColor: "border-green-300",
     badge: null,
   },
   base: {
@@ -27,9 +21,6 @@ export const WHISPER_MODELS = {
     speed: "Fast",
     quality: "Good",
     description: "Balanced speed and accuracy",
-    color: "text-blue-600",
-    bgColor: "bg-blue-50",
-    borderColor: "border-blue-300",
     badge: "Popular",
   },
   small: {
@@ -39,9 +30,6 @@ export const WHISPER_MODELS = {
     speed: "Moderate",
     quality: "Excellent",
     description: "High accuracy, slower processing",
-    color: "text-purple-600",
-    bgColor: "bg-purple-50",
-    borderColor: "border-purple-300",
     badge: "Best",
   },
   "distil-small": {
@@ -51,9 +39,6 @@ export const WHISPER_MODELS = {
     speed: "Fast",
     quality: "Good",
     description: "Faster than Small, English only",
-    color: "text-amber-600",
-    bgColor: "bg-amber-50",
-    borderColor: "border-amber-300",
     badge: "Fast",
   },
 } as const;
@@ -66,14 +51,16 @@ interface ModelSelectorProps {
   isLoading: boolean;
   onModelSelect: (model: ModelKey) => void;
   disabled?: boolean;
-  file?: File | null; // NEW: For resource estimation
-  fastModeEnabled?: boolean; // NEW: Show parallel processing indicator
+  file?: File | null;
+  fastModeEnabled?: boolean;
 }
 
-/**
- * Model Selector Component
- * Allows users to choose which Whisper model to use for transcription
- */
+const BADGE_STYLE: Record<string, React.CSSProperties> = {
+  Popular: { background: "oklch(60% 0.28 290)", color: "white" },
+  Best:    { background: "linear-gradient(135deg, oklch(58% 0.28 328), oklch(60% 0.28 290))", color: "white" },
+  Fast:    { background: "oklch(66% 0.17 195)", color: "white" },
+};
+
 export default function ModelSelector({
   selectedModel,
   currentlyLoadedModel,
@@ -83,72 +70,61 @@ export default function ModelSelector({
   file = null,
   fastModeEnabled = false,
 }: ModelSelectorProps) {
-  // Get resource warning if file is provided
   const resourceWarning = file ? getResourceWarning(file, selectedModel) : null;
-  const showWarning = resourceWarning && (resourceWarning.level === "heavy" || resourceWarning.level === "extreme" || resourceWarning.level === "dangerous");
+  const showWarning = resourceWarning && ["heavy", "extreme", "dangerous"].includes(resourceWarning.level);
 
   return (
     <div className="w-full">
+      {/* Header */}
       <div className="mb-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Brain className="w-5 h-5 text-gray-700" />
-          <h3 className="text-lg font-semibold text-gray-800">
-            AI Transcription Model
-          </h3>
+        <div className="flex items-center gap-2 mb-1">
+          <Brain className="w-4 h-4 text-aura-muted" />
+          <h3 className="font-jazz text-base" style={{ color: "oklch(94% 0.01 280)" }}>AI Transcription Model</h3>
           {file && (
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-              File: {formatFileSize(file.size)}
+            <span className="text-xs text-aura-muted font-mono ml-1">
+              {formatFileSize(file.size)}
             </span>
           )}
         </div>
-        <p className="text-sm text-gray-600">
-          Choose your model based on speed vs. accuracy needs
-        </p>
+        <p className="text-xs text-aura-muted pl-6">Choose based on speed vs. accuracy</p>
         {fastModeEnabled && (
-          <div className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-amber-100 border border-amber-300 rounded-lg">
-            <Zap className="w-4 h-4 text-amber-600" />
-            <span className="text-xs text-amber-800 font-medium">
-              Fast Mode: Parallel processing with multiple workers
+          <div
+            className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-lg"
+            style={{ background: "oklch(66% 0.17 195 / 0.10)", border: "1px solid oklch(66% 0.17 195 / 0.25)" }}
+          >
+            <Zap className="w-3.5 h-3.5" style={{ color: "oklch(66% 0.17 195)" }} />
+            <span className="text-xs font-medium" style={{ color: "oklch(74% 0.13 195)" }}>
+              Fast Mode · Parallel processing
             </span>
           </div>
         )}
       </div>
 
-      {/* Resource Warning Banner */}
+      {/* Resource Warning */}
       {showWarning && resourceWarning && (
-        <div className={`mb-4 p-4 rounded-lg border-2 ${
-          resourceWarning.level === "dangerous" ? "bg-red-950/50 border-red-500/50" :
-          resourceWarning.level === "extreme" ? "bg-orange-950/50 border-orange-500/50" :
-          "bg-yellow-950/50 border-yellow-500/50"
-        }`}>
+        <div
+          className="mb-4 p-4 rounded-xl"
+          style={{
+            background: resourceWarning.level === "dangerous"
+              ? "oklch(22% 0.06 25 / 0.60)"
+              : "oklch(22% 0.05 55 / 0.60)",
+            border: `1px solid ${resourceWarning.level === "dangerous" ? "oklch(55% 0.18 25 / 0.40)" : "oklch(65% 0.16 55 / 0.30)"}`,
+          }}
+        >
           <div className="flex items-start gap-3">
-            <span className="text-2xl shrink-0">{resourceWarning.icon}</span>
+            <span className="text-xl shrink-0">{resourceWarning.icon}</span>
             <div className="flex-1">
-              <h4 className={`font-bold text-sm mb-1 ${
-                resourceWarning.level === "dangerous" ? "text-red-300" :
-                resourceWarning.level === "extreme" ? "text-orange-300" :
-                "text-yellow-300"
-              }`}>
-                {resourceWarning.message}
-              </h4>
-              <p className="text-xs text-zinc-300 mb-2">
-                {resourceWarning.recommendation}
-              </p>
+              <h4 className="font-jazz text-sm mb-1 text-aura-text">{resourceWarning.message}</h4>
+              <p className="text-xs text-aura-muted mb-2">{resourceWarning.recommendation}</p>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-zinc-800/50 rounded px-2 py-1">
-                  <span className="text-zinc-400">RAM: </span>
-                  <span className="text-zinc-200 font-semibold">{resourceWarning.estimatedRAM}GB+</span>
+                <div className="rounded px-2 py-1" style={{ background: "oklch(20% 0.02 280 / 0.60)" }}>
+                  <span className="text-aura-muted">RAM: </span>
+                  <span className="text-aura-text font-semibold">{resourceWarning.estimatedRAM}GB+</span>
                 </div>
-                {resourceWarning.requiresHighEndCPU && (
-                  <div className="bg-zinc-800/50 rounded px-2 py-1">
-                    <span className="text-zinc-400">CPU: </span>
-                    <span className="text-zinc-200 font-semibold">High-end</span>
-                  </div>
-                )}
                 {resourceWarning.requiresGPU && (
-                  <div className="bg-zinc-800/50 rounded px-2 py-1 col-span-2">
-                    <span className="text-zinc-400">GPU: </span>
-                    <span className="text-zinc-200 font-semibold">Dedicated GPU Recommended</span>
+                  <div className="rounded px-2 py-1 col-span-2" style={{ background: "oklch(20% 0.02 280 / 0.60)" }}>
+                    <span className="text-aura-muted">GPU: </span>
+                    <span className="text-aura-text font-semibold">Dedicated GPU recommended</span>
                   </div>
                 )}
               </div>
@@ -157,73 +133,99 @@ export default function ModelSelector({
         </div>
       )}
 
+      {/* Model cards */}
       <div className="grid grid-cols-4 gap-3">
         {(Object.keys(WHISPER_MODELS) as ModelKey[]).map((modelKey) => {
           const model = WHISPER_MODELS[modelKey];
           const isSelected = selectedModel === modelKey;
-          const isCurrentlyLoaded =
-            currentlyLoadedModel === model.id && !isLoading;
+          const isLoaded = currentlyLoadedModel === model.id && !isLoading;
 
           return (
             <button
               key={modelKey}
               onClick={() => onModelSelect(modelKey)}
               disabled={disabled || isLoading}
-              className={`
-                relative p-3 rounded-lg border-2 text-left transition-all
-                ${isSelected ? `${model.borderColor} ${model.bgColor}` : "border-gray-200 bg-white"}
-                ${disabled || isLoading ? "opacity-50 cursor-not-allowed" : "hover:shadow-md cursor-pointer"}
-                ${!disabled && !isLoading && isSelected ? "shadow-md" : ""}
-              `}
+              className="relative p-3 rounded-xl text-left transition-all duration-200"
+              style={{
+                background: isSelected
+                  ? "oklch(28% 0.04 290 / 0.70)"
+                  : "oklch(22% 0.025 280)",
+                border: isSelected
+                  ? "1px solid oklch(60% 0.28 290 / 0.55)"
+                  : "1px solid oklch(38% 0.02 280 / 0.35)",
+                backdropFilter: "blur(8px)",
+                boxShadow: isSelected
+                  ? "0 0 20px oklch(60% 0.28 290 / 0.15), inset 0 1px 0 oklch(100% 0 0 / 0.04)"
+                  : "inset 0 1px 0 oklch(100% 0 0 / 0.03)",
+                opacity: disabled || isLoading ? 0.75 : 1,
+                cursor: disabled || isLoading ? "not-allowed" : "pointer",
+              }}
             >
-              {/* Badge (Popular, Best, Fast) */}
+              {/* Badge */}
               {model.badge && (
                 <div className="absolute -top-2 -right-2 z-10">
-                  <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
-                    model.badge === 'Best' 
-                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
-                      : model.badge === 'Fast'
-                      ? 'bg-amber-500 text-white'
-                      : 'bg-blue-500 text-white'
-                  }`}>
+                  <span
+                    className="px-1.5 py-0.5 text-[10px] font-bold rounded-full"
+                    style={BADGE_STYLE[model.badge]}
+                  >
                     {model.badge}
                   </span>
                 </div>
               )}
 
-              {/* Active Indicator */}
-              {isCurrentlyLoaded && (
-                <div className="absolute top-1.5 right-1.5">
-                  <CheckCircle2 className={`w-4 h-4 ${model.color}`} />
+              {/* Loaded indicator */}
+              {isLoaded && (
+                <div className="absolute top-2 right-2">
+                  <CheckCircle2 className="w-3.5 h-3.5" style={{ color: "oklch(66% 0.17 195)" }} />
                 </div>
               )}
 
-              {/* Model Name & Size */}
+              {/* Name & size */}
               <div className="mb-2">
-                <h4 className={`font-bold text-sm leading-tight ${isSelected ? model.color : "text-gray-800"}`}>
-                  {model.name.replace('Whisper ', '')}
+                <h4
+                  className="font-jazz text-sm leading-tight"
+                  style={{ color: isSelected ? "oklch(80% 0.22 290)" : "var(--text)" }}
+                >
+                  {model.name.replace("Whisper ", "")}
                 </h4>
-                <p className="text-[11px] text-gray-500">{model.size}</p>
+                <p className="text-[11px] text-aura-muted font-mono">{model.size}</p>
               </div>
 
-              {/* Speed & Quality */}
+              {/* Speed & quality tags */}
               <div className="flex flex-wrap gap-1.5 mb-2">
-                <span className="flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600">
+                <span
+                  className="font-jazz flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px]"
+                  style={{
+                    background: "oklch(38% 0.04 290 / 0.55)",
+                    color: "oklch(78% 0.08 290)",
+                    border: "1px solid oklch(50% 0.04 290 / 0.30)",
+                  }}
+                >
                   <Zap className="w-2.5 h-2.5" />
                   {model.speed}
                 </span>
-                <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] text-gray-500">
+                <span
+                  className="font-jazz px-1.5 py-0.5 rounded text-[10px]"
+                  style={{
+                    background: "oklch(35% 0.02 280 / 0.60)",
+                    color: "oklch(72% 0.02 280)",
+                    border: "1px solid oklch(45% 0.02 280 / 0.30)",
+                  }}
+                >
                   {model.quality}
                 </span>
               </div>
 
               {/* Description */}
-              <p className="text-[10px] text-gray-500 leading-tight">{model.description}</p>
+              <p className="text-[10px] text-aura-muted leading-tight">{model.description}</p>
 
-              {/* Loading/Loaded State */}
-              {isCurrentlyLoaded && (
-                <div className="mt-2 pt-2 border-t border-gray-200">
-                  <span className={`text-[10px] font-semibold ${model.color}`}>
+              {/* Loaded footer */}
+              {isLoaded && (
+                <div
+                  className="mt-2 pt-2"
+                  style={{ borderTop: "1px solid oklch(66% 0.17 195 / 0.20)" }}
+                >
+                  <span className="text-[10px] font-semibold" style={{ color: "oklch(66% 0.17 195)" }}>
                     ✓ Loaded
                   </span>
                 </div>
@@ -233,17 +235,20 @@ export default function ModelSelector({
         })}
       </div>
 
-      {/* Info Message */}
+      {/* Loading message */}
       {isLoading && (
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800">
-            Loading {WHISPER_MODELS[selectedModel].name}... This may take a moment.
+        <div
+          className="mt-4 p-3 rounded-xl"
+          style={{
+            background: "oklch(22% 0.025 280)",
+            border: "1px solid oklch(60% 0.28 290 / 0.25)",
+          }}
+        >
+          <p className="text-sm text-aura-muted">
+            Loading <span className="text-aura-text">{WHISPER_MODELS[selectedModel].name}</span>… this may take a moment.
           </p>
         </div>
       )}
     </div>
   );
 }
-
-
-

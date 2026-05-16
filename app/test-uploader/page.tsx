@@ -13,8 +13,13 @@ export default function TestUploaderPage() {
   };
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 p-8">
-      <div className="max-w-4xl mx-auto">
+    <main className="relative isolate min-h-screen overflow-x-hidden bg-aura-canvas text-zinc-100 p-8">
+      <div className="pointer-events-none fixed inset-0 bg-aura-radial" aria-hidden />
+      <div
+        className="pointer-events-none fixed inset-0 bg-[url('/aura-noise.svg')] opacity-[0.22] mix-blend-overlay [background-size:220px_220px]"
+        aria-hidden
+      />
+      <div className="relative z-10 max-w-4xl mx-auto">
         <header className="mb-8">
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">
             FileUploader Component Test
@@ -97,7 +102,7 @@ export default function TestUploaderPage() {
             </li>
             <li className="flex items-start gap-2">
               <CheckCircle className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-              <span><strong>Size limits:</strong> Max 100MB (reject), Warning &gt;50MB (env vars)</span>
+              <span><strong>No size limits:</strong> Any file size accepted (informational warning for large files)</span>
             </li>
             <li className="flex items-start gap-2">
               <CheckCircle className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />

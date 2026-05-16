@@ -55,12 +55,12 @@ export function AILoadingIndicator({
         className
       )}
     >
-      <div className="bg-gradient-to-br from-purple-900 via-purple-800 to-pink-900 border-2 border-purple-500/50 rounded-xl shadow-2xl overflow-hidden max-w-sm">
+      <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 border-2 border-blue-500/40 rounded-xl shadow-2xl overflow-hidden max-w-sm">
         {/* Header */}
         <div className="px-4 py-3 bg-black/30 flex items-center gap-3">
           <div className="relative">
             {isLoading ? (
-              <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
                 <Brain className="w-6 h-6 text-white animate-pulse" />
               </div>
             ) : (
@@ -69,7 +69,7 @@ export function AILoadingIndicator({
               </div>
             )}
             {isLoading && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full animate-ping" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-400 rounded-full animate-ping" />
             )}
           </div>
           <div className="flex-1">
@@ -86,13 +86,13 @@ export function AILoadingIndicator({
                 </>
               )}
             </h4>
-            <p className="text-xs text-purple-200">
+            <p className="text-xs text-blue-200">
               {isLoading ? "Downloading Whisper..." : "Transcription enabled"}
             </p>
           </div>
           <button
             onClick={() => setIsExpanded(false)}
-            className="text-purple-200 hover:text-white transition-colors"
+            className="text-blue-200 hover:text-white transition-colors"
             aria-label="Minimize"
           >
             <svg
@@ -117,14 +117,14 @@ export function AILoadingIndicator({
             {/* Progress Bar */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-purple-200 font-medium">
+                <span className="text-blue-200 font-medium">
                   {message || "Loading model files..."}
                 </span>
                 <span className="text-white font-bold">{Math.round(progress)}%</span>
               </div>
-              <div className="h-2 bg-purple-950/50 rounded-full overflow-hidden">
+              <div className="h-2 bg-blue-950/50 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 transition-all duration-300 ease-out relative"
+                  className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-cyan-400 transition-all duration-300 ease-out relative"
                   style={{ width: `${progress}%` }}
                 >
                   <div className="absolute inset-0 bg-white/20 animate-pulse" />
@@ -133,7 +133,7 @@ export function AILoadingIndicator({
             </div>
 
             {/* Info */}
-            <div className="flex items-center gap-2 text-xs text-purple-200 bg-black/20 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2 text-xs text-blue-200 bg-black/20 rounded-lg px-3 py-2">
               <Download className="w-4 h-4 flex-shrink-0" />
               <span>
                 {progress < 50 
@@ -162,7 +162,7 @@ export function AILoadingIndicator({
         <div
           className="absolute inset-0 -z-10 blur-2xl opacity-50"
           style={{
-            background: "radial-gradient(circle at center, rgb(168, 85, 247), transparent 70%)",
+            background: "radial-gradient(circle at center, rgb(59, 130, 246), transparent 70%)",
             animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
           }}
         />
