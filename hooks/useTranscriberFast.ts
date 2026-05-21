@@ -7,12 +7,13 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { FastModeProgress, FastModeTranscriptionResult, DevicePreference } from '@/types/fast-mode';
-import { ChunkManagerServiceFast } from '@/services/fast-mode/ChunkManagerServiceFast';
+import { ChunkManagerServiceFast, generateChunkRanges } from '@/services/fast-mode/ChunkManagerServiceFast';
 import { WorkerPoolManagerFast } from '@/services/fast-mode/WorkerPoolManagerFast';
 import { ParallelChunkProcessorFast } from '@/services/fast-mode/ParallelChunkProcessorFast';
 import { TimestampMergerFast } from '@/services/fast-mode/TimestampMergerFast';
 import { ParallelRuntime } from '@/utils/ParallelRuntime';
 import { isFeatureEnabled } from '@/lib/featureFlags';
+import { parseWavHeader, readChunkAsFloat32 } from '@/utils/wavStreamReader';
 
 export interface UseTranscriberFastConfig {
   /** Number of parallel workers (default: auto-detect) */
@@ -36,6 +37,12 @@ export interface UseTranscriberFastReturn {
   error: string | null;
   /** Start transcription - returns the result directly for immediate use */
   transcribe: (audioData: Float32Array, duration: number) => Promise<FastModeTranscriptionResult | null>;
+  /**
+   * Streaming transcription — accepts a pcm_s16le 16kHz mono WAV blob directly.
+   * Decodes audio chunk-by-chunk from the blob without loading the full file into memory.
+   * Peak memory ≈ workerCount × ~1.83MB (audio data only) + model weights per worker.
+   */
+  transcribeFromWav: (wavBlob: Blob, duration: number) => Promise<FastModeTranscriptionResult | null>;
   /** Cancel transcription */
   cancel: () => void;
   /** Reset state */
@@ -294,6 +301,132 @@ export function useTranscriberFast(initialConfig?: UseTranscriberFastConfig): Us
   }, [initializeServices]);
 
   /**
+   * Streaming transcription from a WAV blob.
+   *
+   * Processes the audio in batches of workerCount chunks, decoding each batch
+   * on-demand from the blob so the full file is never in memory at once.
+   */
+  const transcribeFromWav = useCallback(async (wavBlob: Blob, duration: number): Promise<FastModeTranscriptionResult | null> => {
+    try {
+      isCancelledRef.current = false;
+      setError(null);
+      setResult(null);
+      setMode('initializing');
+
+      if (!chunkManagerRef.current || !workerPoolRef.current) {
+        await initializeServices();
+      }
+
+      if (isCancelledRef.current) return null;
+
+      const workerPool = workerPoolRef.current!;
+      const processor = processorRef.current!;
+      const merger = mergerRef.current!;
+
+      // Parse WAV header — reads only 128 bytes
+      const wavInfo = await parseWavHeader(wavBlob);
+      const { sampleRate } = wavInfo;
+
+      // Chunk config (matches ChunkManagerServiceFast defaults)
+      const chunkLengthSec = 60;
+      const overlapSec = 3;
+      const chunkLengthSamples = chunkLengthSec * sampleRate;
+      const stepSamples = (chunkLengthSec - overlapSec) * sampleRate;
+
+      const ranges = generateChunkRanges(wavInfo.totalSamples, chunkLengthSamples, stepSamples);
+      const chunksTotal = ranges.length;
+
+      console.log(`[useTranscriberFast] Streaming mode: ${chunksTotal} chunks, WAV totalSamples=${wavInfo.totalSamples}`);
+
+      // Batch size = worker count so each batch fills the pool exactly once
+      const workerCount = Math.max(1, workerPool.getStatus().total);
+      const batchSize = workerCount;
+
+      processor.onProgress((progressUpdate) => {
+        if (!isCancelledRef.current) {
+          setProgress(progressUpdate);
+          setMode(progressUpdate.phase);
+        }
+      });
+
+      setMode('processing');
+      setProgress({
+        phase: 'processing',
+        percent: 0,
+        chunksCompleted: 0,
+        chunksTotal,
+        workersActive: workerPool.getStatus().busy,
+      });
+
+      const startTime = Date.now();
+      const allResults: Awaited<ReturnType<typeof processor.processChunks>> = [];
+      let completedSoFar = 0;
+
+      for (let batchStart = 0; batchStart < ranges.length; batchStart += batchSize) {
+        if (isCancelledRef.current) return null;
+
+        const batchRanges = ranges.slice(batchStart, batchStart + batchSize);
+
+        // Decode only this batch's audio from the blob
+        const batchChunks = await Promise.all(
+          batchRanges.map(async ([start, end], i) => ({
+            index: batchStart + i,
+            audioData: await readChunkAsFloat32(wavBlob, wavInfo, start, end),
+            startOffset: start / sampleRate,
+            endOffset: end / sampleRate,
+            duration: (end - start) / sampleRate,
+          }))
+        );
+
+        if (isCancelledRef.current) return null;
+
+        const batchResults = await processor.processChunks(batchChunks);
+        allResults.push(...batchResults);
+
+        completedSoFar += batchResults.length;
+        setProgress({
+          phase: 'processing',
+          percent: Math.round((completedSoFar / chunksTotal) * 90),
+          chunksCompleted: completedSoFar,
+          chunksTotal,
+          workersActive: workerPool.getStatus().busy,
+        });
+      }
+
+      const processingTime = Date.now() - startTime;
+      const successCount = allResults.length;
+      const failedCount = chunksTotal - successCount;
+
+      if (failedCount > 0) {
+        console.warn(`[useTranscriberFast] ${successCount}/${chunksTotal} chunks completed (${failedCount} failed)`);
+      } else {
+        console.log(`[useTranscriberFast] All ${chunksTotal} chunks processed in ${processingTime}ms`);
+      }
+
+      if (isCancelledRef.current) return null;
+
+      setMode('merging');
+      setProgress({ phase: 'merging', percent: 95, chunksCompleted: successCount, chunksTotal, workersActive: 0 });
+
+      const finalResult = merger.mergeResults(allResults, duration, processingTime, workerPool.getStatus().total);
+
+      if (isCancelledRef.current) return null;
+
+      setMode('complete');
+      setProgress({ phase: 'complete', percent: 100, chunksCompleted: chunksTotal, chunksTotal, workersActive: 0 });
+      setResult(finalResult);
+      return finalResult;
+    } catch (err) {
+      if (isCancelledRef.current) return null;
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage);
+      setMode('error');
+      setProgress({ phase: 'error', percent: 0, chunksCompleted: 0, chunksTotal: 0, workersActive: 0 });
+      return null;
+    }
+  }, [initializeServices]);
+
+  /**
    * Cancel transcription
    */
   const cancel = useCallback(() => {
@@ -351,6 +484,7 @@ export function useTranscriberFast(initialConfig?: UseTranscriberFastConfig): Us
     result,
     error,
     transcribe,
+    transcribeFromWav,
     cancel,
     reset,
     updateConfig,

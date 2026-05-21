@@ -55,7 +55,7 @@ export async function extractAudioDataFromBlob(audioBlob: Blob): Promise<Float32
 
 /**
  * Get audio duration from blob
- * 
+ *
  * @param audioBlob - Audio blob
  * @returns Duration in seconds
  */
@@ -64,4 +64,18 @@ export async function getAudioDuration(audioBlob: Blob): Promise<number> {
   const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
   return audioBuffer.duration;
+}
+
+/**
+ * Get WAV audio duration by reading only the file header (128 bytes).
+ *
+ * Use this instead of getAudioDuration() when the blob is a WAV produced by
+ * prepareAudioForAI() — it avoids decoding the entire file into memory.
+ *
+ * @param wavBlob - WAV blob (pcm_s16le or f32le)
+ * @returns Duration in seconds
+ */
+export async function getWavDurationFromHeader(wavBlob: Blob): Promise<number> {
+  const { getWavDurationFromHeader: readHeader } = await import('./wavStreamReader');
+  return readHeader(wavBlob);
 }

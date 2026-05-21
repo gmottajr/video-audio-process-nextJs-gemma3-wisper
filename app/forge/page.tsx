@@ -72,6 +72,10 @@ export default function Home() {
   const [transcriptionMode, setTranscriptionMode] = useState<TranscriptionMode>("standard");
   const fastModeEnabled = isFeatureEnabled('ENABLE_FAST_MODE');
   const fastTranscriber = useTranscriberFast();
+
+  // Large-file banner dismiss (resets when a new file is selected)
+  const [dismissedLargeFileBanner, setDismissedLargeFileBanner] = useState(false);
+  const LARGE_FILE_BYTES = 500 * 1024 * 1024; // 500 MB
   
   // Handle worker configuration changes from SystemCapabilitiesCard
   const handleWorkerConfigChange = (config: { workers: number; useGPU: boolean; memoryBudgetMB: number; devicePreference: import('@/types/fast-mode').DevicePreference }) => {
@@ -114,6 +118,11 @@ export default function Home() {
   const { memoryUsageMB, isHighLoad } = useResourceMonitor({
     isActive: stateMachine.state === "PROCESSING" || processor.isFFmpegLoading,
   });
+
+  // Reset large-file banner when a new file is selected
+  useEffect(() => {
+    setDismissedLargeFileBanner(false);
+  }, [stateMachine.selectedFile?.name]);
 
   // Track which file has been probed to prevent re-probing
   const [probedFileName, setProbedFileName] = useState<string | null>(null);
@@ -358,22 +367,21 @@ export default function Home() {
       // Update Fast Mode config with selected model
       fastTranscriber.updateConfig({ modelId });
       
-      // Prepare audio for AI (16kHz mono WAV)
+      // Prepare audio for AI (16kHz mono WAV — pcm_s16le)
       const audioBlob = await processor.ffmpeg.prepareAudioForAI(
         file,
         undefined,
         options?.testMode ? 30 : undefined
       );
-      
-      // Extract audio data as Float32Array
-      const { extractAudioDataFromBlob, getAudioDuration } = await import('@/utils/audioDataExtraction');
-      const audioData = await extractAudioDataFromBlob(audioBlob);
-      const duration = await getAudioDuration(audioBlob);
-      
-      console.log(`[App] Audio prepared: ${audioData.length} samples, ${duration.toFixed(2)}s`);
-      
-      // Start fast transcription - get result directly (React state updates are async)
-      const transcriptionResult = await fastTranscriber.transcribe(audioData, duration);
+
+      // Read duration from WAV header only (no full decode — avoids loading entire file)
+      const { getWavDurationFromHeader } = await import('@/utils/audioDataExtraction');
+      const duration = await getWavDurationFromHeader(audioBlob);
+
+      console.log(`[App] Audio prepared: ${(audioBlob.size / 1024 / 1024).toFixed(1)}MB WAV, ${duration.toFixed(2)}s`);
+
+      // Start fast transcription using streaming — decodes chunk-by-chunk from the WAV blob
+      const transcriptionResult = await fastTranscriber.transcribeFromWav(audioBlob, duration);
       
       // Check for errors
       if (fastTranscriber.error) {
@@ -736,24 +744,58 @@ export default function Home() {
         )}
 
         {stateMachine.state === "INSPECT" && stateMachine.selectedFile && (
-          <InspectStateView
-            file={stateMachine.selectedFile}
-            metrics={processor.ffmpegMetrics}
-            selectedModelKey={selectedModelKey}
-            currentModel={processor.currentModel}
-            isModelLoading={processor.isModelLoading}
-            isTranscribing={processor.isTranscribing}
-            onModelSelect={handleModelSelect}
-            transcriptionMode={transcriptionMode}
-            onModeChange={setTranscriptionMode}
-            onWorkerConfigChange={handleWorkerConfigChange}
-            onAction={handleAction}
-            onBack={() => stateMachine.selectFile(null)}
-            isFFmpegLoaded={processor.isFFmpegLoaded}
-            isFFmpegLoading={processor.isFFmpegLoading}
-            isModelLoaded={processor.isModelLoaded}
-            modelLoadingProgress={processor.transcriptionProgress}
-          />
+          <>
+            {/* Large-file banner — shown in Standard Mode when file exceeds 500 MB */}
+            {fastModeEnabled &&
+              transcriptionMode !== 'fast' &&
+              !dismissedLargeFileBanner &&
+              stateMachine.selectedFile.size > LARGE_FILE_BYTES && (
+                <div className="mb-4 bg-amber-950/60 border border-amber-500/40 rounded-xl p-4 flex items-start gap-3">
+                  <Zap className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-amber-300 mb-0.5">Large file detected</p>
+                    <p className="text-xs text-amber-200/80">
+                      This file ({(stateMachine.selectedFile.size / 1024 / 1024 / 1024).toFixed(1)} GB) may run out of memory in Standard Mode.{' '}
+                      <strong>Fast Mode</strong> processes audio in small chunks — no size limit.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => { setTranscriptionMode('fast'); setDismissedLargeFileBanner(true); }}
+                      className="text-xs bg-amber-500 hover:bg-amber-400 text-black font-semibold py-1.5 px-3 rounded transition-colors whitespace-nowrap flex items-center gap-1"
+                    >
+                      <Zap className="w-3 h-3" />
+                      Use Fast Mode
+                    </button>
+                    <button
+                      onClick={() => setDismissedLargeFileBanner(true)}
+                      className="text-xs text-amber-400/60 hover:text-amber-300 transition-colors whitespace-nowrap"
+                    >
+                      Continue anyway
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            <InspectStateView
+              file={stateMachine.selectedFile}
+              metrics={processor.ffmpegMetrics}
+              selectedModelKey={selectedModelKey}
+              currentModel={processor.currentModel}
+              isModelLoading={processor.isModelLoading}
+              isTranscribing={processor.isTranscribing}
+              onModelSelect={handleModelSelect}
+              transcriptionMode={transcriptionMode}
+              onModeChange={setTranscriptionMode}
+              onWorkerConfigChange={handleWorkerConfigChange}
+              onAction={handleAction}
+              onBack={() => stateMachine.selectFile(null)}
+              isFFmpegLoaded={processor.isFFmpegLoaded}
+              isFFmpegLoading={processor.isFFmpegLoading}
+              isModelLoaded={processor.isModelLoaded}
+              modelLoadingProgress={processor.transcriptionProgress}
+            />
+          </>
         )}
 
         {stateMachine.state === "DONE" &&
@@ -788,19 +830,27 @@ export default function Home() {
           />
         )}
 
-        {/* High Memory Warning */}
-        {isHighLoad && stateMachine.state === "PROCESSING" && (
-          <div className="fixed bottom-4 right-4 bg-yellow-950/90 border-2 border-yellow-500/50 rounded-lg p-4 max-w-sm backdrop-blur-sm">
+        {/* High Memory Warning — Standard Mode only (Fast Mode handles any file size) */}
+        {isHighLoad && stateMachine.state === "PROCESSING" && transcriptionMode !== 'fast' && (
+          <div className="fixed bottom-4 right-4 bg-yellow-950/90 border-2 border-yellow-500/50 rounded-lg p-4 max-w-sm backdrop-blur-sm z-50">
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-yellow-400 text-sm mb-1">
-                  High Memory Usage
+                  File Too Large for Standard Mode
                 </h3>
-                <p className="text-xs text-yellow-300">
-                  Memory usage is above 1.5GB. If the process stalls, try a smaller
-                  file.
+                <p className="text-xs text-yellow-300 mb-3">
+                  Memory is running high. <strong>Fast Mode</strong> is built for large files — it processes audio in small chunks so file size doesn&apos;t matter.
                 </p>
+                {fastModeEnabled && (
+                  <button
+                    onClick={() => setTranscriptionMode('fast')}
+                    className="w-full text-xs bg-yellow-500 hover:bg-yellow-400 text-black font-semibold py-1.5 px-3 rounded transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    Switch to Fast Mode
+                  </button>
+                )}
               </div>
             </div>
           </div>
