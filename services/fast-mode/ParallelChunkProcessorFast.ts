@@ -27,7 +27,7 @@ export interface ProgressCallback {
 export const markComplete = (
   prev: ReadonlySet<number>,
   index: number
-): Set<number> => new Set([...prev, index]);
+): Set<number> => new Set([...Array.from(prev), index]);
 
 /**
  * Pure function: Calculate ETA based on completion rate

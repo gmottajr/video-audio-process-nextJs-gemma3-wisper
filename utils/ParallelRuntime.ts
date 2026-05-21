@@ -67,6 +67,8 @@ export class ParallelRuntime {
         recommendedWorkers: 4,
         maxWorkers: 8,
         useGPU: false,
+        useNPU: false,
+        preferredDevice: 'cpu',
         reasoning: ['Detection failed, using safe defaults'],
         memoryBudgetMB: 4000,
       };

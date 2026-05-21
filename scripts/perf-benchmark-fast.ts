@@ -120,7 +120,7 @@ async function runBenchmark(label: string): Promise<BenchmarkRun> {
       standard_median_ms: standardMedian,
       fast_median_ms: fastMedian,
       improvement_percent: improvement,
-      target_met,
+      target_met: targetMet,
     },
   };
 

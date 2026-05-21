@@ -79,14 +79,14 @@ function compareBenchmarks(before: BenchmarkRun, after: BenchmarkRun): Compariso
   // Calculate per-file improvements
   const perFile: ComparisonResult['perFile'] = [];
   
-  for (const [file, beforeResults] of beforeByFile.entries()) {
+  for (const [file, beforeResults] of Array.from(beforeByFile.entries())) {
     const afterResults = afterByFile.get(file);
     if (!afterResults) continue;
 
-    const beforeStandard = beforeResults.find(r => r.mode === 'standard');
-    const beforeFast = beforeResults.find(r => r.mode === 'fast');
-    const afterStandard = afterResults.find(r => r.mode === 'standard');
-    const afterFast = afterResults.find(r => r.mode === 'fast');
+    const beforeStandard = beforeResults.find((r: BenchmarkResult) => r.mode === 'standard');
+    const beforeFast = beforeResults.find((r: BenchmarkResult) => r.mode === 'fast');
+    const afterStandard = afterResults.find((r: BenchmarkResult) => r.mode === 'standard');
+    const afterFast = afterResults.find((r: BenchmarkResult) => r.mode === 'fast');
 
     if (beforeFast && afterFast) {
       const improvement = ((beforeFast.duration_ms - afterFast.duration_ms) / beforeFast.duration_ms) * 100;
@@ -113,7 +113,7 @@ function compareBenchmarks(before: BenchmarkRun, after: BenchmarkRun): Compariso
       before_median_ms: beforeMedian,
       after_median_ms: afterMedian,
       improvement_percent: improvement,
-      target_met,
+      target_met: targetMet,
     },
   };
 }

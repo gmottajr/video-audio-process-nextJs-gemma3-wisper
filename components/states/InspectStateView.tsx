@@ -1,10 +1,10 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { Loader2, FileVideo, ChevronLeft } from "lucide-react";
 import { MetadataDisplay } from "@/components/MetadataDisplay";
 import { ActionSelector, type ActionType, type ActionOptions } from "@/components/ActionSelector";
 import ModelSelector, { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
-import { PageHeader } from "@/components/PageHeader";
+import { ForgeStepper } from "@/components/ForgeStepper";
 import { TranscriptionModeSelector } from "@/components/fast-mode";
 import { SystemCapabilitiesCard } from "@/components/fast-mode/SystemCapabilitiesCard";
 import type { TranscriptionMode } from "@/types/fast-mode";
@@ -30,6 +30,22 @@ interface InspectStateViewProps {
   modelLoadingProgress: number;
 }
 
+const SECTION_LABEL = "font-mono text-[11px] tracking-[0.18em] uppercase mb-2.5";
+
+/**
+ * InspectStateView — REDESIGNED (v2.1)
+ *
+ * Drop-in replacement. Same prop signature.
+ *
+ * Changes:
+ *   • Two-column layout:
+ *       LEFT  = decisions  (Mode → Model)
+ *       RIGHT = context    (File info · Preview · Hardware)
+ *   • Action selector spans full width below as the primary CTA zone.
+ *   • Persistent file-summary strip at top so users don't lose context.
+ *   • Anchored by ForgeStepper.
+ *   • PageHeader brand mark removed — the stepper does that job now.
+ */
 export function InspectStateView({
   file,
   metrics,
@@ -51,15 +67,60 @@ export function InspectStateView({
   const fastModeEnabled = isFeatureEnabled('ENABLE_FAST_MODE');
 
   return (
-    <div className="animate-in fade-in duration-500">
-      <PageHeader showLogo={true} />
+    <div className="animate-in fade-in duration-500 max-w-7xl mx-auto px-4">
+      <div className="mb-6">
+        <ForgeStepper currentState="INSPECT" />
+      </div>
 
-      {/* FFmpeg Loading Banner */}
+      {/* file summary strip */}
+      <div
+        className="flex items-center gap-3 mb-5 px-4 py-3 rounded-xl"
+        style={{
+          background: "oklch(22% 0.025 280 / 0.6)",
+          border: "1px solid oklch(38% 0.02 280 / 0.35)",
+          backdropFilter: "blur(8px)",
+        }}
+      >
+        <div
+          className="flex-shrink-0 w-10 h-10 rounded-lg grid place-items-center"
+          style={{
+            background: "oklch(60% 0.20 290 / 0.12)",
+            border: "1px solid oklch(60% 0.20 290 / 0.25)",
+            color: "oklch(74% 0.16 290)",
+          }}
+        >
+          <FileVideo className="w-4 h-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>
+            {file.name}
+          </div>
+          <div
+            className="font-mono text-[10px] tracking-[0.08em] uppercase mt-0.5"
+            style={{ color: "oklch(50% 0.02 280)" }}
+          >
+            {(file.size / (1024 * 1024)).toFixed(2)} MB · {file.type || "unknown type"}
+          </div>
+        </div>
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all hover:scale-[1.02]"
+          style={{
+            background: "transparent",
+            border: "1px solid oklch(38% 0.02 280 / 0.4)",
+            color: "var(--text-muted)",
+          }}
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+          Change file
+        </button>
+      </div>
+
       {!isFFmpegLoaded && (
         <div
-          className="mb-6 p-4 rounded-xl flex items-center gap-3"
+          className="mb-5 p-4 rounded-xl flex items-center gap-3"
           style={{
-            background: "oklch(22% 0.025 280)",
+            background: "oklch(22% 0.025 280 / 0.7)",
             border: "1px solid oklch(60% 0.28 290 / 0.25)",
             backdropFilter: "blur(8px)",
           }}
@@ -76,59 +137,76 @@ export function InspectStateView({
         </div>
       )}
 
-      {/* Transcription Mode Selector */}
-      {fastModeEnabled && (
-        <div className="mb-4">
-          <TranscriptionModeSelector
-            selectedMode={transcriptionMode}
-            onModeChange={onModeChange}
-            disabled={isTranscribing}
-          />
+      <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-5">
+        {/* LEFT — decisions */}
+        <div className="flex flex-col gap-5">
+          {fastModeEnabled && (
+            <div>
+              <div className={SECTION_LABEL} style={{ color: "var(--text-muted)" }}>
+                Transcription Mode
+              </div>
+              <TranscriptionModeSelector
+                selectedMode={transcriptionMode}
+                onModeChange={onModeChange}
+                disabled={isTranscribing}
+              />
+            </div>
+          )}
+
+          <div
+            className="p-5 rounded-xl"
+            style={{
+              background: "oklch(22% 0.025 280 / 0.55)",
+              border: "1px solid oklch(38% 0.02 280 / 0.35)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            <div className={SECTION_LABEL} style={{ color: "var(--text-muted)" }}>
+              AI Model
+            </div>
+            <ModelSelector
+              selectedModel={selectedModelKey}
+              currentlyLoadedModel={currentModel}
+              isLoading={isModelLoading}
+              onModelSelect={onModelSelect}
+              disabled={isTranscribing}
+              file={file}
+              fastModeEnabled={transcriptionMode === 'fast'}
+            />
+          </div>
         </div>
-      )}
 
-      {/* System Capabilities (Fast Mode only) */}
-      {fastModeEnabled && transcriptionMode === 'fast' && (
-        <div className="mb-4">
-          <SystemCapabilitiesCard onWorkerConfigChange={onWorkerConfigChange} />
+        {/* RIGHT — context */}
+        <div className="flex flex-col gap-5">
+          <div>
+            <div className={SECTION_LABEL} style={{ color: "var(--text-muted)" }}>
+              File Information
+            </div>
+            <MetadataDisplay metrics={metrics} file={file} variant="compact" />
+          </div>
+
+          <div>
+            <div className={SECTION_LABEL} style={{ color: "var(--text-muted)" }}>
+              Preview
+            </div>
+            <MediaPreview file={file} />
+          </div>
+
+          {fastModeEnabled && transcriptionMode === 'fast' && (
+            <div>
+              <div className={SECTION_LABEL} style={{ color: "var(--text-muted)" }}>
+                System Capabilities
+              </div>
+              <SystemCapabilitiesCard onWorkerConfigChange={onWorkerConfigChange} />
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Model Selector */}
-      <div
-        className="mb-4 p-5 rounded-xl"
-        style={{
-          background: "oklch(22% 0.025 280)",
-          border: "1px solid oklch(38% 0.02 280 / 0.35)",
-          backdropFilter: "blur(8px)",
-        }}
-      >
-        <ModelSelector
-          selectedModel={selectedModelKey}
-          currentlyLoadedModel={currentModel}
-          isLoading={isModelLoading}
-          onModelSelect={onModelSelect}
-          disabled={isTranscribing}
-          file={file}
-          fastModeEnabled={transcriptionMode === 'fast'}
-        />
       </div>
 
-      {/* File Info */}
-      <div className="mb-4">
-        <p className="text-xs text-aura-muted font-mono tracking-wide uppercase mb-2 pl-1">File Information</p>
-        <MetadataDisplay metrics={metrics} file={file} variant="compact" />
-      </div>
-
-      {/* Media Preview */}
-      <div className="mb-4">
-        <p className="text-xs text-aura-muted font-mono tracking-wide uppercase mb-2 pl-1">Preview</p>
-        <MediaPreview file={file} />
-      </div>
-
-      {/* Action Selector */}
-      <div className="mb-6">
-        <p className="text-xs text-aura-muted font-mono tracking-wide uppercase mb-2 pl-1">Choose Action</p>
+      <div className="mt-6">
+        <div className={SECTION_LABEL} style={{ color: "var(--text-muted)" }}>
+          Step 02 · Choose Action
+        </div>
         <ActionSelector
           file={file}
           onAction={onAction}
@@ -139,21 +217,6 @@ export function InspectStateView({
           selectedModelKey={transcriptionMode === 'fast' ? 'distil-small' : selectedModelKey}
           transcriptionMode={transcriptionMode}
         />
-      </div>
-
-      {/* Back */}
-      <div className="text-center">
-        <button
-          onClick={onBack}
-          className="px-6 py-2.5 rounded-xl text-sm transition-all duration-200 hover:scale-[1.02]"
-          style={{
-            background: "oklch(22% 0.025 280)",
-            border: "1px solid oklch(38% 0.02 280 / 0.35)",
-            color: "var(--text-muted)",
-          }}
-        >
-          ← Choose Different File
-        </button>
       </div>
     </div>
   );

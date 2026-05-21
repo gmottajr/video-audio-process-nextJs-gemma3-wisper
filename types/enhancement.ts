@@ -140,6 +140,9 @@ export interface EnhancementResult {
     
     /** Percentage reduction in text */
     reductionPercentage: number;
+
+    /** Number of hallucinated repetition loops removed */
+    hallucinationsRemoved?: number;
   };
   
   /** Processing time in seconds */

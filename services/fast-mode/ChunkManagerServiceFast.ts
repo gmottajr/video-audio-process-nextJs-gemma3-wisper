@@ -15,6 +15,7 @@ const DEFAULT_CONFIG: FastModeConfig = {
   overlapSec: 3,
   modelId: 'distil-whisper/distil-small.en',
   sampleRate: 16000,
+  devicePreference: 'auto',
 };
 
 /**
