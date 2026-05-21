@@ -85,6 +85,14 @@ After transcription (and optional enhancement), view your results in multiple fo
 - See every single change the AI made
 - Statistical summary of changes
 
+### 👁️ Media Preview Before Processing
+
+When a file is selected, the configure step now shows a live preview so you can confirm you picked the right file before committing to any action.
+
+- **Audio files** — Interactive waveform (WaveSurfer.js) with click-to-seek, drag-to-select regions, and segment playback. The play button plays only the selected region if one exists.
+- **Video files** — 16:9 native HTML5 video player with full browser controls (play, pause, seek, volume, fullscreen). Renders with `preload="metadata"` so the first frame is visible immediately.
+- **Memory safe** — Blob URLs created per-mount with `URL.revokeObjectURL` cleanup. React Strict Mode double-invocation is handled correctly (each mount creates a fresh URL via `useEffect`, not `useMemo`).
+
 ### ✂️ Audio Segment Selection & Transcription (NEW!)
 - **Interactive Waveform Selection** - Click and drag to select audio segments
 - **Smart Segment Transcription** - Transcribe only selected portions of large files
@@ -106,12 +114,15 @@ After transcription (and optional enhancement), view your results in multiple fo
 - **Interactive Waveform** - Select, play, and transcribe audio segments
 
 ### 🎨 User Experience
-- **Clean, Modern UI** with gradient animations
+- **Clean, Modern UI** with the Aura design system (OKLCH color tokens, unified violet/amber/teal palette)
+- **Media Preview Before Processing** - Play/preview the selected file on the configure step before committing to any action (see below)
 - **Breadcrumb Navigation** - Always know where you are
 - **Compact Transcribe Mode** - Streamlined UI for transcription
 - **State Machine Architecture** - Predictable, bug-free workflow
 - **Smart File Detection** - Automatic format recognition
 - **Font Customization** - Choose your preferred font style
+- **NeuralFont** - Decorative animated SVG overlay that traces letter outlines with neural-network nodes
+- **WaveformVisualizer** - Decorative 72-bar animated spectrum visualizer
 
 ---
 
@@ -456,25 +467,38 @@ The AI enhancement now includes **objective quality measurement** and **user fee
 - **TypeScript** - Type safety throughout
 - **FFmpeg.wasm** - Video/audio processing in browser
 - **Transformers.js** - Whisper AI for transcription
-- **WebLLM** - Browser-based LLM inference (Llama, Qwen) ⭐ NEW
-- **WebGPU** - GPU acceleration for AI models ⭐ NEW
-- **Tailwind CSS** - Modern styling
+- **WebLLM** - Browser-based LLM inference (Llama, Qwen)
+- **WebGPU** - GPU acceleration for AI models
+- **Tailwind CSS** - Styling with the Aura design system (OKLCH tokens)
 - **Web Workers** - Background processing (transcription & enhancement)
-- **WaveSurfer.js** - Audio waveform visualization
+- **WaveSurfer.js** - Audio waveform visualization with drag-to-select regions
 - **IndexedDB** - Model caching
+
+### Aura Design System
+
+The UI is built on the **Aura** design token system:
+
+- **Colors** — All palette values use `oklch()` coordinates, giving perceptually uniform hue shifts. Tokens are registered as CSS custom properties and consumed via `aura-*` Tailwind utilities (e.g. `text-aura-text`, `bg-aura-surface`, `border-aura-border`).
+- **Typography** — Three Google Fonts registered as CSS variables in the root layout: `--font-sans` (DM Sans), `--font-display` (Syne), `--font-space` (Space Grotesk). Local font files (Tchaikovsky, Jazz, etc.) are served from `public/fonts/` and selectable via `FontSelector`.
+- **Texture** — `public/aura-noise.svg` provides a subtle grain overlay composited with CSS `mix-blend-mode`.
+- **Security** — COEP/COOP cross-origin isolation headers are scoped to `/forge(.*)` only, so pages that embed third-party iframes (e.g. YouTube) are not blocked.
 
 ### Key Components
 - **State Machine** (`useAppStateMachine`) - Predictable state management
 - **Media Processor** (`useMediaProcessor`) - Orchestrates all processing
 - **Audio Converter** (`useAudioConverter`) - Handles compression & normalization
 - **FFmpeg Integration** (`useFFmpeg`) - Browser-based media processing
-- **Transcriber** (`useTranscriber`) - AI transcription with Whisper
+- **Transcriber** (`useTranscriber`) - AI transcription with Whisper; all worker messages tagged with `requestId` for silent-drop detection
 - **Enhancer Context** (`EnhancerContext`) - AI enhancement with WebLLM
 - **Audio Extraction** (`utils/audioExtraction`) - Segment extraction with FFmpeg.wasm
-- **Transcript Chunker** (`utils/transcriptChunker`) - Smart chunking for long transcripts ⭐ NEW
-- **WaveSurfer Regions** (`WaveformViewer`) - Interactive segment selection
+- **Transcript Chunker** (`utils/transcriptChunker`) - Smart chunking for long transcripts
+- **WaveSurfer Regions** (`WaveformViewer`) - Interactive waveform with drag-to-select and segment playback
+- **Media Preview** (`MediaPreview`) - Pre-processing preview for audio (waveform) and video (16:9 player)
 - **Resource Comparison** (`ResourceComparison`) - Visual RAM/time comparison
-- **Multi-Tab View** (`TabbedTranscriptionView`) - Original/Enhanced/Side-by-Side/Diff tabs ⭐ NEW
+- **Multi-Tab View** (`TabbedTranscriptionView`) - Original/Enhanced/Side-by-Side/Diff tabs
+- **Structured Logger** (`lib/logger.ts`) - `log.info/warn/error` writing to console + `/api/log` in development
+- **NeuralFont** (`components/NeuralFont.tsx`) - Animated SVG neural-network letter overlay
+- **WaveformVisualizer** (`components/WaveformVisualizer.tsx`) - Decorative 72-bar spectrum animation
 
 ### Processing Pipeline
 
@@ -546,12 +570,16 @@ npm test -- audioCompression
 
 ```
 ├── app/                      # Next.js app directory
-│   ├── page.tsx             # Main application (refactored)
-│   └── layout.tsx           # Root layout
+│   ├── forge/               # Main processing route
+│   │   └── page.tsx         # State machine orchestrator
+│   ├── api/
+│   │   └── log/route.ts     # Dev-only log endpoint (appends to logs/debug.log)
+│   └── layout.tsx           # Root layout (Google Fonts + CSS var registration)
 ├── components/              # React components
 │   ├── states/             # State-specific views
-│   │   └── DoneStateView.tsx # Results view with enhancement
-│   ├── tabs/               # Transcript view tabs ⭐ NEW
+│   │   ├── InspectStateView.tsx  # Configure step (now includes MediaPreview)
+│   │   └── DoneStateView.tsx     # Results view with enhancement
+│   ├── tabs/               # Transcript view tabs
 │   │   ├── OriginalTabView.tsx
 │   │   ├── EnhancedTabView.tsx
 │   │   ├── SideBySideTabView.tsx
@@ -562,40 +590,55 @@ npm test -- audioCompression
 │   │   ├── SmartRecommendations.tsx
 │   │   ├── AlreadyAppliedBadges.tsx
 │   │   └── TranscribeButton.tsx
+│   ├── fast-mode/          # Fast Mode UI components
+│   │   ├── TranscriptionModeSelector.tsx
+│   │   └── SystemCapabilitiesCard.tsx
 │   ├── ActionSelector.tsx  # Format & compression selection
-│   ├── WaveformViewer.tsx  # Audio visualization with regions
-│   ├── TabbedTranscriptionView.tsx # Multi-tab transcript viewer ⭐ NEW
+│   ├── MediaPreview.tsx    # Pre-processing audio/video preview
+│   ├── WaveformViewer.tsx  # Interactive waveform with drag-to-select regions
+│   ├── WaveformVisualizer.tsx # Decorative 72-bar spectrum animation
+│   ├── NeuralFont.tsx      # Animated SVG neural-network letter overlay
+│   ├── TabbedTranscriptionView.tsx # Multi-tab transcript viewer
 │   ├── TranscriptionViewer.tsx
-│   ├── EnhancementToggle.tsx # AI enhancement toggle
-│   ├── EnhancementProgress.tsx # Enhancement progress overlay
-│   ├── ResourceComparison.tsx # Segment vs full comparison
-│   └── ResourceWarning.tsx # RAM/GPU warnings
+│   ├── EnhancementToggle.tsx
+│   ├── EnhancementProgress.tsx
+│   ├── ResourceComparison.tsx
+│   └── ResourceWarning.tsx
 ├── hooks/                   # Custom React hooks
 │   ├── useAppStateMachine.ts
 │   ├── useMediaProcessor.ts
 │   ├── useAudioConverter.ts
 │   ├── useFFmpeg.ts
-│   └── useTranscriber.ts
+│   └── useTranscriber.ts   # requestId-tagged worker messages
 ├── contexts/               # React contexts
-│   ├── FontContext.tsx
+│   ├── FontContext.tsx      # Runtime font switching
 │   ├── TranscriberContext.tsx
-│   └── EnhancerContext.tsx # AI enhancement state management ⭐
+│   └── EnhancerContext.tsx
+├── lib/
+│   └── logger.ts           # Structured logger (console + /api/log in dev)
+├── services/fast-mode/     # Fast Mode parallel processing
+│   ├── ParallelChunkProcessorFast.ts
+│   └── WorkerPoolManagerFast.ts
 ├── utils/                  # Utility functions
 │   ├── audioFormats.ts
 │   ├── videoFormats.ts
 │   ├── resourceEstimation.ts
 │   ├── compressionHelpers.ts
-│   ├── audioExtraction.ts  # FFmpeg segment extraction
-│   ├── audioContentDetector.ts # Smart content detection
-│   ├── transcriptChunker.ts # Long transcript chunking ⭐ NEW
-│   ├── whisperMetadataExtractor.ts # Transcript analysis
-│   ├── enhancementStrategyGenerator.ts # Context-aware strategies
-│   └── contextAwarePromptBuilder.ts # Smart prompts
+│   ├── audioExtraction.ts
+│   ├── audioContentDetector.ts
+│   ├── transcriptChunker.ts
+│   ├── whisperMetadataExtractor.ts
+│   ├── enhancementStrategyGenerator.ts
+│   └── contextAwarePromptBuilder.ts
 ├── types/                  # TypeScript types
-│   ├── audioSegment.ts     # Segment metadata types
-│   ├── enhancement.ts      # Enhancement types
-│   ├── quality-metrics.ts  # Quality scoring
-│   └── whisper-metadata.ts # Transcript metadata
+│   ├── audioSegment.ts
+│   ├── enhancement.ts
+│   ├── fast-mode.ts
+│   ├── quality-metrics.ts
+│   └── whisper-metadata.ts
+├── public/
+│   ├── aura-noise.svg      # Grain texture for Aura design system
+│   └── fonts/              # Local brand fonts (Tchaikovsky, Jazz, etc.)
 └── __tests__/              # Test files
     ├── unit/
     └── integration/
@@ -721,6 +764,18 @@ Audio can be enhanced before transcription for better accuracy:
 
 ## 🐛 Troubleshooting
 
+### Fast Mode Stuck on "Processing" / No Result Shown
+
+**Cause:** Two possible root causes:
+1. Memory exhaustion — 15 parallel workers + Whisper-small can exhaust the browser WebAssembly heap on long videos (>10 min), producing `RangeError: Array buffer allocation failed` in some workers.
+2. State machine deadlock — if transcription returns no result, the app could get stuck in the PROCESSING state indefinitely.
+
+**What was fixed:**
+- `ParallelChunkProcessorFast` now returns partial results if fewer than 50% of chunks fail (previously 20% failure threshold discarded all results including valid ones).
+- `app/forge/page.tsx` now calls `failProcessing()` on a null transcription result, so the app always exits the PROCESSING state.
+
+**Remaining limitation:** Browser WebAssembly memory is finite. For very long videos, reduce the number of active workers in the System Capabilities panel before starting Fast Mode transcription.
+
 ### "Out of Memory" Error
 
 **Cause:** File too large or model too complex for available RAM
@@ -822,45 +877,57 @@ The codebase follows **Single Responsibility Principle** with focused, testable 
 
 ### Latest Updates
 
-**What's New:**
+#### Session — May 2026
+
+1. **Media Preview in Configure Step** ✅
+   - New `components/MediaPreview.tsx` component renders automatically in `InspectStateView` after file selection
+   - Audio files: full WaveSurfer.js waveform with drag-to-select regions and segment playback
+   - Video files: 16:9 aspect-ratio container with native HTML5 controls and `preload="metadata"`
+   - Blob URL lifecycle correctly handled for React Strict Mode (fresh URL per mount via `useEffect`, guarded with `if (!fileUrl) return null`)
+
+2. **Aura Design System** ✅
+   - OKLCH-based color tokens in `tailwind.config.ts` — all `aura-*` Tailwind utilities
+   - Google Fonts (DM Sans, Syne, Space Grotesk) registered as CSS variables in `app/layout.tsx`
+   - Local brand fonts served from `public/fonts/`
+   - `public/aura-noise.svg` grain texture asset
+   - All 14 core UI components migrated to Aura tokens
+   - New decorative components: `NeuralFont` and `WaveformVisualizer`
+
+3. **Fast Mode: Partial Result Recovery** ✅
+   - `ParallelChunkProcessorFast` failure threshold raised from 20% → 50% (and only hard-fails if zero valid results exist)
+   - Previously, 5 OOM failures out of 15 chunks discarded 10 successfully-transcribed chunks
+   - Now partial results flow through to the result page
+
+4. **Fast Mode: State Machine Deadlock Fix** ✅
+   - `app/forge/page.tsx` now calls `stateMachine.failProcessing()` when transcription returns `null`
+   - Previously the app was silently stuck in PROCESSING state forever when Fast Mode returned no result
+
+5. **Infrastructure** ✅
+   - COEP/COOP headers scoped from `(.*)` → `/forge(.*)` — fixes YouTube iframe blocking on other pages
+   - `lib/logger.ts`: structured `log.info/warn/error` API writing to console and `POST /api/log` (dev only)
+   - `app/api/log/route.ts`: server endpoint appending to `logs/debug.log` in development
+   - `hooks/useTranscriber.ts`: all worker messages tagged with `requestId` for correlation and silent-drop detection
+
+#### Previous Updates
 
 1. **Context Window Fix** ✅
    - Automatically handles transcripts of ANY length
    - Smart chunking at sentence boundaries (2000 tokens per chunk)
    - Progress tracking: "Processing chunk 2/5..."
-   - Seamless merging of enhanced chunks
    - Fixes `ContextWindowSizeExceededError` for long transcripts
 
-2. **Llama 3.2 3B Default Model** ✅
-   - Best quality AI enhancement with 8K-32K context window
-   - ~1.8GB one-time download
-   - Better grammar correction and readability improvements
-   - Recommended for most users with modern GPUs
-
-3. **Multi-Tab Transcript View** ✅
+2. **Multi-Tab Transcript View** ✅
    - **Original Tab** - Raw Whisper output with statistics
    - **Enhanced Tab** - AI-cleaned, editable, with quality scores
    - **Side-by-Side Tab** - Compare versions with sync scrolling
    - **Diff Tab** - Color-coded line-by-line comparison
 
-4. **Comprehensive Test Coverage** ✅
+3. **Comprehensive Test Coverage** ✅
    - 300+ tests (all passing)
    - Transcript chunking: 32 tests
    - Audio extraction: 237 tests
    - Integration tests: 20+ tests
    - Total coverage: ~90%
-
-**Benefits:**
-- ✅ No more context window errors - process any length transcript
-- ✅ Compare original vs enhanced easily
-- ✅ See exactly what the AI changed (Diff view)
-- ✅ Edit enhanced text manually if needed
-- ✅ Export in multiple formats (TXT, JSON, SRT)
-
-**Documentation:**
-- `LLAMA_CONTEXT_WINDOW_FIX.md` - Context window fix details
-- `TEST_COVERAGE_REPORT.md` - Complete test documentation
-- `TEST_RESULTS_SUMMARY.md` - Test execution results
 
 ---
 
