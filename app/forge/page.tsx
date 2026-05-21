@@ -30,6 +30,7 @@ import { useTranscriberFast } from "@/hooks/useTranscriberFast";
 import type { TranscriptionMode } from "@/types/fast-mode";
 import { isFeatureEnabled } from "@/lib/featureFlags";
 import { FastModeProgressIndicator } from "@/components/fast-mode";
+import FastModeProcessingScreen from "@/components/FastModeProcessingScreen";
 import { NeuralNetBackground } from "@/components/NeuralNetBackground";
 
 // 🧪 TEST MODE: Set to true to only process first 30 seconds of audio
@@ -627,56 +628,17 @@ export default function Home() {
           />
         )}
 
-      {/* Fast Mode Progress Indicator - Full Screen Overlay (Processing Only) */}
+      {/* Fast Mode Progress (v2.2) — full-screen overlay with chunk-map + workers + phased pipeline */}
       {fastModeEnabled &&
         transcriptionMode === 'fast' &&
         fastTranscriber.mode === 'processing' && (
-          <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "oklch(14% 0.02 280)" }}>
-            <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 80% 50% at 60% -10%, rgba(148,68,255,0.35), transparent 60%)" }} />
-            <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 60% 40% at 20% 80%, rgba(228,48,198,0.22), transparent 60%)" }} />
-            
-            {/* Breadcrumbs at top */}
-            <div className="relative container mx-auto px-4 pt-6 pb-4">
-              <Breadcrumbs 
-                currentState="PROCESSING" 
-                onNavigate={() => {}}
-              />
-            </div>
-
-            {/* Main content centered */}
-            <div className="relative flex-1 flex items-center justify-center">
-              <div className="max-w-lg w-full mx-4">
-                {/* Header with icon */}
-                <div className="text-center mb-10">
-                  <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-amber-500/20 to-orange-500/10 rounded-3xl border border-amber-500/30 mb-6 shadow-lg shadow-amber-500/10">
-                    <Zap className="w-12 h-12 text-amber-400 animate-pulse" />
-                  </div>
-                  <h1 className="text-4xl font-bold text-white mb-3 tracking-tight">
-                    Fast Mode
-                  </h1>
-                  <p className="text-zinc-400 text-lg">
-                    Parallel transcription in progress
-                  </p>
-                </div>
-
-                {/* Fast Mode Progress Indicator */}
-                <FastModeProgressIndicator progress={fastTranscriber.progress} />
-                
-                {/* Cancel Button */}
-                <div className="mt-8 text-center">
-                  <button
-                    onClick={() => {
-                      fastTranscriber.cancel();
-                      stateMachine.cancelProcessing();
-                    }}
-                    className="px-8 py-3 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 hover:text-white rounded-xl border border-zinc-700 hover:border-zinc-600 transition-all duration-200 font-medium"
-                  >
-                    Cancel Transcription
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <FastModeProcessingScreen
+            progress={fastTranscriber.progress}
+            onCancel={() => {
+              fastTranscriber.cancel();
+              stateMachine.cancelProcessing();
+            }}
+          />
         )}
 
       {/* Processing Overlay (FFmpeg operations - Standard Mode only for transcription) */}

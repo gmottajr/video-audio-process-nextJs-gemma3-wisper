@@ -1,31 +1,18 @@
 "use client";
 
 /**
- * Tabbed Transcription View
- * 
- * Main container component that manages tab state and renders the appropriate
- * view based on the active tab. Provides Original, Enhanced, Side-by-Side,
- * and Diff views for comprehensive transcript comparison.
- * 
- * Phase 4 implementation.
- * Phase 4.5: Added SRT export, URL hash sync, editable text, synchronized scrolling.
+ * Tabbed Transcription View — REDESIGNED (v2.2)
+ *
+ * Same exports, same props, same logic, same keyboard shortcuts, same URL hash
+ * sync, same SRT export, same edit mode. Only the chrome (header + tab strip +
+ * content frame) is restyled to match the design-canvas preview.
  */
 
 import { useState, useCallback, useEffect } from "react";
-import { 
-  FileText, 
-  Sparkles, 
-  Columns, 
-  GitCompare,
-  Copy,
-  Check,
-  Download,
-  RefreshCw,
-  ChevronDown,
-  Keyboard,
-  Edit3,
-  RotateCcw,
-  TrendingUp
+import {
+  FileText, Sparkles, Columns, GitCompare,
+  Copy, Check, Download, RefreshCw, ChevronDown,
+  Keyboard, Edit3, RotateCcw,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { OriginalTabView } from "@/components/tabs/OriginalTabView";
@@ -34,51 +21,33 @@ import { SideBySideTabView } from "@/components/tabs/SideBySideTabView";
 import { DiffTabView } from "@/components/tabs/DiffTabView";
 import type { EnhancementQualityMetrics } from "@/types/quality-metrics";
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
+// ---------- types (unchanged) ----------
 export type TabType = 'original' | 'enhanced' | 'sidebyside' | 'diff';
-
 export type ExportFormat = 'txt' | 'json' | 'srt';
 
-/** Chunk with timestamp for SRT export */
 export interface TranscriptionChunk {
   text: string;
   timestamp: [number, number | null];
 }
 
 export interface TabbedTranscriptionViewProps {
-  /** Raw transcription from Whisper */
   originalText: string;
-  /** AI-enhanced version */
   enhancedText: string;
-  /** Quality metrics from Phase 3 */
   qualityMetrics?: EnhancementQualityMetrics | null;
-  /** Enhancement processing time in seconds */
   processingTime?: number;
-  /** Original chunks with timestamps for SRT export */
   chunks?: TranscriptionChunk[];
-  /** Metadata about the content */
   metadata?: {
     contentType?: string;
     duration?: number;
     modelName?: string;
     filename?: string;
   };
-  /** Action callbacks */
   onCopy?: (text: string, tabType: TabType) => void;
   onExport?: (format: ExportFormat, tabType: TabType) => void;
   onReEnhance?: () => void;
-  /** Called when user edits the enhanced text */
   onEnhancedTextChange?: (newText: string) => void;
-  /** Additional CSS classes */
   className?: string;
 }
-
-// ============================================================================
-// TAB CONFIGURATION
-// ============================================================================
 
 const TABS: Array<{
   id: TabType;
@@ -87,39 +56,15 @@ const TABS: Array<{
   icon: React.ReactNode;
   description: string;
 }> = [
-  {
-    id: 'original',
-    label: 'Original',
-    shortLabel: 'Orig',
-    icon: <FileText className="w-4 h-4" />,
-    description: 'Raw transcription from speech recognition',
-  },
-  {
-    id: 'enhanced',
-    label: 'Enhanced',
-    shortLabel: 'Enh',
-    icon: <Sparkles className="w-4 h-4" />,
-    description: 'AI-improved version with filler words removed',
-  },
-  {
-    id: 'sidebyside',
-    label: 'Side-by-Side',
-    shortLabel: 'Compare',
-    icon: <Columns className="w-4 h-4" />,
-    description: 'Compare original and enhanced versions',
-  },
-  {
-    id: 'diff',
-    label: 'Diff View',
-    shortLabel: 'Diff',
-    icon: <GitCompare className="w-4 h-4" />,
-    description: 'See exactly what changed with highlights',
-  },
+  { id: 'original',   label: 'Original',     shortLabel: 'Orig',    icon: <FileText className="w-4 h-4" />,   description: 'Raw transcription from speech recognition' },
+  { id: 'enhanced',   label: 'Enhanced',     shortLabel: 'Enh',     icon: <Sparkles className="w-4 h-4" />,   description: 'AI-improved version with filler words removed' },
+  { id: 'sidebyside', label: 'Side-by-Side', shortLabel: 'Compare', icon: <Columns className="w-4 h-4" />,    description: 'Compare original and enhanced versions' },
+  { id: 'diff',       label: 'Diff View',    shortLabel: 'Diff',    icon: <GitCompare className="w-4 h-4" />, description: 'See exactly what changed with highlights' },
 ];
 
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
+// ---------- styles ----------
+const FONT_DISPLAY = "'Space Grotesk', system-ui, sans-serif";
+const FONT_MONO = "'JetBrains Mono', ui-monospace, monospace";
 
 export function TabbedTranscriptionView({
   originalText,
@@ -134,56 +79,41 @@ export function TabbedTranscriptionView({
   onEnhancedTextChange,
   className,
 }: TabbedTranscriptionViewProps) {
-  // State
+  // ---- state (unchanged) ----
   const [activeTab, setActiveTab] = useState<TabType>('enhanced');
   const [copySuccess, setCopySuccess] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
-  
-  // Phase 4.5: Editable enhanced text
   const [editedText, setEditedText] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  
-  // Phase 4.5: Synchronized scrolling for side-by-side
   const [syncScroll, setSyncScroll] = useState(true);
-  
-  // Get the current enhanced text (edited or original)
+
   const currentEnhancedText = editedText ?? enhancedText;
   const hasEdits = editedText !== null && editedText !== enhancedText;
-  
-  // Phase 4.5: URL Hash Sync - Read hash on mount
+
+  // ---- URL hash sync (unchanged) ----
   useEffect(() => {
-    const hash = window.location.hash.slice(1); // Remove #
+    const hash = window.location.hash.slice(1);
     if (hash && ['original', 'enhanced', 'sidebyside', 'diff'].includes(hash)) {
       setActiveTab(hash as TabType);
     } else {
-      // Fall back to session storage
       try {
         const saved = sessionStorage.getItem('mediaforge_active_tab');
         if (saved && ['original', 'enhanced', 'sidebyside', 'diff'].includes(saved)) {
           setActiveTab(saved as TabType);
         }
-      } catch {
-        // Ignore storage errors
-      }
+      } catch {}
     }
   }, []);
-  
-  // Phase 4.5: URL Hash Sync - Update hash when tab changes
+
   useEffect(() => {
-    // Update URL hash without triggering navigation
     const newUrl = `${window.location.pathname}${window.location.search}#${activeTab}`;
     window.history.replaceState(null, '', newUrl);
-    
-    // Also save to session storage as backup
     try {
       sessionStorage.setItem('mediaforge_active_tab', activeTab);
-    } catch {
-      // Ignore storage errors
-    }
+    } catch {}
   }, [activeTab]);
-  
-  // Listen for hash changes (browser back/forward)
+
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1);
@@ -191,42 +121,25 @@ export function TabbedTranscriptionView({
         setActiveTab(hash as TabType);
       }
     };
-    
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
-  
-  // Reset edited text when enhancedText prop changes (new enhancement)
+
   useEffect(() => {
     setEditedText(null);
     setIsEditing(false);
   }, [enhancedText]);
 
-  // ============================================================================
-  // HANDLERS
-  // ============================================================================
-
+  // ---- handlers (unchanged) ----
   const handleCopy = useCallback(async () => {
     let textToCopy: string;
-    
     switch (activeTab) {
-      case 'original':
-        textToCopy = originalText;
-        break;
-      case 'enhanced':
-        textToCopy = currentEnhancedText;
-        break;
-      case 'sidebyside':
-        textToCopy = `ORIGINAL:\n${originalText}\n\n─────────────────────────\n\nENHANCED:\n${currentEnhancedText}`;
-        break;
-      case 'diff':
-        // For diff, copy the enhanced version
-        textToCopy = currentEnhancedText;
-        break;
-      default:
-        textToCopy = currentEnhancedText;
+      case 'original':   textToCopy = originalText; break;
+      case 'enhanced':   textToCopy = currentEnhancedText; break;
+      case 'sidebyside': textToCopy = `ORIGINAL:\n${originalText}\n\n─────────────────────────\n\nENHANCED:\n${currentEnhancedText}`; break;
+      case 'diff':       textToCopy = currentEnhancedText; break;
+      default:           textToCopy = currentEnhancedText;
     }
-    
     try {
       await navigator.clipboard.writeText(textToCopy);
       setCopySuccess(true);
@@ -237,7 +150,6 @@ export function TabbedTranscriptionView({
     }
   }, [activeTab, originalText, currentEnhancedText, onCopy]);
 
-  // Phase 4.5: Format timestamp for SRT
   const formatSRTTime = useCallback((seconds: number | null): string => {
     if (seconds === null) return "00:00:00,000";
     const hours = Math.floor(seconds / 3600);
@@ -247,10 +159,8 @@ export function TabbedTranscriptionView({
     return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")},${ms.toString().padStart(3, "0")}`;
   }, []);
 
-  // Phase 4.5: Generate SRT content from chunks
   const generateSRT = useCallback((): string => {
     if (!chunks || chunks.length === 0) return '';
-    
     let srt = '';
     chunks.forEach((chunk, index) => {
       const [start, end] = chunk.timestamp;
@@ -260,20 +170,17 @@ export function TabbedTranscriptionView({
         srt += `${chunk.text.trim()}\n\n`;
       }
     });
-    
     return srt;
   }, [chunks, formatSRTTime]);
 
   const handleExport = useCallback((format: ExportFormat) => {
     setShowExportMenu(false);
-    
     const textToExport = activeTab === 'original' ? originalText : currentEnhancedText;
     const suffix = activeTab === 'original' ? '-original' : (hasEdits ? '-edited' : '-enhanced');
     const filename = metadata?.filename || 'transcript';
-    
+
     let blob: Blob;
     let extension: string;
-    
     switch (format) {
       case 'txt':
         blob = new Blob([textToExport], { type: 'text/plain' });
@@ -282,12 +189,7 @@ export function TabbedTranscriptionView({
       case 'json':
         const jsonData = {
           text: textToExport,
-          metadata: {
-            ...metadata,
-            tab: activeTab,
-            edited: hasEdits,
-            exportedAt: new Date().toISOString(),
-          },
+          metadata: { ...metadata, tab: activeTab, edited: hasEdits, exportedAt: new Date().toISOString() },
           qualityMetrics: activeTab !== 'original' ? qualityMetrics : undefined,
         };
         blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
@@ -306,190 +208,248 @@ export function TabbedTranscriptionView({
         blob = new Blob([textToExport], { type: 'text/plain' });
         extension = 'txt';
     }
-    
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = `${filename}${suffix}.${extension}`;
     link.click();
     URL.revokeObjectURL(url);
-    
     onExport?.(format, activeTab);
   }, [activeTab, originalText, currentEnhancedText, hasEdits, metadata, qualityMetrics, onExport, generateSRT]);
 
-  // Phase 4.5: Handle text edit
   const handleTextEdit = useCallback((newText: string) => {
     setEditedText(newText);
     onEnhancedTextChange?.(newText);
   }, [onEnhancedTextChange]);
 
-  // Phase 4.5: Reset edits to original enhanced text
   const handleResetEdits = useCallback(() => {
     setEditedText(null);
     setIsEditing(false);
   }, []);
 
-  // Keyboard shortcuts
+  // ---- keyboard shortcuts (unchanged) ----
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-      
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const ctrlKey = isMac ? e.metaKey : e.ctrlKey;
-      
-      // Ctrl/Cmd + 1-4 to switch tabs
       if (ctrlKey && ['1', '2', '3', '4'].includes(e.key)) {
         e.preventDefault();
         const tabIndex = parseInt(e.key) - 1;
-        if (TABS[tabIndex]) {
-          setActiveTab(TABS[tabIndex].id);
-        }
+        if (TABS[tabIndex]) setActiveTab(TABS[tabIndex].id);
         return;
       }
-      
-      // Ctrl/Cmd + E to toggle between original and enhanced
       if (ctrlKey && e.key === 'e') {
         e.preventDefault();
         setActiveTab(prev => prev === 'original' ? 'enhanced' : 'original');
         return;
       }
-      
-      // Ctrl/Cmd + C to copy (only if no text selected)
       if (ctrlKey && e.key === 'c' && !window.getSelection()?.toString()) {
         e.preventDefault();
         handleCopy();
         return;
       }
-      
-      // ? to show keyboard help
       if (e.key === '?' && !ctrlKey) {
         e.preventDefault();
         setShowKeyboardHelp(prev => !prev);
         return;
       }
-      
-      // Escape to close modals
       if (e.key === 'Escape') {
         setShowKeyboardHelp(false);
         setShowExportMenu(false);
       }
     };
-    
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleCopy]);
 
-  // ============================================================================
-  // RENDER
-  // ============================================================================
-
+  // ---- render ----
   return (
-    <div className={cn("bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden", className)}>
-      {/* Header */}
-      <div className="p-4 border-b border-zinc-800 bg-gradient-to-r from-purple-950/30 to-pink-950/30">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+    <div
+      className={cn("rounded-2xl overflow-hidden", className)}
+      style={{
+        background: "linear-gradient(180deg, #14141f 0%, #0d0d18 100%)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        fontFamily: "'Inter', system-ui, sans-serif",
+        color: "#f3f3f8",
+      }}
+    >
+      {/* HEADER */}
+      <div
+        className="px-5 py-4"
+        style={{
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          background:
+            "radial-gradient(80% 100% at 0% 0%, rgba(139,92,246,0.08), transparent 70%)",
+        }}
+      >
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg">
-              <FileText className="w-5 h-5 text-white" />
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 9,
+                background: "rgba(139,92,246,0.15)",
+                border: "1px solid rgba(139,92,246,0.3)",
+                color: "#a78bfa",
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <FileText className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-zinc-100">Transcription Result</h2>
-              <p className="text-xs text-zinc-400">
-                {metadata?.modelName && `Model: ${metadata.modelName} • `}
-                {metadata?.duration && `Duration: ${Math.floor(metadata.duration / 60)}:${String(Math.floor(metadata.duration % 60)).padStart(2, '0')} • `}
-                {qualityMetrics && `Quality: ${qualityMetrics.qualityScore}/100`}
-              </p>
+              <div
+                style={{
+                  fontFamily: FONT_DISPLAY,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "#f3f3f8",
+                  lineHeight: 1.2,
+                }}
+              >
+                AI Transcription
+              </div>
+              <div
+                style={{
+                  fontFamily: FONT_MONO,
+                  fontSize: 10.5,
+                  color: "#5b5b6e",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginTop: 2,
+                }}
+              >
+                {metadata?.modelName && `${metadata.modelName} · `}
+                {metadata?.duration && `${Math.floor(metadata.duration / 60)}:${String(Math.floor(metadata.duration % 60)).padStart(2, '0')} · `}
+                {qualityMetrics && `quality ${qualityMetrics.qualityScore}/100`}
+              </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            {/* Phase 4.5: Edit Toggle (only on Enhanced tab) */}
+          {/* action buttons */}
+          <div className="flex items-center gap-1.5">
             {activeTab === 'enhanced' && (
               <button
                 onClick={() => setIsEditing(!isEditing)}
-                className={cn(
-                  "px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2",
-                  isEditing 
-                    ? "bg-amber-600 hover:bg-amber-700 text-white" 
-                    : "bg-zinc-800 hover:bg-zinc-700"
-                )}
                 title={isEditing ? "Exit edit mode" : "Edit enhanced text"}
+                className="flex items-center gap-1.5 transition-colors"
+                style={{
+                  padding: "7px 11px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  background: isEditing ? "#f59e0b" : "rgba(255,255,255,0.04)",
+                  border: `1px solid ${isEditing ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.08)"}`,
+                  color: isEditing ? "#0d0d18" : "#f3f3f8",
+                  cursor: "pointer",
+                }}
               >
-                <Edit3 className="w-4 h-4" />
+                <Edit3 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{isEditing ? 'Done' : 'Edit'}</span>
               </button>
             )}
-            
-            {/* Phase 4.5: Reset Edits Button (only when there are edits) */}
+
             {hasEdits && (
               <button
                 onClick={handleResetEdits}
-                className="px-3 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                 title="Reset to AI-generated text"
+                className="flex items-center gap-1.5 transition-colors"
+                style={{
+                  padding: "7px 11px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  background: "rgba(245,158,11,0.10)",
+                  border: "1px solid rgba(245,158,11,0.3)",
+                  color: "#fbbf24",
+                  cursor: "pointer",
+                }}
               >
-                <RotateCcw className="w-4 h-4" />
+                <RotateCcw className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Reset</span>
               </button>
             )}
 
-            {/* Copy Button */}
             <button
               onClick={handleCopy}
-              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
               title={`Copy ${activeTab} text (Ctrl+C)`}
+              className="flex items-center gap-1.5 transition-colors"
+              style={{
+                padding: "7px 11px",
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 500,
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: copySuccess ? "#34d399" : "#f3f3f8",
+                cursor: "pointer",
+              }}
             >
-              {copySuccess ? (
-                <>
-                  <Check className="w-4 h-4 text-green-400" />
-                  <span className="text-green-400">Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  <span className="hidden sm:inline">Copy</span>
-                </>
-              )}
+              {copySuccess ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{copySuccess ? "Copied!" : "Copy"}</span>
             </button>
 
-            {/* Export Dropdown */}
+            {/* Export dropdown */}
             <div className="relative">
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                className="flex items-center gap-1.5 transition-transform hover:scale-[1.02]"
+                style={{
+                  padding: "7px 11px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  background: "linear-gradient(180deg, #8b5cf6, #6d28d9)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
+                }}
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Export</span>
-                <ChevronDown className="w-3 h-3" />
+                <ChevronDown className="w-3 h-3 opacity-70" />
               </button>
-              
+
               {showExportMenu && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-10" 
-                    onClick={() => setShowExportMenu(false)} 
-                  />
-                  <div className="absolute right-0 mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl z-20 overflow-hidden">
-                    <button
-                      onClick={() => handleExport('txt')}
-                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-700 flex items-center gap-2 transition-colors"
-                    >
-                      <span>📄</span> Plain Text (.txt)
-                    </button>
-                    <button
-                      onClick={() => handleExport('json')}
-                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-700 flex items-center gap-2 transition-colors"
-                    >
-                      <span>📋</span> JSON (.json)
-                    </button>
-                    {/* Phase 4.5: SRT Export (only when chunks available) */}
+                  <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
+                  <div
+                    className="absolute right-0 mt-2 z-20 overflow-hidden"
+                    style={{
+                      width: 192,
+                      background: "#14141f",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 10,
+                      boxShadow: "0 12px 40px rgba(0,0,0,0.5)",
+                    }}
+                  >
+                    {[
+                      { f: "txt" as ExportFormat,  icon: "📄", label: "Plain Text (.txt)" },
+                      { f: "json" as ExportFormat, icon: "📋", label: "JSON (.json)" },
+                    ].map(({ f, icon, label }) => (
+                      <button
+                        key={f}
+                        onClick={() => handleExport(f)}
+                        className="w-full text-left flex items-center gap-2 transition-colors hover:bg-white/5"
+                        style={{ padding: "10px 14px", fontSize: 13, color: "#f3f3f8" }}
+                      >
+                        <span>{icon}</span> {label}
+                      </button>
+                    ))}
                     {chunks && chunks.length > 0 && (
                       <button
                         onClick={() => handleExport('srt')}
-                        className="w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-700 flex items-center gap-2 transition-colors border-t border-zinc-700"
+                        className="w-full text-left flex items-center gap-2 transition-colors hover:bg-white/5"
+                        style={{
+                          padding: "10px 14px",
+                          fontSize: 13,
+                          color: "#f3f3f8",
+                          borderTop: "1px solid rgba(255,255,255,0.06)",
+                        }}
                       >
                         <span>🎬</span> Subtitles (.srt)
                       </button>
@@ -499,92 +459,129 @@ export function TabbedTranscriptionView({
               )}
             </div>
 
-            {/* Re-enhance Button */}
             {onReEnhance && (
               <button
                 onClick={onReEnhance}
-                className="px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                 title="Re-enhance transcript"
+                className="flex items-center gap-1.5 transition-colors"
+                style={{
+                  padding: "7px 11px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  background: "rgba(139,92,246,0.12)",
+                  border: "1px solid rgba(139,92,246,0.3)",
+                  color: "#c4b5fd",
+                  cursor: "pointer",
+                }}
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Re-enhance</span>
               </button>
             )}
 
-            {/* Keyboard Help */}
             <button
               onClick={() => setShowKeyboardHelp(!showKeyboardHelp)}
-              className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm transition-colors"
               title="Keyboard shortcuts (?)"
+              style={{
+                padding: 7,
+                borderRadius: 8,
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "#8a8a9c",
+                cursor: "pointer",
+              }}
             >
-              <Keyboard className="w-4 h-4 text-zinc-400" />
+              <Keyboard className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="border-b border-zinc-800 bg-zinc-950/50">
+      {/* TAB STRIP */}
+      <div
+        style={{
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          background: "rgba(8,8,15,0.4)",
+        }}
+      >
         <div className="flex overflow-x-auto" role="tablist" aria-label="Transcription view options">
-          {TABS.map((tab, index) => (
-            <button
-              key={tab.id}
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              aria-controls={`${tab.id}-panel`}
-              id={`${tab.id}-tab`}
-              tabIndex={activeTab === tab.id ? 0 : -1}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all whitespace-nowrap",
-                "border-b-2 -mb-px",
-                activeTab === tab.id
-                  ? "border-purple-500 text-purple-400 bg-purple-950/20"
-                  : "border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-              )}
-            >
-              {tab.icon}
-              <span className="hidden sm:inline">{tab.label}</span>
-              <span className="sm:hidden">{tab.shortLabel}</span>
-              {tab.id === 'enhanced' && qualityMetrics && !hasEdits && (
-                <span className="ml-1 text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">
-                  ✓
+          {TABS.map((tab, index) => {
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                role="tab"
+                aria-selected={active}
+                aria-controls={`${tab.id}-panel`}
+                id={`${tab.id}-tab`}
+                tabIndex={active ? 0 : -1}
+                onClick={() => setActiveTab(tab.id)}
+                className="flex items-center gap-2 transition-all whitespace-nowrap"
+                style={{
+                  padding: "14px 18px",
+                  fontSize: 13.5,
+                  fontWeight: active ? 600 : 500,
+                  borderBottom: active ? "2px solid #8b5cf6" : "2px solid transparent",
+                  marginBottom: -1,
+                  color: active ? "#f3f3f8" : "#8a8a9c",
+                  background: active ? "rgba(139,92,246,0.06)" : "transparent",
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{ color: active ? "#a78bfa" : "#5b5b6e" }}>{tab.icon}</span>
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.shortLabel}</span>
+                {tab.id === 'enhanced' && qualityMetrics && !hasEdits && (
+                  <span
+                    style={{
+                      fontFamily: FONT_MONO,
+                      fontSize: 10,
+                      padding: "1px 6px",
+                      borderRadius: 4,
+                      background: "rgba(16,185,129,0.15)",
+                      color: "#34d399",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    ✓
+                  </span>
+                )}
+                {tab.id === 'enhanced' && hasEdits && (
+                  <span
+                    style={{
+                      fontFamily: FONT_MONO,
+                      fontSize: 10,
+                      padding: "1px 6px",
+                      borderRadius: 4,
+                      background: "rgba(245,158,11,0.15)",
+                      color: "#fbbf24",
+                    }}
+                  >
+                    edited
+                  </span>
+                )}
+                <span
+                  className="hidden lg:inline"
+                  style={{ fontFamily: FONT_MONO, fontSize: 10, color: "#5b5b6e", marginLeft: 4 }}
+                >
+                  ({index + 1})
                 </span>
-              )}
-              {tab.id === 'enhanced' && hasEdits && (
-                <span className="ml-1 text-xs bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">
-                  edited
-                </span>
-              )}
-              <span className="hidden lg:inline text-xs text-zinc-500 ml-1">
-                ({index + 1})
-              </span>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Tab Content */}
+      {/* TAB CONTENT */}
       <div className="p-6">
         {activeTab === 'original' && (
-          <div
-            role="tabpanel"
-            id="original-panel"
-            aria-labelledby="original-tab"
-          >
-            <OriginalTabView
-              text={originalText}
-              readabilityScore={qualityMetrics?.readabilityBefore}
-            />
+          <div role="tabpanel" id="original-panel" aria-labelledby="original-tab">
+            <OriginalTabView text={originalText} readabilityScore={qualityMetrics?.readabilityBefore} />
           </div>
         )}
-        
         {activeTab === 'enhanced' && (
-          <div
-            role="tabpanel"
-            id="enhanced-panel"
-            aria-labelledby="enhanced-tab"
-          >
+          <div role="tabpanel" id="enhanced-panel" aria-labelledby="enhanced-tab">
             <EnhancedTabView
               text={currentEnhancedText}
               qualityMetrics={qualityMetrics}
@@ -596,13 +593,8 @@ export function TabbedTranscriptionView({
             />
           </div>
         )}
-        
         {activeTab === 'sidebyside' && (
-          <div
-            role="tabpanel"
-            id="sidebyside-panel"
-            aria-labelledby="sidebyside-tab"
-          >
+          <div role="tabpanel" id="sidebyside-panel" aria-labelledby="sidebyside-tab">
             <SideBySideTabView
               originalText={originalText}
               enhancedText={currentEnhancedText}
@@ -612,77 +604,83 @@ export function TabbedTranscriptionView({
             />
           </div>
         )}
-        
         {activeTab === 'diff' && (
-          <div
-            role="tabpanel"
-            id="diff-panel"
-            aria-labelledby="diff-tab"
-          >
-            <DiffTabView
-              originalText={originalText}
-              enhancedText={currentEnhancedText}
-            />
+          <div role="tabpanel" id="diff-panel" aria-labelledby="diff-tab">
+            <DiffTabView originalText={originalText} enhancedText={currentEnhancedText} />
           </div>
         )}
-        
       </div>
 
-      {/* Keyboard Help Modal */}
+      {/* KEYBOARD HELP MODAL */}
       {showKeyboardHelp && (
         <>
-          <div 
-            className="fixed inset-0 bg-black/50 z-40"
-            onClick={() => setShowKeyboardHelp(false)}
-          />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 p-6 w-full max-w-md">
-            <h3 className="text-lg font-bold text-zinc-100 mb-4 flex items-center gap-2">
-              <Keyboard className="w-5 h-5" />
+          <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setShowKeyboardHelp(false)} />
+          <div
+            className="fixed top-1/2 left-1/2 z-50 w-full max-w-md"
+            style={{
+              transform: "translate(-50%, -50%)",
+              background: "#14141f",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 14,
+              padding: 24,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+            }}
+          >
+            <div
+              className="flex items-center gap-2 mb-4"
+              style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600 }}
+            >
+              <Keyboard className="w-5 h-5" style={{ color: "#a78bfa" }} />
               Keyboard Shortcuts
-            </h3>
+            </div>
             <table className="w-full text-sm">
-              <tbody className="divide-y divide-zinc-800">
-                <tr>
-                  <td className="py-2">
-                    <kbd className="px-2 py-1 bg-zinc-800 rounded text-xs">Ctrl</kbd>
-                    <span className="mx-1">+</span>
-                    <kbd className="px-2 py-1 bg-zinc-800 rounded text-xs">1-5</kbd>
-                  </td>
-                  <td className="py-2 text-zinc-400">Switch to tab</td>
-                </tr>
-                <tr>
-                  <td className="py-2">
-                    <kbd className="px-2 py-1 bg-zinc-800 rounded text-xs">Ctrl</kbd>
-                    <span className="mx-1">+</span>
-                    <kbd className="px-2 py-1 bg-zinc-800 rounded text-xs">E</kbd>
-                  </td>
-                  <td className="py-2 text-zinc-400">Toggle Original/Enhanced</td>
-                </tr>
-                <tr>
-                  <td className="py-2">
-                    <kbd className="px-2 py-1 bg-zinc-800 rounded text-xs">Ctrl</kbd>
-                    <span className="mx-1">+</span>
-                    <kbd className="px-2 py-1 bg-zinc-800 rounded text-xs">C</kbd>
-                  </td>
-                  <td className="py-2 text-zinc-400">Copy current tab</td>
-                </tr>
-                <tr>
-                  <td className="py-2">
-                    <kbd className="px-2 py-1 bg-zinc-800 rounded text-xs">?</kbd>
-                  </td>
-                  <td className="py-2 text-zinc-400">Show/hide shortcuts</td>
-                </tr>
-                <tr>
-                  <td className="py-2">
-                    <kbd className="px-2 py-1 bg-zinc-800 rounded text-xs">Esc</kbd>
-                  </td>
-                  <td className="py-2 text-zinc-400">Close dialogs</td>
-                </tr>
+              <tbody style={{ color: "#8a8a9c" }}>
+                {[
+                  [["Ctrl", "1–4"], "Switch to tab"],
+                  [["Ctrl", "E"], "Toggle Original/Enhanced"],
+                  [["Ctrl", "C"], "Copy current tab"],
+                  [["?"], "Show/hide shortcuts"],
+                  [["Esc"], "Close dialogs"],
+                ].map(([keys, label], i) => (
+                  <tr key={i} style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+                    <td className="py-2" style={{ width: 140 }}>
+                      {(keys as string[]).map((k, j) => (
+                        <span key={k}>
+                          <kbd
+                            style={{
+                              fontFamily: FONT_MONO,
+                              fontSize: 11,
+                              padding: "2px 7px",
+                              borderRadius: 4,
+                              background: "rgba(255,255,255,0.06)",
+                              border: "1px solid rgba(255,255,255,0.08)",
+                              color: "#f3f3f8",
+                            }}
+                          >
+                            {k}
+                          </kbd>
+                          {j < (keys as string[]).length - 1 && <span className="mx-1">+</span>}
+                        </span>
+                      ))}
+                    </td>
+                    <td className="py-2">{label as string}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
             <button
               onClick={() => setShowKeyboardHelp(false)}
-              className="mt-4 w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors"
+              className="mt-5 w-full transition-transform hover:scale-[1.01]"
+              style={{
+                padding: "10px 16px",
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 600,
+                background: "linear-gradient(180deg, #8b5cf6, #6d28d9)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "#fff",
+                cursor: "pointer",
+              }}
             >
               Close
             </button>
@@ -694,4 +692,3 @@ export function TabbedTranscriptionView({
 }
 
 export default TabbedTranscriptionView;
-

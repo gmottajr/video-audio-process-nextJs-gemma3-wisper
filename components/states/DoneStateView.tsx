@@ -11,12 +11,15 @@ import { StatisticsModal } from "@/components/StatisticsModal";
 import { TranscribeFromDoneForm } from "@/components/TranscribeFromDoneForm";
 import { ResourceComparison } from "@/components/ResourceComparison";
 import ModelSelector, { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
-import { Download, RotateCcw, BarChart3, Scissors, Sparkles } from "lucide-react";
+import { ForgeStepper } from "@/components/ForgeStepper";
+import {
+  Download, RotateCcw, BarChart3, Scissors, Sparkles,
+  CheckCircle2, FileVideo, X,
+} from "lucide-react";
 import { getFormatById } from "@/utils/audioFormats";
 import { getVideoFormatById } from "@/utils/videoFormats";
 import type { ProcessingResult } from "@/hooks/useMediaProcessor";
 import type { CompressionType } from "@/components/ActionSelector";
-import { PageHeader } from "@/components/PageHeader";
 import { extractAudioSegmentFromUrl } from "@/utils/audioExtraction";
 import { createSegmentMetadata, formatSegmentLabel, estimateSegmentSize } from "@/types/audioSegment";
 import { getResourceRequirements } from "@/utils/resourceEstimation";
@@ -35,20 +38,52 @@ interface DoneStateViewProps {
   memoryUsageMB: number;
   onDownload: () => void;
   onReset: () => void;
-  // Transcription options (NEW)
   isModelLoaded?: boolean;
   isModelLoading?: boolean;
   modelLoadingProgress?: number;
   onModelSelect?: (modelKey: ModelKey) => void;
   onTranscribe?: (compressionType: CompressionType, normalizeAudio: boolean, modelKey: ModelKey, segmentFile?: File) => void;
-  // Processing metrics
   processingStartTime?: number | null;
   processingEndTime?: number | null;
 }
 
+const FONT_DISPLAY = "'Space Grotesk', system-ui, sans-serif";
+const FONT_MONO = "'JetBrains Mono', ui-monospace, monospace";
+
+const cardBase = {
+  background: "linear-gradient(180deg, #14141f 0%, #0d0d18 100%)",
+  border: "1px solid rgba(255,255,255,0.06)",
+  borderRadius: 14,
+};
+
+const eyebrow = {
+  fontFamily: FONT_MONO,
+  fontSize: 11,
+  letterSpacing: "0.18em",
+  textTransform: "uppercase" as const,
+  color: "#8a8a9c",
+};
+
 /**
- * DONE State View
- * Shows processing results with preview and download
+ * DoneStateView — REDESIGNED (v2.2)
+ *
+ * Drop-in replacement. Same prop signature, all business logic preserved.
+ *
+ * Changes vs. previous:
+ *   • Removed the big centered PageHeader brand mark (was eating 50% of viewport)
+ *   • Replaced with a thin success strip and the ForgeStepper at top
+ *   • Restyled badges, action button row, segment card, file info card
+ *     to match the v2.1 design language (cosmos surface, hex palette,
+ *     Space Grotesk/Inter/JetBrains Mono)
+ *   • Transcript is now the first thing below the fold — no marketing
+ *     moment in front of the user's deliverable
+ *
+ * Preserved exactly:
+ *   • Waveform selection + segment extraction + resource comparison
+ *   • AI Enhancement toggle + progress + error states + HMR sync
+ *   • Statistics modal
+ *   • TranscribeFromDoneForm
+ *   • File metadata display
  */
 export function DoneStateView({
   result,
@@ -68,412 +103,491 @@ export function DoneStateView({
   processingStartTime,
   processingEndTime,
 }: DoneStateViewProps) {
-  // Statistics modal state
+  // ---- state (unchanged) ----
   const [showStats, setShowStats] = useState(false);
-  
-  // Waveform selection state
   const [waveformSelection, setWaveformSelection] = useState<WaveformSelection | null>(null);
-  
-  // Segment transcription state
   const [isExtractingSegment, setIsExtractingSegment] = useState(false);
   const [extractionError, setExtractionError] = useState<string | null>(null);
   const [segmentModelKey, setSegmentModelKey] = useState<ModelKey>(selectedModelKey);
   const [segmentCompressionType, setSegmentCompressionType] = useState<CompressionType>("none");
   const [segmentNormalizeAudio, setSegmentNormalizeAudio] = useState(false);
-  
-  // AI Enhancement state
   const [enhancementEnabled, setEnhancementEnabled] = useState(false);
   const [enhancedResult, setEnhancedResult] = useState<EnhancementResult | null>(null);
   const [qualityMetrics, setQualityMetrics] = useState<EnhancementQualityMetrics | null>(null);
-  
-  // Get enhancer context (optional - may not be available)
+
   const enhancer = useEnhancerContextOptional();
-  
-  // Sync enhancer.lastResult to local state
-  // This ensures enhancement results persist through Hot Reload
+
   useEffect(() => {
     if (enhancer?.lastResult && !enhancedResult) {
-      console.log('[DoneStateView] Syncing enhancer.lastResult to local state');
       setEnhancedResult(enhancer.lastResult);
       setEnhancementEnabled(true);
     }
   }, [enhancer?.lastResult, enhancedResult]);
-  
-  // Also check if enhancement is complete via progress (backup sync)
+
   useEffect(() => {
     if (enhancer?.progress?.stage === 'complete' && enhancer?.lastResult && !enhancedResult) {
-      console.log('[DoneStateView] Enhancement complete detected via progress, syncing result');
       setEnhancedResult(enhancer.lastResult);
       setEnhancementEnabled(true);
     }
   }, [enhancer?.progress?.stage, enhancer?.lastResult, enhancedResult]);
-  
+
   const format =
     result.type === "audio"
       ? getFormatById(formatId || "")
       : result.type === "video"
       ? getVideoFormatById(formatId || "")
       : null;
-  
-  // Calculate segment resource estimates
+
+  // ---- handlers (unchanged) ----
   const getSegmentResources = () => {
     if (!waveformSelection || !result.blobUrl || !metrics) return null;
-    
     const segmentDuration = waveformSelection.endTime - waveformSelection.startTime;
     const totalDuration = metrics.duration || 1;
     const segmentSize = estimateSegmentSize(file.size, segmentDuration, totalDuration);
-    
-    // Get RAM estimates using getResourceRequirements
     const fullRAM = getResourceRequirements(file.size, selectedModelKey, "transcribe");
     const segmentRAM = getResourceRequirements(segmentSize, selectedModelKey, "transcribe");
-    
     return {
-      fullAudio: {
-        size: file.size,
-        duration: totalDuration,
-        ramEstimate: fullRAM.estimatedRAM,
-        timeEstimate: totalDuration,
-      },
-      segment: {
-        size: segmentSize,
-        duration: segmentDuration,
-        ramEstimate: segmentRAM.estimatedRAM,
-        timeEstimate: segmentDuration,
-      },
+      fullAudio:  { size: file.size,    duration: totalDuration,    ramEstimate: fullRAM.estimatedRAM,    timeEstimate: totalDuration },
+      segment:    { size: segmentSize,  duration: segmentDuration,  ramEstimate: segmentRAM.estimatedRAM, timeEstimate: segmentDuration },
     };
   };
-  
-  // Handle transcribe segment
+
   const handleTranscribeSegment = async () => {
-    if (!waveformSelection || !result.blobUrl || !onTranscribe) {
-      return;
-    }
-    
+    if (!waveformSelection || !result.blobUrl || !onTranscribe) return;
     setIsExtractingSegment(true);
     setExtractionError(null);
-    
     try {
-      console.log('[DoneStateView] Extracting segment:', {
-        start: waveformSelection.startTime,
-        end: waveformSelection.endTime,
-      });
-      
-      // Extract segment from audio
-      const segmentBlob = await extractAudioSegmentFromUrl(
-        result.blobUrl,
-        waveformSelection.startTime,
-        waveformSelection.endTime
-      );
-      
-      console.log('[DoneStateView] Segment extracted:', {
-        size: segmentBlob.size,
-        type: segmentBlob.type,
-      });
-      
-      // Create metadata
-      const metadata = createSegmentMetadata(
-        file,
-        waveformSelection.startTime,
-        waveformSelection.endTime,
-        metrics?.duration || 0
-      );
-      
-      // Create File object from blob
+      const segmentBlob = await extractAudioSegmentFromUrl(result.blobUrl, waveformSelection.startTime, waveformSelection.endTime);
+      const metadata = createSegmentMetadata(file, waveformSelection.startTime, waveformSelection.endTime, metrics?.duration || 0);
       const segmentFile = new File(
         [segmentBlob],
         `${file.name.split('.')[0]}_segment_${Math.floor(waveformSelection.startTime)}-${Math.floor(waveformSelection.endTime)}.wav`,
         { type: 'audio/wav' }
       );
-      
-      console.log('[DoneStateView] Segment file created:', segmentFile.name);
-      
-      // Store segment metadata in a way that can be passed through
-      // We'll need to enhance the transcription service to accept this
       (segmentFile as any).segmentMetadata = metadata;
-      
-      // Call transcription with segment file using selected options
       onTranscribe(segmentCompressionType, segmentNormalizeAudio, segmentModelKey, segmentFile);
-      
-      // Clear selection after starting transcription
       setWaveformSelection(null);
-      
     } catch (error) {
-      console.error('[DoneStateView] Segment extraction failed:', error);
-      setExtractionError(
-        error instanceof Error 
-          ? error.message 
-          : 'Failed to extract audio segment'
-      );
+      setExtractionError(error instanceof Error ? error.message : 'Failed to extract audio segment');
     } finally {
       setIsExtractingSegment(false);
     }
   };
-  
-  // Handle enhancement toggle
+
   const handleEnhancementToggle = useCallback(async (enabled: boolean) => {
     setEnhancementEnabled(enabled);
-    
-    // If turning on and we have a transcription, start enhancement
     if (enabled && result.type === "transcription" && result.transcription?.text && enhancer) {
       try {
-        // Load model if not already loaded
-        if (!enhancer.isModelLoaded && !enhancer.isModelLoading) {
-          await enhancer.loadModel();
-        }
-        
-        // Run enhancement
-        const enhancementResult = await enhancer.enhance(
-          result.transcription.text,
-          result.transcription,
-          metrics?.duration
-        );
+        if (!enhancer.isModelLoaded && !enhancer.isModelLoading) await enhancer.loadModel();
+        const enhancementResult = await enhancer.enhance(result.transcription.text, result.transcription, metrics?.duration);
         setEnhancedResult(enhancementResult);
-        
-        // Calculate quality metrics if available
-        // TODO: Implement quality metrics calculation
-        
       } catch (error) {
         console.error('[DoneStateView] Enhancement failed:', error);
-        // Error is handled by the enhancer context
       }
     }
   }, [result, enhancer, metrics]);
-  
-  // Handle re-enhancement request
+
   const handleReEnhance = useCallback(() => {
-    // Reset enhancement state to allow re-enhancement
     setEnhancedResult(null);
     setQualityMetrics(null);
     setEnhancementEnabled(false);
   }, []);
-  
-  // Check if enhancement is available
-  const canEnhance = enhancer?.capabilities?.isCapable && result.type === "transcription" && result.transcription?.text;
 
+  // ---- timing summary ----
+  const elapsed =
+    processingStartTime && processingEndTime
+      ? Math.max(1, Math.round((processingEndTime - processingStartTime) / 1000))
+      : null;
+  const elapsedStr =
+    elapsed != null
+      ? elapsed > 60
+        ? `${Math.floor(elapsed / 60)}m ${(elapsed % 60).toString().padStart(2, "0")}s`
+        : `${elapsed}s`
+      : null;
+  const charCount =
+    result.type === "transcription" ? (result.transcription?.text?.length ?? 0) : null;
+
+  // ---- render ----
   return (
-    <div className="animate-in fade-in duration-500">
-      {/* Main Title & Subtitle */}
-      <PageHeader 
-        subtitle="Processing Complete"
-        description={
-          result.type === "audio"
-            ? "Your audio file is ready. Listen to the preview or download it."
-            : result.type === "video"
-            ? "Your video file is ready. Preview it or download it."
-            : "Your transcription is ready. View the text or download it."
-        }
-        icon="✓"
-      />
-
-      <div className="mb-6 flex flex-wrap justify-center gap-3">
-        {/* Show compression status badges */}
-        {result.metadata?.compressionType && result.metadata.compressionType !== "none" && (
-          <>
-            {result.metadata.compressionType === "speech" && (
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-950/50 to-emerald-950/50 border border-green-500/40 rounded-full text-sm animate-in fade-in duration-300 shadow-lg shadow-green-500/10">
-                <span className="text-green-400 font-bold text-base">🎙️</span>
-                <span className="text-green-200 font-semibold">
-                  Speech Compressed
-                </span>
-              </div>
-            )}
-            {result.metadata.compressionType === "studio" && (
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-950/50 to-cyan-950/50 border border-blue-500/40 rounded-full text-sm animate-in fade-in duration-300 shadow-lg shadow-blue-500/10">
-                <span className="text-blue-400 font-bold text-base">🎚️</span>
-                <span className="text-blue-200 font-semibold">
-                  Studio Compressed
-                </span>
-              </div>
-            )}
-            {result.metadata.compressionType === "both" && (
-              <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-950/50 via-pink-950/50 to-orange-950/50 border-2 border-purple-500/40 rounded-full text-sm animate-in fade-in duration-300 shadow-xl shadow-purple-500/20">
-                <span className="text-orange-400 font-bold text-base">✨</span>
-                <span className="text-purple-200 font-bold">
-                  Full Enhancement
-                </span>
-                <span className="text-xs text-purple-300 bg-purple-500/30 px-2 py-0.5 rounded-full">
-                  Speech + Studio
-                </span>
-              </div>
-            )}
-          </>
-        )}
-        
-        {/* Show normalization status badge */}
-        {result.metadata?.normalized && (
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-950/50 to-blue-950/50 border border-cyan-500/40 rounded-full text-sm animate-in fade-in duration-300 shadow-lg shadow-cyan-500/10">
-            <span className="text-cyan-400 font-bold text-base">🎵</span>
-            <span className="text-cyan-200 font-semibold">
-              Normalized
-            </span>
-          </div>
-        )}
+    <div
+      className="animate-in fade-in duration-500 max-w-7xl mx-auto px-4"
+      style={{ fontFamily: "'Inter', system-ui, sans-serif", color: "#f3f3f8" }}
+    >
+      {/* stepper */}
+      <div className="mb-5">
+        <ForgeStepper currentState="DONE" />
       </div>
 
-      {/* Output Preview */}
+      {/* SUCCESS STRIP — thin, no big hero */}
+      <div
+        className="flex items-center gap-3 mb-5"
+        style={{
+          padding: "12px 16px",
+          borderRadius: 12,
+          background: "linear-gradient(90deg, rgba(16,185,129,0.10), rgba(16,185,129,0.02))",
+          border: "1px solid rgba(16,185,129,0.25)",
+        }}
+      >
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 9,
+            background: "rgba(16,185,129,0.18)",
+            border: "1px solid rgba(16,185,129,0.4)",
+            color: "#34d399",
+            display: "grid",
+            placeItems: "center",
+            flexShrink: 0,
+          }}
+        >
+          <CheckCircle2 className="w-4 h-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600 }}>
+              {result.type === "audio"
+                ? "Audio ready"
+                : result.type === "video"
+                ? "Video ready"
+                : "Transcription complete"}
+            </div>
+            <div
+              style={{
+                fontFamily: FONT_MONO,
+                fontSize: 11,
+                color: "#8a8a9c",
+                letterSpacing: "0.08em",
+              }}
+            >
+              {[
+                elapsedStr ? `${elapsedStr}` : null,
+                charCount ? `${charCount.toLocaleString()} characters` : null,
+                currentModel ? WHISPER_MODELS[selectedModelKey]?.name : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          </div>
+          <div
+            style={{
+              fontFamily: FONT_MONO,
+              fontSize: 10.5,
+              color: "#5b5b6e",
+              letterSpacing: "0.06em",
+              marginTop: 2,
+              textTransform: "uppercase",
+            }}
+          >
+            {file.name}
+          </div>
+        </div>
+
+        {/* quick actions */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {result.type !== "transcription" && result.blobUrl && (
+            <button
+              onClick={onDownload}
+              className="flex items-center gap-1.5 transition-transform hover:scale-[1.02]"
+              style={{
+                padding: "8px 14px",
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 600,
+                background: "linear-gradient(180deg, #10b981, #059669)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "#fff",
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(16,185,129,0.3)",
+              }}
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download {format?.name}
+            </button>
+          )}
+          <button
+            onClick={() => setShowStats(true)}
+            className="flex items-center gap-1.5 transition-colors"
+            style={{
+              padding: "8px 14px",
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 500,
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              color: "#f3f3f8",
+              cursor: "pointer",
+            }}
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Statistics</span>
+          </button>
+          <button
+            onClick={onReset}
+            className="flex items-center gap-1.5 transition-colors"
+            style={{
+              padding: "8px 14px",
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 500,
+              background: "rgba(139,92,246,0.12)",
+              border: "1px solid rgba(139,92,246,0.3)",
+              color: "#c4b5fd",
+              cursor: "pointer",
+            }}
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Process another</span>
+          </button>
+        </div>
+      </div>
+
+      {/* compression / normalization badges (kept, restyled) */}
+      {(result.metadata?.compressionType && result.metadata.compressionType !== "none") || result.metadata?.normalized ? (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {result.metadata?.compressionType === "speech" && (
+            <Badge color="#34d399" bg="rgba(16,185,129,0.10)" border="rgba(16,185,129,0.3)">
+              🎙️ Speech compressed
+            </Badge>
+          )}
+          {result.metadata?.compressionType === "studio" && (
+            <Badge color="#67e8f9" bg="rgba(34,211,238,0.10)" border="rgba(34,211,238,0.3)">
+              🎚️ Studio compressed
+            </Badge>
+          )}
+          {result.metadata?.compressionType === "both" && (
+            <Badge color="#fbbf24" bg="rgba(245,158,11,0.10)" border="rgba(245,158,11,0.3)">
+              ✨ Full enhancement · speech + studio
+            </Badge>
+          )}
+          {result.metadata?.normalized && (
+            <Badge color="#67e8f9" bg="rgba(34,211,238,0.08)" border="rgba(34,211,238,0.25)">
+              🎵 Normalized
+            </Badge>
+          )}
+        </div>
+      ) : null}
+
+      {/* MAIN OUTPUT */}
       <div className="mb-6">
         {result.type === "audio" && result.blobUrl ? (
           <>
-            <WaveformViewer 
-              audioUrl={result.blobUrl}
-              selectable={true}
-              onSelectionChange={setWaveformSelection}
-            />
-            
-            {/* Segment Selection Info & Transcribe */}
+            <div style={{ ...cardBase, padding: 16 }}>
+              <WaveformViewer
+                audioUrl={result.blobUrl}
+                selectable={true}
+                onSelectionChange={setWaveformSelection}
+              />
+            </div>
+
             {waveformSelection && (
-              <div className="mt-6 space-y-4">
-                {/* Segment Info Card */}
-                <div className="bg-blue-950/30 border border-blue-500/30 rounded-lg p-5">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-500/20 rounded-lg">
-                        <Scissors className="w-5 h-5 text-blue-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-blue-100">
-                          Segment Selected
-                        </h3>
-                        <p className="text-sm text-blue-300/70 mt-1">
-                          {formatSegmentLabel(createSegmentMetadata(
-                            file,
-                            waveformSelection.startTime,
-                            waveformSelection.endTime,
-                            metrics?.duration || 0
-                          ))}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setWaveformSelection(null)}
-                      className="text-xs text-blue-400 hover:text-blue-300 underline"
-                    >
-                      Clear Selection
-                    </button>
-                  </div>
-                  
-                  {/* Resource Comparison */}
-                  {getSegmentResources() && (
-                    <ResourceComparison
-                      fullAudio={getSegmentResources()!.fullAudio}
-                      segment={getSegmentResources()!.segment}
-                    />
-                  )}
-                  
-                  {/* Model Selection for Segment */}
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-blue-200 mb-2">
-                      Select Whisper Model
-                    </label>
-                    <ModelSelector
-                      selectedModel={segmentModelKey}
-                      currentlyLoadedModel={currentModel}
-                      isLoading={isModelLoading}
-                      onModelSelect={(key) => {
-                        setSegmentModelKey(key);
-                        if (onModelSelect) onModelSelect(key);
+              <div className="mt-5" style={{ ...cardBase, padding: 20 }}>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 9,
+                        background: "rgba(34,211,238,0.15)",
+                        border: "1px solid rgba(34,211,238,0.3)",
+                        color: "#22d3ee",
+                        display: "grid",
+                        placeItems: "center",
                       }}
-                    />
-                  </div>
-                  
-                  {/* Enhancement Options for Segment */}
-                  <div className="mt-4 space-y-3">
-                    <label className="block text-sm font-medium text-blue-200 mb-2">
-                      Audio Enhancement (Optional)
-                    </label>
-                    
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-3 p-3 bg-zinc-900/50 hover:bg-zinc-900/70 rounded-lg cursor-pointer transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={segmentCompressionType === "speech"}
-                          onChange={(e) => setSegmentCompressionType(e.target.checked ? "speech" : "none")}
-                          className="w-4 h-4 rounded"
-                        />
-                        <div className="flex-1">
-                          <span className="text-sm font-medium text-zinc-200">Speech Compression</span>
-                          <p className="text-xs text-zinc-500">Optimize for voice (meetings, calls)</p>
-                        </div>
-                      </label>
-                      
-                      <label className="flex items-center gap-3 p-3 bg-zinc-900/50 hover:bg-zinc-900/70 rounded-lg cursor-pointer transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={segmentNormalizeAudio}
-                          onChange={(e) => setSegmentNormalizeAudio(e.target.checked)}
-                          className="w-4 h-4 rounded"
-                        />
-                        <div className="flex-1">
-                          <span className="text-sm font-medium text-zinc-200">Normalize Audio</span>
-                          <p className="text-xs text-zinc-500">Balance volume levels</p>
-                        </div>
-                      </label>
-                    </div>
-                    
-                    {/* Time Warning - shows when any enhancement is enabled */}
-                    <EnhancementTimeWarning 
-                      compressionType={segmentCompressionType} 
-                      normalizeAudio={segmentNormalizeAudio} 
-                    />
-                  </div>
-                  
-                  {/* Transcribe Segment Button */}
-                  <div className="mt-4">
-                    <button
-                      onClick={handleTranscribeSegment}
-                      disabled={isExtractingSegment || !onTranscribe || isModelLoading || !isModelLoaded}
-                      className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-zinc-700 disabled:to-zinc-700 disabled:cursor-not-allowed rounded-lg font-bold text-lg transition-all duration-200 flex items-center justify-center gap-3 shadow-lg"
                     >
-                      {isExtractingSegment ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          Extracting Segment...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-5 h-5" />
-                          Transcribe Selection
-                        </>
-                      )}
-                    </button>
-                    
-                    {extractionError && (
-                      <div className="mt-3 p-3 bg-red-950/50 border border-red-500/30 rounded-lg text-sm text-red-300">
-                        <strong>Error:</strong> {extractionError}
+                      <Scissors className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 600 }}>
+                        Segment selected
                       </div>
-                    )}
-                    
-                    <p className="mt-2 text-xs text-center text-blue-300/60">
-                      💡 Only the selected segment will be transcribed, saving time and RAM
-                    </p>
+                      <div style={{ fontFamily: FONT_MONO, fontSize: 10.5, color: "#8a8a9c", marginTop: 2, letterSpacing: "0.06em" }}>
+                        {formatSegmentLabel(createSegmentMetadata(file, waveformSelection.startTime, waveformSelection.endTime, metrics?.duration || 0))}
+                      </div>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => setWaveformSelection(null)}
+                    className="flex items-center gap-1"
+                    style={{
+                      padding: "5px 9px",
+                      borderRadius: 6,
+                      fontSize: 11,
+                      background: "transparent",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      color: "#8a8a9c",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <X className="w-3 h-3" />
+                    Clear
+                  </button>
+                </div>
+
+                {getSegmentResources() && (
+                  <ResourceComparison
+                    fullAudio={getSegmentResources()!.fullAudio}
+                    segment={getSegmentResources()!.segment}
+                  />
+                )}
+
+                <div className="mt-4">
+                  <div style={{ ...eyebrow, marginBottom: 10 }}>Whisper Model</div>
+                  <ModelSelector
+                    selectedModel={segmentModelKey}
+                    currentlyLoadedModel={currentModel}
+                    isLoading={isModelLoading}
+                    onModelSelect={(key) => {
+                      setSegmentModelKey(key);
+                      if (onModelSelect) onModelSelect(key);
+                    }}
+                  />
+                </div>
+
+                <div className="mt-4 space-y-2.5">
+                  <div style={{ ...eyebrow, marginBottom: 8 }}>Audio Enhancement (Optional)</div>
+                  <label
+                    className="flex items-center gap-3 cursor-pointer transition-colors"
+                    style={{
+                      padding: 12,
+                      borderRadius: 10,
+                      background: "#1b1b28",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={segmentCompressionType === "speech"}
+                      onChange={(e) => setSegmentCompressionType(e.target.checked ? "speech" : "none")}
+                      className="w-4 h-4"
+                    />
+                    <div className="flex-1">
+                      <div style={{ fontSize: 13, fontWeight: 500 }}>Speech compression</div>
+                      <div style={{ fontSize: 11.5, color: "#8a8a9c" }}>Optimize for voice (meetings, calls)</div>
+                    </div>
+                  </label>
+                  <label
+                    className="flex items-center gap-3 cursor-pointer transition-colors"
+                    style={{
+                      padding: 12,
+                      borderRadius: 10,
+                      background: "#1b1b28",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={segmentNormalizeAudio}
+                      onChange={(e) => setSegmentNormalizeAudio(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <div className="flex-1">
+                      <div style={{ fontSize: 13, fontWeight: 500 }}>Normalize audio</div>
+                      <div style={{ fontSize: 11.5, color: "#8a8a9c" }}>Balance volume levels</div>
+                    </div>
+                  </label>
+
+                  <EnhancementTimeWarning
+                    compressionType={segmentCompressionType}
+                    normalizeAudio={segmentNormalizeAudio}
+                  />
+                </div>
+
+                <div className="mt-4">
+                  <button
+                    onClick={handleTranscribeSegment}
+                    disabled={isExtractingSegment || !onTranscribe || isModelLoading || !isModelLoaded}
+                    className="w-full flex items-center justify-center gap-2 transition-transform hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    style={{
+                      padding: "14px 20px",
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      fontFamily: FONT_DISPLAY,
+                      background: "linear-gradient(90deg, #8b5cf6, #22d3ee)",
+                      border: "1px solid rgba(255,255,255,0.18)",
+                      color: "#fff",
+                      cursor: "pointer",
+                      boxShadow: "0 8px 20px rgba(139,92,246,0.35)",
+                    }}
+                  >
+                    {isExtractingSegment ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Extracting segment…
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        Transcribe selection
+                      </>
+                    )}
+                  </button>
+
+                  {extractionError && (
+                    <div
+                      className="mt-3"
+                      style={{
+                        padding: 12,
+                        borderRadius: 10,
+                        background: "rgba(239,68,68,0.08)",
+                        border: "1px solid rgba(239,68,68,0.3)",
+                        color: "#fca5a5",
+                        fontSize: 12,
+                      }}
+                    >
+                      <strong>Error:</strong> {extractionError}
+                    </div>
+                  )}
+
+                  <p
+                    className="mt-3 text-center"
+                    style={{ fontSize: 11, color: "#5b5b6e", fontFamily: FONT_MONO, letterSpacing: "0.05em" }}
+                  >
+                    💡 Only the selected segment will be transcribed — saves time and RAM
+                  </p>
                 </div>
               </div>
             )}
           </>
         ) : result.type === "video" && result.blobUrl ? (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-            <div className="mb-4">
-              <h3 className="text-lg font-bold text-zinc-100 mb-2 flex items-center gap-2">
-                🎬 Video Preview
-              </h3>
-              <p className="text-sm text-zinc-400">
-                Preview your converted video file
-              </p>
+          <div style={{ ...cardBase, padding: 20 }}>
+            <div className="mb-4 flex items-center gap-3">
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 9,
+                  background: "rgba(139,92,246,0.15)",
+                  border: "1px solid rgba(139,92,246,0.3)",
+                  color: "#a78bfa",
+                  display: "grid",
+                  placeItems: "center",
+                }}
+              >
+                <FileVideo className="w-4 h-4" />
+              </div>
+              <div>
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 600 }}>
+                  Video preview
+                </div>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 10.5, color: "#8a8a9c", letterSpacing: "0.06em", marginTop: 2 }}>
+                  Preview your converted video file
+                </div>
+              </div>
             </div>
             <video
               src={result.blobUrl}
               controls
-              className="w-full max-w-4xl mx-auto rounded-lg shadow-2xl bg-black"
-              style={{ maxHeight: "500px" }}
+              className="w-full max-w-4xl mx-auto rounded-lg"
+              style={{ maxHeight: 500, background: "#000" }}
             >
               Your browser does not support video playback.
             </video>
           </div>
         ) : result.type === "transcription" && result.transcription ? (
           <>
-            {/* AI-Enhanced Tabbed View (shown when enhancement is complete) */}
-            {/* Use local enhancedResult OR fallback to enhancer.lastResult (for HMR resilience) */}
             {(enhancedResult || enhancer?.lastResult) ? (
               <TabbedTranscriptionView
                 originalText={result.transcription.text}
@@ -490,132 +604,114 @@ export function DoneStateView({
                 onReEnhance={handleReEnhance}
               />
             ) : (
-              /* Show basic transcription view before enhancement */
               <TranscriptionViewer
                 result={result.transcription}
                 filename={file.name.split(".")[0]}
-                modelName={
-                  currentModel ? WHISPER_MODELS[selectedModelKey].name : undefined
-                }
+                modelName={currentModel ? WHISPER_MODELS[selectedModelKey].name : undefined}
               />
             )}
-            
+
             {/* AI Enhancement Toggle */}
             {enhancer && enhancer.capabilities && !enhancer.isCheckingHardware && (
-              <EnhancementToggle
-                capabilities={enhancer.capabilities}
-                enabled={enhancementEnabled}
-                onToggle={handleEnhancementToggle}
-                disabled={enhancer.isEnhancing || enhancer.isModelLoading}
-                isModelLoaded={enhancer.isModelLoaded}
-                isModelLoading={enhancer.isModelLoading}
-              />
+              <div className="mt-4">
+                <EnhancementToggle
+                  capabilities={enhancer.capabilities}
+                  enabled={enhancementEnabled}
+                  onToggle={handleEnhancementToggle}
+                  disabled={enhancer.isEnhancing || enhancer.isModelLoading}
+                  isModelLoaded={enhancer.isModelLoaded}
+                  isModelLoading={enhancer.isModelLoading}
+                />
+              </div>
             )}
-            
-            {/* Enhancement Progress Bar */}
+
             {enhancer?.isEnhancing && enhancer.progress && (
-              <div className="mt-4 p-4 bg-gradient-to-br from-purple-950/40 to-indigo-950/40 border border-purple-500/30 rounded-lg">
+              <div
+                className="mt-4"
+                style={{
+                  padding: 16,
+                  borderRadius: 12,
+                  background: "linear-gradient(135deg, rgba(139,92,246,0.10), rgba(139,92,246,0.02))",
+                  border: "1px solid rgba(139,92,246,0.3)",
+                }}
+              >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
-                    <span className="text-sm font-medium text-purple-200">
-                      AI Enhancement in Progress
+                    <Sparkles className="w-4 h-4 animate-pulse" style={{ color: "#a78bfa" }} />
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "#c4b5fd" }}>
+                      AI Enhancement in progress
                     </span>
                   </div>
-                  <span className="text-sm font-mono text-purple-300">
+                  <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: "#c4b5fd", fontWeight: 600 }}>
                     {enhancer.progress.progress}%
                   </span>
                 </div>
-                
-                {/* Progress Bar */}
-                <div className="h-2 bg-purple-950/50 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-300 ease-out"
-                    style={{ width: `${enhancer.progress.progress}%` }}
+                <div style={{ height: 6, borderRadius: 3, background: "#232333", overflow: "hidden" }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${enhancer.progress.progress}%`,
+                      background: "linear-gradient(90deg, #8b5cf6, #c084fc)",
+                      transition: "width 0.3s ease-out",
+                    }}
                   />
                 </div>
-                
-                {/* Status Message */}
-                <p className="mt-2 text-xs text-purple-300/80">
+                <p className="mt-2" style={{ fontSize: 11, color: "#8a8a9c" }}>
                   {enhancer.progress.message || 'Processing...'}
                 </p>
               </div>
             )}
-            
-            {/* Model Loading Progress */}
+
             {enhancer?.isModelLoading && (
-              <div className="mt-4 p-4 bg-gradient-to-br from-blue-950/40 to-cyan-950/40 border border-blue-500/30 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-blue-400 animate-spin" />
-                    <span className="text-sm font-medium text-blue-200">
-                      Loading AI Enhancement Model
-                    </span>
-                  </div>
+              <div
+                className="mt-4"
+                style={{
+                  padding: 16,
+                  borderRadius: 12,
+                  background: "rgba(34,211,238,0.06)",
+                  border: "1px solid rgba(34,211,238,0.25)",
+                }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="w-4 h-4 animate-spin" style={{ color: "#67e8f9" }} />
+                  <span style={{ fontSize: 13, fontWeight: 500, color: "#67e8f9" }}>
+                    Loading AI Enhancement model
+                  </span>
                 </div>
-                
-                {/* Indeterminate Progress Bar */}
-                <div className="h-2 bg-blue-950/50 rounded-full overflow-hidden">
-                  <div className="h-full w-1/3 bg-gradient-to-r from-blue-500 to-cyan-500 animate-pulse rounded-full" />
+                <div style={{ height: 6, borderRadius: 3, background: "#232333", overflow: "hidden" }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: "33%",
+                      background: "linear-gradient(90deg, #22d3ee, #67e8f9)",
+                    }}
+                    className="animate-pulse"
+                  />
                 </div>
-                
-                <p className="mt-2 text-xs text-blue-300/80">
-                  First-time download may take 2-5 minutes...
+                <p className="mt-2" style={{ fontSize: 11, color: "#8a8a9c" }}>
+                  First-time download may take 2–5 minutes…
                 </p>
               </div>
             )}
-            
-            {/* Enhancement Error Display */}
+
             {enhancer?.error && (
-              <div className="mt-4 p-4 bg-red-950/30 border border-red-500/30 rounded-lg">
-                <p className="text-sm text-red-300 flex items-center gap-2">
-                  <span>❌</span>
-                  Enhancement failed: {enhancer.error}
-                </p>
+              <div
+                className="mt-4"
+                style={{
+                  padding: 14,
+                  borderRadius: 10,
+                  background: "rgba(239,68,68,0.06)",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                }}
+              >
+                <p style={{ fontSize: 13, color: "#fca5a5" }}>❌ Enhancement failed: {enhancer.error}</p>
               </div>
             )}
           </>
         ) : null}
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-4 max-w-2xl mx-auto">
-        {result.type !== "transcription" && result.blobUrl && (
-          <button
-            onClick={onDownload}
-            className="flex-1 px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-lg font-bold text-lg transition-all duration-200 flex items-center justify-center gap-3 shadow-lg"
-          >
-            <Download className="w-5 h-5" />
-            Download {format?.name} File
-          </button>
-        )}
-
-        <button
-          onClick={() => {
-            console.log('[DoneStateView] Statistics button clicked, opening modal');
-            console.log('[DoneStateView] Result:', result);
-            console.log('[DoneStateView] processingStartTime:', processingStartTime);
-            console.log('[DoneStateView] processingEndTime:', processingEndTime);
-            setShowStats(true);
-          }}
-          className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg font-bold text-lg transition-all duration-200 flex items-center justify-center gap-3 shadow-lg"
-        >
-          <BarChart3 className="w-5 h-5" />
-          Statistics
-        </button>
-
-        <button
-          onClick={onReset}
-          className={`px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 rounded-lg font-bold transition-all duration-200 flex items-center justify-center gap-3 shadow-lg ${
-            result.type === "transcription" ? "flex-1" : ""
-          }`}
-        >
-          <RotateCcw className="w-5 h-5" />
-          Process Another
-        </button>
-      </div>
-
-      {/* Statistics Modal */}
+      {/* StatisticsModal */}
       <StatisticsModal
         isOpen={showStats}
         onClose={() => setShowStats(false)}
@@ -627,59 +723,63 @@ export function DoneStateView({
         peakMemoryMB={memoryUsageMB}
       />
 
-      {/* Transcribe This Audio Section (for audio results only) */}
-      {/* ONLY show if NO segment is selected */}
+      {/* Transcribe-from-done form for audio results */}
       {result.type === "audio" && onTranscribe && !waveformSelection && (
-        <TranscribeFromDoneForm
-          result={result}
-          file={file}
-          selectedModelKey={selectedModelKey}
-          currentModel={currentModel}
-          isModelLoaded={isModelLoaded}
-          isModelLoading={isModelLoading}
-          modelLoadingProgress={modelLoadingProgress}
-          onModelSelect={onModelSelect}
-          onTranscribe={onTranscribe}
-        />
+        <div className="mt-6">
+          <TranscribeFromDoneForm
+            result={result}
+            file={file}
+            selectedModelKey={selectedModelKey}
+            currentModel={currentModel}
+            isModelLoaded={isModelLoaded}
+            isModelLoading={isModelLoading}
+            modelLoadingProgress={modelLoadingProgress}
+            onModelSelect={onModelSelect}
+            onTranscribe={onTranscribe}
+          />
+        </div>
       )}
 
-      {/* File Metadata (for audio/video results) */}
+      {/* File metadata for audio/video */}
       {(result.type === "audio" || result.type === "video") && (
-        <div className="mt-6 max-w-2xl mx-auto">
-          <h3 className="text-lg font-semibold mb-3 text-zinc-300">
-            File Information
-          </h3>
+        <div className="mt-6">
+          <div style={{ ...eyebrow, marginBottom: 10 }}>File Information</div>
           <MetadataDisplay metrics={metrics} file={file} />
-          
-          {/* Additional Processing Info (if any) */}
+
           {result.metadata && (result.metadata.compressionType || result.metadata.normalized !== undefined) && (
-            <div className="mt-4 bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-zinc-400 mb-3 uppercase tracking-wider">
-                Processing Applied
-              </h4>
-              <dl className="grid grid-cols-2 gap-3 text-sm">
+            <div
+              className="mt-4"
+              style={{
+                padding: 16,
+                borderRadius: 12,
+                background: "#1b1b28",
+                border: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              <div style={{ ...eyebrow, marginBottom: 10 }}>Processing Applied</div>
+              <dl className="grid grid-cols-2 gap-3" style={{ fontSize: 13 }}>
                 {result.metadata.compressionType && result.metadata.compressionType !== "none" && (
                   <div>
-                    <dt className="text-zinc-500">Audio Compression</dt>
-                    <dd className="font-medium">
+                    <dt style={{ color: "#5b5b6e", fontSize: 11, marginBottom: 2 }}>Audio compression</dt>
+                    <dd style={{ fontWeight: 500 }}>
                       {result.metadata.compressionType === "speech" ? (
-                        <span className="text-green-400">🎙️ Speech Optimized</span>
+                        <span style={{ color: "#34d399" }}>🎙️ Speech optimized</span>
                       ) : result.metadata.compressionType === "studio" ? (
-                        <span className="text-blue-400">🎚️ Studio Quality</span>
+                        <span style={{ color: "#67e8f9" }}>🎚️ Studio quality</span>
                       ) : (
-                        <span className="text-purple-400">✨ Full Enhancement</span>
+                        <span style={{ color: "#c4b5fd" }}>✨ Full enhancement</span>
                       )}
                     </dd>
                   </div>
                 )}
                 {result.metadata.normalized !== undefined && (
                   <div>
-                    <dt className="text-zinc-500">Audio Normalization</dt>
-                    <dd className="font-medium">
+                    <dt style={{ color: "#5b5b6e", fontSize: 11, marginBottom: 2 }}>Audio normalization</dt>
+                    <dd style={{ fontWeight: 500 }}>
                       {result.metadata.normalized ? (
-                        <span className="text-green-400">✓ Applied</span>
+                        <span style={{ color: "#34d399" }}>✓ Applied</span>
                       ) : (
-                        <span className="text-zinc-400">✗ Not Applied</span>
+                        <span style={{ color: "#8a8a9c" }}>✗ Not applied</span>
                       )}
                     </dd>
                   </div>
@@ -690,22 +790,55 @@ export function DoneStateView({
         </div>
       )}
 
-      {/* System Resources (collapsed) */}
-      <details className="mt-6 max-w-2xl mx-auto">
-        <summary className="cursor-pointer text-sm text-zinc-400 hover:text-zinc-300 transition-colors">
-          View Processing Stats
+      {/* System resources (collapsed) */}
+      <details className="mt-6">
+        <summary
+          className="cursor-pointer transition-colors hover:text-white"
+          style={{
+            ...eyebrow,
+            color: "#8a8a9c",
+            listStyle: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          ▸ View processing stats
         </summary>
         <div className="mt-4">
-          <ResourceMonitor
-            metrics={metrics}
-            memoryUsageMB={memoryUsageMB}
-            progress={100}
-          />
+          <ResourceMonitor metrics={metrics} memoryUsageMB={memoryUsageMB} progress={100} />
         </div>
       </details>
     </div>
   );
 }
 
-
-
+// ---- small helper ----
+function Badge({
+  children,
+  color,
+  bg,
+  border,
+}: {
+  children: React.ReactNode;
+  color: string;
+  bg: string;
+  border: string;
+}) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5"
+      style={{
+        padding: "4px 10px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 500,
+        background: bg,
+        border: `1px solid ${border}`,
+        color,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
