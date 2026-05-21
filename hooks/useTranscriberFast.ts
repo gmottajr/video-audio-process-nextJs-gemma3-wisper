@@ -327,9 +327,8 @@ export function useTranscriberFast(initialConfig?: UseTranscriberFastConfig): Us
       const wavInfo = await parseWavHeader(wavBlob);
       const { sampleRate } = wavInfo;
 
-      // Chunk config (matches ChunkManagerServiceFast defaults)
-      const chunkLengthSec = 60;
-      const overlapSec = 3;
+      // Read chunk config from the service so both code paths stay in sync
+      const { chunkLengthSec, overlapSec } = chunkManagerRef.current!.getConfig();
       const chunkLengthSamples = chunkLengthSec * sampleRate;
       const stepSamples = (chunkLengthSec - overlapSec) * sampleRate;
 
