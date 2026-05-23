@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ForgeStepper } from "@/components/ForgeStepper";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Zap, X, CheckCircle2, Circle } from "lucide-react";
 import type { FastModeProgress } from "@/types/fast-mode";
@@ -91,9 +90,6 @@ export function FastModeProcessingScreen({ progress, onCancel }: FastModeProcess
       {/* top chrome */}
       <div className="relative container mx-auto px-4 pt-6 pb-3">
         <Breadcrumbs currentState="PROCESSING" onNavigate={() => {}} />
-      </div>
-      <div className="relative container mx-auto px-4 pb-6">
-        <ForgeStepper currentState="PROCESSING" />
       </div>
 
       {/* main */}

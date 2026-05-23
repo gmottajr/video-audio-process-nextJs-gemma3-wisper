@@ -15,8 +15,8 @@ import {
   Database,
   Cpu,
   Lightbulb,
-  Zap,
 } from "lucide-react";
+import NeuralFont from "@/components/NeuralFont";
 import { NeuralNetBackground } from "@/components/NeuralNetBackground";
 import { WaveformVisualizer } from "@/components/WaveformVisualizer";
 import { ScrollScene } from "@/components/ScrollScene";
@@ -28,8 +28,11 @@ const FEATURES = [
   {
     icon: Video,
     badge: "Video",
-    accentHex: "#8b5cf6",
-    accentRgb: "139,92,246",
+    badgeColor: "oklch(60% 0.20 290)",
+    iconBg: "oklch(60% 0.20 290 / 0.12)",
+    iconBorder: "oklch(60% 0.20 290 / 0.22)",
+    iconColor: "oklch(74% 0.16 290)",
+    auraBg: "oklch(60% 0.20 290 / 0.10)",
     title: "Video Processing",
     desc: "Convert & extract audio from video files with zero upload.",
     tags: "MP4 · MKV · WebM · AVI",
@@ -37,8 +40,11 @@ const FEATURES = [
   {
     icon: Music,
     badge: "Audio",
-    accentHex: "#22d3ee",
-    accentRgb: "34,211,238",
+    badgeColor: "oklch(66% 0.17 195)",
+    iconBg: "oklch(66% 0.17 195 / 0.12)",
+    iconBorder: "oklch(66% 0.17 195 / 0.22)",
+    iconColor: "oklch(74% 0.13 195)",
+    auraBg: "oklch(66% 0.17 195 / 0.10)",
     title: "Audio Conversion",
     desc: "Convert formats, compress, and normalize audio in-browser.",
     tags: "WAV · MP3 · AAC · OGG",
@@ -46,8 +52,11 @@ const FEATURES = [
   {
     icon: Mic,
     badge: "AI",
-    accentHex: "#fbbf24",
-    accentRgb: "245,158,11",
+    badgeColor: "oklch(78% 0.15 75)",
+    iconBg: "oklch(78% 0.15 75 / 0.12)",
+    iconBorder: "oklch(78% 0.15 75 / 0.22)",
+    iconColor: "oklch(78% 0.15 75)",
+    auraBg: "oklch(78% 0.15 75 / 0.10)",
     title: "AI Transcription",
     desc: "Speech-to-text powered by OpenAI Whisper, locally processed.",
     tags: "Word timestamps · SRT export",
@@ -55,36 +64,17 @@ const FEATURES = [
 ];
 
 const PRIVACY_STATS = [
-  { icon: Shield,   label: "100% Private",          desc: "End-to-end in your browser",        hex: "#8b5cf6", rgb: "139,92,246"  },
-  { icon: WifiOff,  label: "Zero Uploads",           desc: "No server ever touches your files", hex: "#22d3ee", rgb: "34,211,238"  },
-  { icon: Database, label: "Zero Data Collection",   desc: "No analytics on your content",      hex: "#fbbf24", rgb: "245,158,11"  },
-  { icon: Cpu,      label: "In-Browser Processing",  desc: "Web APIs power everything",         hex: "#34d399", rgb: "52,211,153"  },
+  { icon: Shield,   title: "100% Private",          desc: "End-to-end in your browser" },
+  { icon: WifiOff,  title: "Zero Uploads",           desc: "No server ever touches your files" },
+  { icon: Database, title: "Zero Data Collection",   desc: "No analytics on your content" },
+  { icon: Cpu,      title: "In-Browser Processing",  desc: "Web APIs power everything" },
 ];
-
-// ── SHARED STYLE ATOMS ────────────────────────────────────────────────────────
-
-const cardBase: React.CSSProperties = {
-  background: "linear-gradient(180deg, #14141f 0%, #0d0d18 100%)",
-  border: "1px solid rgba(255,255,255,0.06)",
-  borderRadius: 16,
-};
-
-const monoLabel: React.CSSProperties = {
-  fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-  fontSize: 11,
-  letterSpacing: "0.18em",
-  textTransform: "uppercase",
-  color: "#8a8a9c",
-};
 
 // ── NAV ──────────────────────────────────────────────────────────────────────
 
 function Nav() {
   return (
-    <nav
-      className="flex items-center justify-between px-6 md:px-10 py-4 backdrop-blur-sm"
-      style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(8,8,15,0.75)" }}
-    >
+    <nav className="flex items-center justify-between px-6 md:px-10 py-4 border-b border-aura-border backdrop-blur-sm bg-aura-canvas/75">
       <div className="flex items-center gap-3">
         <Image
           src="/branding/NeuralGrooveIcon.png"
@@ -94,10 +84,10 @@ function Nav() {
           className="rounded-lg"
         />
         <div className="flex flex-col leading-none gap-0.5">
-          <span className="font-tchaikovsky tracking-[0.12em] text-sm" style={{ color: "#f3f3f8" }}>
+          <span className="font-tchaikovsky tracking-[0.12em] text-sm text-aura-text">
             Neural Groove
           </span>
-          <span style={{ ...monoLabel, fontSize: 9, color: "#5b5b6e", letterSpacing: "0.14em" }}>
+          <span className="font-mono text-[9px] tracking-[0.14em] uppercase text-aura-muted">
             Spectrum Divergent
           </span>
         </div>
@@ -105,14 +95,8 @@ function Nav() {
       <Link
         href="/forge"
         className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 hover:scale-[1.02]"
-        style={{
-          background: "linear-gradient(135deg, #7c3aed, #8b5cf6)",
-          color: "white",
-          boxShadow: "0 4px 16px rgba(139,92,246,0.28)",
-          fontFamily: "'Inter', system-ui, sans-serif",
-        }}
+        style={{ background: "var(--violet)", color: "white" }}
       >
-        <Zap className="w-3.5 h-3.5" />
         Launch Forge
       </Link>
     </nav>
@@ -129,7 +113,7 @@ function HeroSection() {
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(55% 45% at 50% 20%, rgba(139,92,246,0.13), transparent 65%)",
+            "radial-gradient(55% 45% at 50% 20%, oklch(60% 0.20 290 / 0.13), transparent 65%)",
         }}
       />
 
@@ -138,58 +122,40 @@ function HeroSection() {
         data-scroll-item
         className="relative mb-7 inline-flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-sm"
         style={{
-          border: "1px solid rgba(34,211,238,0.22)",
-          background: "rgba(34,211,238,0.06)",
-          fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-          fontSize: 11,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          color: "#22d3ee",
+          border: "1px solid oklch(66% 0.17 195 / 0.22)",
+          background: "oklch(66% 0.17 195 / 0.06)",
+          color: "var(--teal)",
         }}
       >
         <Lock className="w-3 h-3" />
-        100% Private &amp; Offline — Files Never Leave Your Device
+        <span className="font-mono text-[11px] tracking-[0.14em] uppercase">
+          100% Private &amp; Offline — Files Never Leave Your Device
+        </span>
       </div>
 
       {/* Headline */}
       <div data-scroll-item className="relative mb-4">
-        <div style={{ ...monoLabel, fontSize: 12, letterSpacing: "0.22em", marginBottom: 14 }}>
+        <div className="font-mono text-[12px] tracking-[0.22em] uppercase text-aura-muted mb-3.5">
           Browser-Native Media Forge
         </div>
         <h1
-          style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: "clamp(52px, 8vw, 92px)",
-            fontWeight: 700,
-            letterSpacing: "-0.03em",
-            lineHeight: 1.0,
-            color: "#f3f3f8",
-          }}
+          className="font-chaotic tracking-tight leading-none text-aura-text"
+          style={{ fontSize: "clamp(52px, 8vw, 92px)" }}
         >
           Neural Groove
         </h1>
         <div
-          style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: "clamp(22px, 3.5vw, 40px)",
-            fontWeight: 500,
-            letterSpacing: "-0.01em",
-            color: "#8b5cf6",
-            marginTop: 6,
-          }}
+          className="font-jazz mt-1.5"
+          style={{ fontSize: "clamp(22px, 3.5vw, 40px)", color: "var(--violet)" }}
         >
           Spectrum Divergent
         </div>
       </div>
 
       {/* Tagline */}
-      <p
-        data-scroll-item
-        className="relative text-base md:text-lg max-w-lg leading-relaxed mt-1"
-        style={{ color: "#8a8a9c", fontFamily: "'Inter', system-ui, sans-serif" }}
-      >
+      <p data-scroll-item className="relative text-base md:text-lg text-aura-muted max-w-lg leading-relaxed mt-1">
         Video processing, audio conversion &amp; AI transcription.{" "}
-        <span style={{ color: "#22d3ee", fontWeight: 500 }}>Zero uploads. Zero traces.</span>
+        <span className="font-medium" style={{ color: "var(--teal)" }}>Zero uploads. Zero traces.</span>
       </p>
 
       {/* CTAs */}
@@ -197,11 +163,7 @@ function HeroSection() {
         <Link
           href="/forge"
           className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-[1.03]"
-          style={{
-            background: "linear-gradient(135deg, #7c3aed, #8b5cf6)",
-            boxShadow: "0 8px 32px rgba(139,92,246,0.30)",
-            fontFamily: "'Inter', system-ui, sans-serif",
-          }}
+          style={{ background: "var(--violet)", boxShadow: "0 8px 32px oklch(60% 0.20 290 / 0.30)" }}
         >
           Start Processing
           <ChevronRight className="w-4 h-4" />
@@ -209,14 +171,9 @@ function HeroSection() {
         <button
           onClick={() => window.scrollTo({ top: 4 * window.innerHeight, behavior: "smooth" })}
           className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 hover:scale-[1.02]"
-          style={{
-            color: "#f3f3f8",
-            border: "1px solid rgba(255,255,255,0.12)",
-            background: "rgba(255,255,255,0.04)",
-            fontFamily: "'Inter', system-ui, sans-serif",
-          }}
+          style={{ color: "var(--text)", border: "1px solid var(--border)", background: "transparent" }}
         >
-          <Headphones className="w-4 h-4" style={{ color: "#fbbf24" }} />
+          <Headphones className="w-4 h-4" style={{ color: "var(--amber)" }} />
           Explore the Music
         </button>
       </div>
@@ -238,15 +195,12 @@ function ForgeSection() {
 
         {/* Section header */}
         <div data-scroll-item className="text-center mb-8">
-          <div style={{ ...monoLabel, marginBottom: 10 }}>Browser-Native Tools — No Server Required</div>
+          <div className="font-mono text-[11px] tracking-[0.18em] uppercase text-aura-muted mb-2.5">
+            Browser-Native Tools — No Server Required
+          </div>
           <h2
-            style={{
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: "clamp(36px, 5vw, 56px)",
-              fontWeight: 700,
-              letterSpacing: "-0.02em",
-              color: "#f3f3f8",
-            }}
+            className="font-chaotic text-aura-text"
+            style={{ fontSize: "clamp(36px, 5vw, 56px)" }}
           >
             The Forge
           </h2>
@@ -254,87 +208,61 @@ function ForgeSection() {
 
         {/* Feature cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {FEATURES.map(({ icon: Icon, badge, accentHex, accentRgb, title, desc, tags }) => (
+          {FEATURES.map(({ icon: Icon, badge, badgeColor, iconBg, iconBorder, iconColor, auraBg, title, desc, tags }) => (
             <Link
               href="/forge"
               key={title}
               data-scroll-item
               className="flex flex-col rounded-2xl p-6 transition-all duration-300 cursor-pointer"
-              style={{ ...cardBase, position: "relative", overflow: "hidden" }}
+              style={{
+                background: "oklch(22% 0.025 280 / 0.70)",
+                border: "1px solid oklch(38% 0.02 280 / 0.30)",
+                position: "relative",
+                overflow: "hidden",
+              }}
               onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.border = `1px solid rgba(${accentRgb},0.28)`;
-                (e.currentTarget as HTMLElement).style.boxShadow = `0 0 32px rgba(${accentRgb},0.10)`;
+                (e.currentTarget as HTMLElement).style.borderColor = `${badgeColor}40`;
+                (e.currentTarget as HTMLElement).style.boxShadow = `0 0 32px ${badgeColor}18`;
               }}
               onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.border = "1px solid rgba(255,255,255,0.06)";
+                (e.currentTarget as HTMLElement).style.borderColor = "oklch(38% 0.02 280 / 0.30)";
                 (e.currentTarget as HTMLElement).style.boxShadow = "none";
               }}
             >
               {/* Card aurora wash */}
               <div
                 className="pointer-events-none absolute inset-0"
-                style={{
-                  background: `radial-gradient(60% 60% at 0% 0%, rgba(${accentRgb},0.10), transparent 70%)`,
-                }}
+                style={{ background: `radial-gradient(60% 60% at 0% 0%, ${auraBg}, transparent 70%)` }}
               />
 
               <div className="relative flex flex-col flex-1">
                 {/* Icon */}
                 <div
                   className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
-                  style={{
-                    background: `rgba(${accentRgb},0.12)`,
-                    border: `1px solid rgba(${accentRgb},0.22)`,
-                  }}
+                  style={{ background: iconBg, border: `1px solid ${iconBorder}` }}
                 >
-                  <Icon className="w-5 h-5" style={{ color: accentHex }} />
+                  <Icon className="w-5 h-5" style={{ color: iconColor }} />
                 </div>
 
                 {/* Badge */}
                 <div className="mb-3">
                   <span
+                    className="font-mono text-[10px] tracking-[0.12em] uppercase px-2 py-0.5 rounded"
                     style={{
-                      fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                      fontSize: 10,
-                      letterSpacing: "0.12em",
-                      textTransform: "uppercase",
-                      padding: "3px 8px",
-                      borderRadius: 4,
-                      background: `rgba(${accentRgb},0.12)`,
-                      border: `1px solid rgba(${accentRgb},0.28)`,
-                      color: accentHex,
+                      background: `${badgeColor}12`,
+                      border: `1px solid ${badgeColor}28`,
+                      color: badgeColor,
                     }}
                   >
                     {badge}
                   </span>
                 </div>
 
-                <h3
-                  className="mb-2"
-                  style={{
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    fontSize: 17,
-                    fontWeight: 600,
-                    color: "#f3f3f8",
-                  }}
-                >
+                <h3 className="font-jazz text-aura-text mb-2" style={{ fontSize: 17 }}>
                   {title}
                 </h3>
-                <p
-                  className="text-sm leading-relaxed flex-1"
-                  style={{ color: "#8a8a9c", fontFamily: "'Inter', system-ui, sans-serif" }}
-                >
-                  {desc}
-                </p>
-                <p
-                  className="mt-4"
-                  style={{
-                    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                    fontSize: 10,
-                    letterSpacing: "0.10em",
-                    color: "#5b5b6e",
-                  }}
-                >
+                <p className="text-sm text-aura-muted leading-relaxed flex-1">{desc}</p>
+                <p className="mt-4 font-mono text-[10px] tracking-[0.10em] text-aura-muted opacity-60">
                   {tags}
                 </p>
               </div>
@@ -348,10 +276,9 @@ function ForgeSection() {
             href="/forge"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 hover:scale-[1.02]"
             style={{
-              background: "rgba(139,92,246,0.08)",
-              border: "1px solid rgba(139,92,246,0.28)",
-              color: "#a78bfa",
-              fontFamily: "'Inter', system-ui, sans-serif",
+              background: "oklch(60% 0.20 290 / 0.08)",
+              border: "1px solid oklch(60% 0.20 290 / 0.28)",
+              color: "oklch(74% 0.16 290)",
             }}
           >
             Open the Forge
@@ -372,66 +299,50 @@ function StatsSection() {
 
         {/* Header */}
         <div data-scroll-item className="text-center mb-10">
-          <div style={{ ...monoLabel, marginBottom: 10 }}>Privacy by Architecture</div>
+          <div className="font-mono text-[11px] tracking-[0.18em] uppercase text-aura-muted mb-2.5">
+            Privacy by Architecture
+          </div>
           <h2
-            style={{
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: "clamp(28px, 4vw, 44px)",
-              fontWeight: 700,
-              letterSpacing: "-0.02em",
-              color: "#f3f3f8",
-            }}
+            className="font-chaotic text-aura-text"
+            style={{ fontSize: "clamp(28px, 4vw, 44px)" }}
           >
             Your Data Never Leaves Your Device
           </h2>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {PRIVACY_STATS.map(({ icon: Icon, label, desc, hex, rgb }) => (
+          {PRIVACY_STATS.map(({ icon: Icon, title, desc }) => (
             <div
-              key={label}
+              key={title}
               data-scroll-item
-              className="flex flex-col items-center text-center p-5"
-              style={{ ...cardBase, borderRadius: 14, position: "relative", overflow: "hidden" }}
+              className="flex flex-col items-center text-center p-5 rounded-2xl"
+              style={{
+                background: "oklch(22% 0.025 280 / 0.70)",
+                border: "1px solid oklch(66% 0.17 195 / 0.15)",
+                position: "relative",
+                overflow: "hidden",
+              }}
             >
               <div
                 className="pointer-events-none absolute inset-0"
-                style={{
-                  background: `radial-gradient(60% 55% at 50% 0%, rgba(${rgb},0.08), transparent 70%)`,
-                }}
+                style={{ background: "radial-gradient(60% 55% at 50% 0%, oklch(66% 0.17 195 / 0.08), transparent 70%)" }}
               />
               <div
                 className="relative w-12 h-12 rounded-xl flex items-center justify-center mb-3"
                 style={{
-                  background: `rgba(${rgb},0.12)`,
-                  border: `1px solid rgba(${rgb},0.22)`,
+                  background: "oklch(66% 0.17 195 / 0.12)",
+                  border: "1px solid oklch(66% 0.17 195 / 0.22)",
                 }}
               >
-                <Icon className="w-5 h-5" style={{ color: hex }} />
+                <Icon className="w-5 h-5" style={{ color: "var(--teal)" }} />
               </div>
               <p
-                className="relative mb-1"
-                style={{
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: "#f3f3f8",
-                  lineHeight: 1.2,
-                }}
+                className="relative font-jazz text-aura-text mb-1"
+                style={{ fontSize: 14, lineHeight: 1.2 }}
               >
-                {label}
+                {title}
               </p>
-              <p
-                className="relative"
-                style={{
-                  fontFamily: "'Inter', system-ui, sans-serif",
-                  fontSize: 11,
-                  color: "#5b5b6e",
-                  lineHeight: 1.4,
-                }}
-              >
-                {desc}
-              </p>
+              <p className="relative text-[11px] text-aura-muted leading-snug">{desc}</p>
             </div>
           ))}
         </div>
@@ -450,9 +361,9 @@ function ProTipSection() {
           data-scroll-item
           className="rounded-2xl p-8"
           style={{
-            ...cardBase,
-            border: "1px solid rgba(245,158,11,0.18)",
-            boxShadow: "0 0 40px rgba(245,158,11,0.05)",
+            background: "oklch(22% 0.025 280 / 0.70)",
+            border: "1px solid oklch(72% 0.16 55 / 0.18)",
+            boxShadow: "0 0 40px oklch(72% 0.16 55 / 0.05)",
             position: "relative",
             overflow: "hidden",
           }}
@@ -462,7 +373,7 @@ function ProTipSection() {
             className="pointer-events-none absolute inset-0"
             style={{
               background:
-                "radial-gradient(60% 100% at 0% 0%, rgba(245,158,11,0.08), transparent 70%)",
+                "radial-gradient(60% 100% at 0% 0%, oklch(72% 0.16 55 / 0.08), transparent 70%)",
             }}
           />
 
@@ -470,47 +381,31 @@ function ProTipSection() {
             <div
               className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
               style={{
-                background: "rgba(245,158,11,0.10)",
-                border: "1px solid rgba(245,158,11,0.24)",
+                background: "oklch(72% 0.16 55 / 0.10)",
+                border: "1px solid oklch(72% 0.16 55 / 0.24)",
               }}
             >
-              <Lightbulb className="w-5 h-5" style={{ color: "#fbbf24" }} />
+              <Lightbulb className="w-5 h-5" style={{ color: "var(--amber)" }} />
             </div>
             <div className="flex-1">
               <div className="mb-3">
                 <span
+                  className="font-mono text-[10px] tracking-[0.14em] uppercase px-2 py-0.5 rounded"
                   style={{
-                    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                    fontSize: 10,
-                    letterSpacing: "0.14em",
-                    textTransform: "uppercase",
-                    padding: "3px 8px",
-                    borderRadius: 4,
-                    background: "rgba(245,158,11,0.08)",
-                    border: "1px solid rgba(245,158,11,0.28)",
-                    color: "#fbbf24",
+                    background: "oklch(72% 0.16 55 / 0.08)",
+                    border: "1px solid oklch(72% 0.16 55 / 0.28)",
+                    color: "var(--amber)",
                   }}
                 >
                   Pro Tip
                 </span>
               </div>
-              <h3
-                className="mb-3"
-                style={{
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  fontSize: 22,
-                  fontWeight: 600,
-                  color: "#fbbf24",
-                }}
-              >
+              <h3 className="font-jazz mb-3" style={{ fontSize: 22, color: "var(--amber)" }}>
                 Transcribe Specific Segments
               </h3>
-              <p
-                className="text-sm leading-relaxed"
-                style={{ color: "#8a8a9c", fontFamily: "'Inter', system-ui, sans-serif" }}
-              >
+              <p className="text-sm text-aura-muted leading-relaxed">
                 Want to transcribe only part of a video? Select{" "}
-                <strong style={{ color: "#f3f3f8", fontWeight: 600 }}>&ldquo;Extract Audio&rdquo;</strong>{" "}
+                <strong className="text-aura-text font-semibold">&ldquo;Extract Audio&rdquo;</strong>{" "}
                 first, then use the waveform viewer to select and transcribe specific sections.
                 Perfect for long recordings — interviews, lectures, or live sessions.
               </p>
@@ -532,66 +427,35 @@ function MusicSection() {
         {/* Amber eyebrow */}
         <div data-scroll-item className="flex justify-center mb-6">
           <span
+            className="font-mono text-[11px] tracking-[0.22em] uppercase px-3.5 py-1.5 rounded"
             style={{
-              fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-              fontSize: 11,
-              letterSpacing: "0.22em",
-              textTransform: "uppercase",
-              padding: "5px 14px",
-              borderRadius: 6,
-              background: "rgba(245,158,11,0.08)",
-              border: "1px solid rgba(245,158,11,0.28)",
-              color: "#fbbf24",
+              background: "oklch(72% 0.16 55 / 0.08)",
+              border: "1px solid oklch(72% 0.16 55 / 0.28)",
+              color: "var(--amber)",
             }}
           >
             The Music
           </span>
         </div>
 
-        {/* Headline */}
-        <div data-scroll-item className="text-center mb-6">
-          <h2
-            style={{
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: "clamp(42px, 7vw, 76px)",
-              fontWeight: 700,
-              letterSpacing: "-0.03em",
-              lineHeight: 1.0,
-              color: "#f3f3f8",
-            }}
-          >
-            Neural Groove
-          </h2>
-          <div
-            style={{
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: "clamp(20px, 3vw, 36px)",
-              fontWeight: 500,
-              letterSpacing: "-0.01em",
-              color: "#fbbf24",
-              marginTop: 5,
-            }}
-          >
-            Spectrum Divergent
-          </div>
+        {/* Neural font heading */}
+        <div data-scroll-item className="w-full mb-5 select-none" aria-label="Neural Groove Spectrum Divergent">
+          <NeuralFont text="Neural Groove" fontSize={80} className="w-full" />
+          <NeuralFont text="Spectrum Divergent" fontSize={54} className="w-full" />
         </div>
 
         {/* Body copy */}
-        <div
-          data-scroll-item
-          className="space-y-3 text-sm leading-relaxed mb-5"
-          style={{ color: "#8a8a9c", fontFamily: "'Inter', system-ui, sans-serif" }}
-        >
+        <div data-scroll-item className="space-y-3 text-sm text-aura-muted leading-relaxed mb-5">
           <p>
             Singing, playing, composing songs can be an incredible way to let go of feelings,
             stress, and frustrations.{" "}
-            <strong style={{ color: "#f3f3f8", fontWeight: 600 }}>
+            <strong className="text-aura-text font-semibold">
               Music has a way of reaching emotions that words alone can&apos;t describe.
             </strong>
           </p>
           <p>
             We&apos;re not aiming for perfection.{" "}
-            <strong style={{ color: "#f3f3f8", fontWeight: 600 }}>
+            <strong className="text-aura-text font-semibold">
               It&apos;s about feeling the rawness of pain and frustration, and handling it with hope.
             </strong>
           </p>
@@ -601,12 +465,9 @@ function MusicSection() {
         <blockquote
           data-scroll-item
           className="pl-5 py-1 mb-6"
-          style={{ borderLeft: "3px solid #f59e0b" }}
+          style={{ borderLeft: "3px solid var(--amber)" }}
         >
-          <p
-            className="text-sm font-semibold leading-relaxed"
-            style={{ color: "#fbbf24", fontFamily: "'Inter', system-ui, sans-serif" }}
-          >
+          <p className="text-sm font-semibold leading-relaxed" style={{ color: "var(--amber)" }}>
             By blending instrument riffs, poetic lines, rhythms, and raw energy — you can
             transcend the everyday and tap into something deeper.
           </p>
@@ -617,19 +478,14 @@ function MusicSection() {
           <Link
             href="/music"
             className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-[1.03]"
-            style={{
-              background: "linear-gradient(135deg, #7c3aed, #8b5cf6)",
-              boxShadow: "0 8px 32px rgba(139,92,246,0.28)",
-              fontFamily: "'Inter', system-ui, sans-serif",
-            }}
+            style={{ background: "var(--violet)", boxShadow: "0 8px 32px oklch(60% 0.20 290 / 0.28)" }}
           >
             <Headphones className="w-4 h-4" />
             Listen Now
           </Link>
           <Link
             href="/forge"
-            className="inline-flex items-center gap-2 text-sm font-semibold transition-colors duration-200"
-            style={{ color: "#8a8a9c", fontFamily: "'Inter', system-ui, sans-serif" }}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-aura-muted hover:text-aura-text transition-colors duration-200"
           >
             Launch Forge
             <ChevronRight className="w-4 h-4" />
@@ -654,45 +510,26 @@ function FooterSection() {
           className="rounded-xl mx-auto"
           style={{ opacity: 0.55 }}
         />
-        <div
-          style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: 18,
-            fontWeight: 600,
-            letterSpacing: "-0.01em",
-            color: "#f3f3f8",
-          }}
-        >
+        <div className="font-tchaikovsky text-lg tracking-[0.12em] text-aura-text">
           Neural Groove
         </div>
-        <p style={{ ...monoLabel, fontSize: 10, letterSpacing: "0.18em" }}>
+        <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-aura-muted">
           Browser-Native Tools — No Server Required
         </p>
-        <p
-          style={{
-            fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-            fontSize: 10,
-            color: "#5b5b6e",
-            opacity: 0.6,
-          }}
-        >
+        <p className="font-mono text-[10px] tracking-[0.10em] text-aura-muted opacity-60">
           Zero Uploads · Zero Traces · Zero Compromise
         </p>
         <div className="flex items-center justify-center gap-5 pt-1">
           <Link
             href="/forge"
-            style={{ fontFamily: "'Inter', system-ui, sans-serif", fontSize: 12, color: "#8a8a9c" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#f3f3f8"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "#8a8a9c"; }}
+            className="text-xs text-aura-muted hover:text-aura-text transition-colors"
           >
             Launch Forge
           </Link>
-          <span style={{ color: "#3a3a4e" }}>·</span>
+          <span className="text-aura-border select-none">·</span>
           <Link
             href="/music"
-            style={{ fontFamily: "'Inter', system-ui, sans-serif", fontSize: 12, color: "#8a8a9c" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#f3f3f8"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "#8a8a9c"; }}
+            className="text-xs text-aura-muted hover:text-aura-text transition-colors"
           >
             The Music
           </Link>
@@ -717,10 +554,7 @@ export default function Landing() {
   ];
 
   return (
-    <main
-      className="relative isolate text-aura-text font-sans"
-      style={{ background: "#08080f" }}
-    >
+    <main className="relative isolate bg-aura-canvas text-aura-text font-sans">
       {/* ── LAYER 1: Breathing radial glow ── */}
       <div
         className="pointer-events-none fixed inset-0 bg-aura-radial animate-glow-breathe"

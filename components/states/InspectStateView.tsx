@@ -4,7 +4,6 @@ import { Loader2, FileVideo, ChevronLeft } from "lucide-react";
 import { MetadataDisplay } from "@/components/MetadataDisplay";
 import { ActionSelector, type ActionType, type ActionOptions } from "@/components/ActionSelector";
 import ModelSelector, { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
-import { ForgeStepper } from "@/components/ForgeStepper";
 import { TranscriptionModeSelector } from "@/components/fast-mode";
 import { SystemCapabilitiesCard } from "@/components/fast-mode/SystemCapabilitiesCard";
 import type { TranscriptionMode } from "@/types/fast-mode";
@@ -68,10 +67,6 @@ export function InspectStateView({
 
   return (
     <div className="animate-in fade-in duration-500 max-w-7xl mx-auto px-4">
-      <div className="mb-6">
-        <ForgeStepper currentState="INSPECT" />
-      </div>
-
       {/* file summary strip */}
       <div
         className="flex items-center gap-3 mb-5 px-4 py-3 rounded-xl"

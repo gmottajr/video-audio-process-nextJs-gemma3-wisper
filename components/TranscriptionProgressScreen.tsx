@@ -2,7 +2,6 @@
 
 import { useTranscriberContext } from "@/contexts/TranscriberContext";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { ForgeStepper } from "@/components/ForgeStepper";
 import { X, CheckCircle2, Circle } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -74,9 +73,6 @@ export default function TranscriptionProgressScreen() {
       {/* top chrome */}
       <div className="relative container mx-auto px-4 pt-6 pb-3">
         <Breadcrumbs currentState="PROCESSING" onNavigate={() => {}} />
-      </div>
-      <div className="relative container mx-auto px-4 pb-4">
-        <ForgeStepper currentState="PROCESSING" />
       </div>
 
       {/* main */}

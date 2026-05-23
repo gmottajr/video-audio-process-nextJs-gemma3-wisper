@@ -1,7 +1,6 @@
 "use client";
 
 import { FileUploader } from "@/components/FileUploader";
-import { ForgeStepper } from "@/components/ForgeStepper";
 import {
   Video, Music, Brain, Shield, Lightbulb,
   Zap, EyeOff, Database, Cpu,
@@ -49,19 +48,6 @@ const PRIVACY = [
   { icon: Database, t: "No traces",    d: "IndexedDB cache, clearable" },
 ];
 
-/**
- * IdleStateView — REDESIGNED (v2.1)
- *
- * Drop-in replacement. Same prop signature.
- *
- * Changes:
- *   • Two-column layout (was: stacked features card list + tiny upload zone)
- *     LEFT  = "What Forge does" panel + zero-trust quad + Pro tip
- *     RIGHT = focused drop zone with format chips
- *   • Removes the giant PageHeader brand mark on this state to reclaim
- *     viewport for the actual upload action.
- *   • Anchored by ForgeStepper at top.
- */
 export function IdleStateView({
   onFileSelect,
   isLoading,
@@ -69,12 +55,97 @@ export function IdleStateView({
 }: IdleStateViewProps) {
   return (
     <div className="w-full max-w-7xl mx-auto px-4 animate-in fade-in duration-500">
-      <div className="mb-8">
-        <ForgeStepper currentState="IDLE" />
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-6">
-        {/* LEFT */}
+        {/* LEFT — dropzone */}
+        <div className="flex flex-col">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <div
+                className="font-mono text-[11px] tracking-[0.18em] uppercase"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Step 01 · Media input
+              </div>
+              <h2
+                className="font-display text-[28px] font-semibold tracking-tight mt-1 animate-text-gradient"
+                style={{ lineHeight: 1.1 }}
+              >
+                Drop a file to begin
+              </h2>
+              <p className="text-aura-muted text-[13px] mt-1">
+                {isLoading
+                  ? "Initializing FFmpeg engine…"
+                  : "Decoded locally via WebAssembly. Nothing uploads."}
+              </p>
+            </div>
+            {isLoading && (
+              <div
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-full"
+                style={{
+                  background: "oklch(60% 0.20 290 / 0.12)",
+                  border: "1px solid oklch(60% 0.20 290 / 0.3)",
+                }}
+              >
+                <Zap className="w-3 h-3 animate-pulse" style={{ color: "oklch(74% 0.16 290)" }} />
+                <span
+                  className="text-[10px] font-mono uppercase tracking-wider"
+                  style={{ color: "oklch(74% 0.16 290)" }}
+                >
+                  Loading
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div
+            className="rounded-2xl p-5"
+            style={{
+              background:
+                "radial-gradient(120% 100% at 50% 0%, oklch(60% 0.20 290 / 0.10), oklch(22% 0.025 280 / 0.55))",
+              border: "1.5px dashed oklch(60% 0.20 290 / 0.35)",
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            <FileUploader
+              onFileSelect={onFileSelect}
+              recommendedFileSize={recommendedFileSize}
+            />
+
+            <div className="flex flex-wrap gap-1.5 mt-5 justify-center">
+              {FORMATS.map((f) => (
+                <span
+                  key={f}
+                  className="font-mono text-[10px] tracking-[0.08em] px-2 py-0.5 rounded"
+                  style={{
+                    background: "oklch(28% 0.025 280 / 0.5)",
+                    border: "1px solid oklch(38% 0.02 280 / 0.3)",
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  {f}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <div
+              className="rounded-xl p-3.5"
+              style={{
+                background: "oklch(22% 0.025 280 / 0.4)",
+                border: "1px solid oklch(38% 0.02 280 / 0.25)",
+              }}
+            >
+              <p className="text-[11px] text-aura-muted text-center leading-relaxed">
+                <span className="text-aura-text font-medium">Legal:</span> for personal use.
+                You are responsible for consent when transcribing others.
+                Accuracy varies — review before relying on output. All processing is local.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT — what forge does */}
         <div className="flex flex-col gap-4">
           {/* what forge does */}
           <div
@@ -193,95 +264,6 @@ export function IdleStateView({
                 Want to transcribe only part of a video? Extract audio first, then scrub the
                 waveform to select and transcribe a range — ideal for long interviews and lectures.
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT — dropzone */}
-        <div className="flex flex-col">
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <div
-                className="font-mono text-[11px] tracking-[0.18em] uppercase"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Step 01 · Media input
-              </div>
-              <h2
-                className="font-display text-[28px] font-semibold tracking-tight mt-1 animate-text-gradient"
-                style={{ lineHeight: 1.1 }}
-              >
-                Drop a file to begin
-              </h2>
-              <p className="text-aura-muted text-[13px] mt-1">
-                {isLoading
-                  ? "Initializing FFmpeg engine…"
-                  : "Decoded locally via WebAssembly. Nothing uploads."}
-              </p>
-            </div>
-            {isLoading && (
-              <div
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-full"
-                style={{
-                  background: "oklch(60% 0.20 290 / 0.12)",
-                  border: "1px solid oklch(60% 0.20 290 / 0.3)",
-                }}
-              >
-                <Zap className="w-3 h-3 animate-pulse" style={{ color: "oklch(74% 0.16 290)" }} />
-                <span
-                  className="text-[10px] font-mono uppercase tracking-wider"
-                  style={{ color: "oklch(74% 0.16 290)" }}
-                >
-                  Loading
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div
-            className="rounded-2xl p-5"
-            style={{
-              background:
-                "radial-gradient(120% 100% at 50% 0%, oklch(60% 0.20 290 / 0.10), oklch(22% 0.025 280 / 0.55))",
-              border: "1.5px dashed oklch(60% 0.20 290 / 0.35)",
-              backdropFilter: "blur(10px)",
-            }}
-          >
-            <FileUploader
-              onFileSelect={onFileSelect}
-              recommendedFileSize={recommendedFileSize}
-            />
-
-            <div className="flex flex-wrap gap-1.5 mt-5 justify-center">
-              {FORMATS.map((f) => (
-                <span
-                  key={f}
-                  className="font-mono text-[10px] tracking-[0.08em] px-2 py-0.5 rounded"
-                  style={{
-                    background: "oklch(28% 0.025 280 / 0.5)",
-                    border: "1px solid oklch(38% 0.02 280 / 0.3)",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  {f}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <div
-              className="rounded-xl p-3.5"
-              style={{
-                background: "oklch(22% 0.025 280 / 0.4)",
-                border: "1px solid oklch(38% 0.02 280 / 0.25)",
-              }}
-            >
-              <p className="text-[11px] text-aura-muted text-center leading-relaxed">
-                <span className="text-aura-text font-medium">Legal:</span> for personal use.
-                You are responsible for consent when transcribing others.
-                Accuracy varies — review before relying on output. All processing is local.
-              </p>
             </div>
           </div>
         </div>

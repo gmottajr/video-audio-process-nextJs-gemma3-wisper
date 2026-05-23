@@ -29,7 +29,7 @@ export function Breadcrumbs({ currentState }: BreadcrumbsProps) {
   const isError = currentState === 'ERROR';
 
   return (
-    <nav className="flex items-center gap-2 mb-6 overflow-x-auto">
+    <nav className="flex items-center gap-2 overflow-x-auto">
       {/* Brand */}
       <Link href="/" className="flex items-center gap-2.5 mr-2 opacity-80 hover:opacity-100 transition-opacity shrink-0">
         <Image src="/branding/NeuralGrooveIcon.png" alt="Neural Groove" width={48} height={48} className="rounded-lg" />

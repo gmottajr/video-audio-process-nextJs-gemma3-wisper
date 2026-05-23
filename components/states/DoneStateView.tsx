@@ -11,7 +11,6 @@ import { StatisticsModal } from "@/components/StatisticsModal";
 import { TranscribeFromDoneForm } from "@/components/TranscribeFromDoneForm";
 import { ResourceComparison } from "@/components/ResourceComparison";
 import ModelSelector, { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
-import { ForgeStepper } from "@/components/ForgeStepper";
 import {
   Download, RotateCcw, BarChart3, Scissors, Sparkles,
   CheckCircle2, FileVideo, X,
@@ -213,11 +212,6 @@ export function DoneStateView({
       className="animate-in fade-in duration-500 max-w-7xl mx-auto px-4"
       style={{ fontFamily: "'Inter', system-ui, sans-serif", color: "#f3f3f8" }}
     >
-      {/* stepper */}
-      <div className="mb-5">
-        <ForgeStepper currentState="DONE" />
-      </div>
-
       {/* SUCCESS STRIP — thin, no big hero */}
       <div
         className="flex items-center gap-3 mb-5"

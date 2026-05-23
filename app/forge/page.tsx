@@ -665,35 +665,45 @@ export default function Home() {
       )}
 
       <div className="container mx-auto px-4 py-4 max-w-7xl">
-        {/* Breadcrumbs */}
-        <Breadcrumbs 
-          currentState={stateMachine.state} 
-          onNavigate={handleReset}
-        />
-
-        {/* Hardware Capability Badge */}
-        <div className="flex justify-center mb-4">
-          <div className="group relative">
-            <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 border ${
-              hardwareCapability.tier === "high"
-                ? "bg-gradient-to-r from-emerald-950/50 to-green-950/50 border-emerald-500/50 text-emerald-400"
-                : hardwareCapability.tier === "medium"
-                ? "bg-gradient-to-r from-[oklch(20%_0.04_195)] to-[oklch(20%_0.03_195)] border-[oklch(66%_0.17_195/0.5)] text-[oklch(74%_0.13_195)]"
-                : "bg-gradient-to-r from-amber-950/50 to-orange-950/50 border-amber-500/50 text-amber-400"
-            }`}>
-              <Cpu className="w-3 h-3" />
-              <span suppressHydrationWarning>
-                {hardwareCapability.tier === "high"
-                  ? `🚀 High Performance (${hardwareCapability.deviceMemoryGB}GB+ RAM)`
+        <div className="flex items-center justify-between mb-6">
+          <Breadcrumbs
+            currentState={stateMachine.state}
+            onNavigate={handleReset}
+          />
+          <div className="flex items-center gap-3">
+            {/* Hardware Capability Badge */}
+            <div className="group relative">
+              <span className={`px-3 py-1.5 rounded-full font-mono text-[11px] uppercase tracking-wider flex items-center gap-2 border ${
+                hardwareCapability.tier === "high"
+                  ? "bg-gradient-to-r from-emerald-950/50 to-green-950/50 border-emerald-500/50 text-emerald-400"
                   : hardwareCapability.tier === "medium"
-                  ? "⚡ Standard Performance"
-                  : "💡 Basic Performance"}
+                  ? "bg-gradient-to-r from-[oklch(20%_0.04_195)] to-[oklch(20%_0.03_195)] border-[oklch(66%_0.17_195/0.5)] text-[oklch(74%_0.13_195)]"
+                  : "bg-gradient-to-r from-amber-950/50 to-orange-950/50 border-amber-500/50 text-amber-400"
+              }`}>
+                <Cpu className="w-3 h-3" />
+                <span suppressHydrationWarning>
+                  {hardwareCapability.tier === "high"
+                    ? `High Performance · ${hardwareCapability.deviceMemoryGB}GB`
+                    : hardwareCapability.tier === "medium"
+                    ? "Standard Performance"
+                    : "Basic Performance"}
+                </span>
               </span>
-            </span>
-            {/* Tooltip */}
-            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-300 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-              <span className="text-zinc-400">Your device&apos;s processing capability for media operations</span>
+              <div className="absolute top-full right-0 mt-2 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-300 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                <span className="text-zinc-400">Your device&apos;s processing capability for media operations</span>
+              </div>
             </div>
+            {/* 100% LOCAL badge */}
+            <span
+              className="px-3 py-1.5 rounded-full font-mono text-[11px] uppercase tracking-wider flex items-center gap-1.5"
+              style={{
+                background: "oklch(70% 0.18 155 / 0.10)",
+                border: "1px solid oklch(70% 0.18 155 / 0.30)",
+                color: "oklch(82% 0.14 155)",
+              }}
+            >
+              100% Local
+            </span>
           </div>
         </div>
 
