@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
 import type { TranscriptionMode } from "@/types/fast-mode";
 import { Zap, AlertTriangle, Scissors } from "lucide-react";
 import { cn } from "@/utils/cn";
@@ -50,10 +50,31 @@ interface ActionSelectorProps {
   modelLoadingProgress?: number;
   selectedModelKey?: ModelKey; // NEW: For resource estimation
   transcriptionMode?: 'standard' | 'fast'; // NEW: Fast Mode support
+  /** When set, ActionSelector becomes a controlled component: parent owns the
+   *  video-mode state and passes it in. Falls back to internal state otherwise
+   *  (backwards compatible). */
+  videoMode?: VideoMode;
+  onVideoModeChange?: (mode: VideoMode) => void;
+  /** Hide the internal VideoModeTabs row. Use when an external action picker
+   *  (e.g. the prominent tiles in InspectStateView) already shows them. */
+  hideInternalTabs?: boolean;
+  /** Hide the duplicate header ("Extract Audio / Convert Video / AI Transcription")
+   *  when the parent already renders prominent action tiles above. */
+  hideHeader?: boolean;
+  /** Hide the in-form action button (and audio file's secondary transcribe section).
+   *  Use when an external CTA — e.g. the dashboard's floating action bar — drives
+   *  the action via the imperative handle below. */
+  hideActionButton?: boolean;
   className?: string;
 }
 
-export function ActionSelector({
+/** Imperative handle exposed via `ref` so an external CTA can fire the action. */
+export interface ActionSelectorHandle {
+  /** Trigger the same action the in-form button would, using current internal state. */
+  triggerAction: () => void;
+}
+
+export const ActionSelector = forwardRef<ActionSelectorHandle, ActionSelectorProps>(function ActionSelector({
   file,
   onAction,
   disabled,
@@ -62,14 +83,24 @@ export function ActionSelector({
   modelLoadingProgress = 0,
   selectedModelKey = "base",
   transcriptionMode = "standard",
+  videoMode: videoModeProp,
+  onVideoModeChange,
+  hideInternalTabs = false,
+  hideHeader = false,
+  hideActionButton = false,
   className,
-}: ActionSelectorProps) {
+}, ref) {
   const fileType = detectFileType(file);
   
   // Resource warnings handled by ResourceWarningCard component (shows for RAM >= 50GB)
 
-  // State management
-  const [videoMode, setVideoMode] = useState<VideoMode>("extract");
+  // State management — internal videoMode used only when the parent doesn't control it.
+  const [internalVideoMode, setInternalVideoMode] = useState<VideoMode>("extract");
+  const videoMode = videoModeProp ?? internalVideoMode;
+  const setVideoMode = (m: VideoMode) => {
+    if (onVideoModeChange) onVideoModeChange(m);
+    else setInternalVideoMode(m);
+  };
   const audioFormats = getRecommendedFormats(fileType);
   const [selectedAudioFormat, setSelectedAudioFormat] = useState<string>(
     audioFormats[0]?.id || "wav"
@@ -229,18 +260,27 @@ export function ActionSelector({
   // Handlers
   const handleStart = () => {
     if (disabled) return;
-    
+
     // 🔥 CRITICAL: Prevent transcribe if model is loading OR not loaded yet
     if (videoMode === "transcribe" && (!isModelLoaded || isModelLoading)) {
       console.log("[ActionSelector] Transcribe blocked - model not ready. isModelLoaded:", isModelLoaded, "isModelLoading:", isModelLoading);
       return;
     }
 
+    // Transcribe path (works for both video & audio when the parent's tile selection
+    // routes audio + transcribe through here instead of the old secondary section).
+    if (videoMode === "transcribe") {
+      onAction("transcribe", "", {
+        normalizeAudio,
+        compressionType,
+        segment: fileType === "audio" ? getSegmentOption() : undefined,
+      });
+      return;
+    }
+
     if (fileType === "video") {
       if (videoMode === "extract") {
-        onAction("extract", selectedAudioFormat, { normalizeAudio, compressionType }); // Pass normalization and compression
-      } else if (videoMode === "transcribe") {
-        onAction("transcribe", "", { normalizeAudio, compressionType }); // Pass enhancements for transcription
+        onAction("extract", selectedAudioFormat, { normalizeAudio, compressionType });
       } else {
         onAction("convert_video", selectedVideoFormat, {
           resolutionId: selectedResolution,
@@ -248,13 +288,18 @@ export function ActionSelector({
       }
     } else {
       // For audio files, include segment if selected
-      onAction("convert_audio", selectedAudioFormat, { 
-        normalizeAudio, 
+      onAction("convert_audio", selectedAudioFormat, {
+        normalizeAudio,
         compressionType,
-        segment: getSegmentOption()
+        segment: getSegmentOption(),
       });
     }
   };
+
+  // Expose imperative trigger so an external CTA can fire the action.
+  useImperativeHandle(ref, () => ({
+    triggerAction: () => handleStart(),
+  }), [handleStart]);
 
   const handleTranscribeAudio = () => {
     if (disabled) return;
@@ -324,25 +369,27 @@ export function ActionSelector({
   // Render main component
   return (
     <div className={cn("rounded-xl p-5", className)} style={{ background: "oklch(22% 0.025 280)", border: "1px solid oklch(38% 0.02 280 / 0.35)", backdropFilter: "blur(8px)" }}>
-      {/* Header */}
-      <div className="mb-5">
-        <h3 className="font-jazz text-base text-aura-text mb-1 flex items-center gap-2">
-          <Zap className="w-4 h-4" style={{ color: "oklch(74% 0.16 290)" }} />
-          {fileType === "video"
-            ? videoMode === "extract" ? "Extract Audio" : videoMode === "transcribe" ? "AI Transcription" : "Convert Video"
-            : "Convert Audio"}
-        </h3>
-        <p className="text-xs text-aura-muted pl-6">
-          {fileType === "video"
-            ? videoMode === "extract" ? "Extract the audio track from your video file"
-              : videoMode === "transcribe" ? "Generate text transcript using Whisper AI"
-              : "Convert your video to a different container format"
-            : "Convert your audio to a different format"}
-        </p>
-      </div>
+      {/* Header — hidden when parent shows the prominent action tiles */}
+      {!hideHeader && (
+        <div className="mb-5">
+          <h3 className="font-jazz text-base text-aura-text mb-1 flex items-center gap-2">
+            <Zap className="w-4 h-4" style={{ color: "oklch(74% 0.16 290)" }} />
+            {fileType === "video"
+              ? videoMode === "extract" ? "Extract Audio" : videoMode === "transcribe" ? "AI Transcription" : "Convert Video"
+              : "Convert Audio"}
+          </h3>
+          <p className="text-xs text-aura-muted pl-6">
+            {fileType === "video"
+              ? videoMode === "extract" ? "Extract the audio track from your video file"
+                : videoMode === "transcribe" ? "Generate text transcript using Whisper AI"
+                : "Convert your video to a different container format"
+              : "Convert your audio to a different format"}
+          </p>
+        </div>
+      )}
 
-      {/* Video Mode Tabs (only for video files) */}
-      {fileType === "video" && (
+      {/* Video Mode Tabs (only for video files, only when not externally controlled) */}
+      {fileType === "video" && !hideInternalTabs && (
         <VideoModeTabs selectedMode={videoMode} onModeChange={setVideoMode} />
       )}
 
@@ -678,7 +725,8 @@ export function ActionSelector({
         </div>
       )}
 
-      {/* Main Action Button */}
+      {/* Main Action Button — hidden when an external CTA drives the action */}
+      {!hideActionButton && (
       <ProgressButton
         onClick={handleStart}
         disabled={disabled || (videoMode === "transcribe" && (!isModelLoaded || isModelLoading))}
@@ -711,8 +759,10 @@ export function ActionSelector({
             : "Waiting for Model...")}
         {fileType === "audio" && getButtonText()}
       </ProgressButton>
+      )}
 
       {/* Hint text */}
+      {!hideActionButton && (
       <p className="mt-4 text-xs text-center text-aura-muted">
         {videoMode === "transcribe"
           ? isModelLoading
@@ -726,9 +776,12 @@ export function ActionSelector({
           ? "Instant — remux only, no re-encoding"
           : "Processing happens in your browser via FFmpeg WebAssembly"}
       </p>
+      )}
 
-      {/* Separate AI Transcription Section (for audio files or non-transcribe video mode) */}
-      {(fileType === "audio" || (fileType === "video" && videoMode !== "transcribe")) && (
+      {/* Separate AI Transcription Section (for audio files or non-transcribe video mode).
+       *  Hidden when an external CTA already drives the action — the action tile +
+       *  floating CTA pattern doesn't need a secondary in-form transcribe button. */}
+      {!hideActionButton && (fileType === "audio" || (fileType === "video" && videoMode !== "transcribe")) && (
         <div
           className="mt-6 pt-6"
           style={{ borderTop: "1px solid oklch(38% 0.02 280 / 0.35)" }}
@@ -782,4 +835,4 @@ export function ActionSelector({
       )}
     </div>
   );
-}
+});

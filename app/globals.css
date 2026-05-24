@@ -195,6 +195,35 @@ body {
   animation: waveform-pulse var(--wf-dur, 1.5s) var(--wf-delay, 0s) ease-in-out infinite alternate;
 }
 
+/* ── TYPEWRITER REVEAL ── colored overlay continually types over a static base.
+ *
+ * The element this class is applied to should:
+ *   - be absolutely positioned over a static "watermark" copy of the same text
+ *   - own a `border-right` matching the typewriter color (acts as the cursor)
+ *   - declare --tw-steps (character count) and --tw-duration (one-way time)
+ *
+ * Two animations run in parallel:
+ *   1. typewriter-cycle    — width 0→100% then back to 0, infinite alternate,
+ *                            stepped so each frame reveals/hides one character
+ *   2. typewriter-caret    — blinks the border-right between solid and
+ *                            transparent so the cursor visibly flickers
+ *
+ * Because the cursor lives on the right edge of the *clipped* overlay, it
+ * automatically rides along with the typing position. */
+@keyframes typewriter-cycle {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+@keyframes typewriter-caret {
+  50% { border-right-color: transparent; }
+}
+.animate-typewriter {
+  width: 0;
+  animation:
+    typewriter-cycle var(--tw-duration, 2.4s) steps(var(--tw-steps, 24), start) infinite alternate,
+    typewriter-caret 0.7s step-end infinite;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
