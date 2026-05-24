@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranscriberContext } from "@/contexts/TranscriberContext";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { ForgeTopBar } from "@/components/ForgeTopBar";
 import { X, CheckCircle2, Circle } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -72,7 +72,7 @@ export default function TranscriptionProgressScreen() {
 
       {/* top chrome */}
       <div className="relative container mx-auto px-4 pt-6 pb-3">
-        <Breadcrumbs currentState="PROCESSING" onNavigate={() => {}} />
+        <ForgeTopBar currentState="PROCESSING" onNavigate={() => {}} showStatusBadges={false} />
       </div>
 
       {/* main */}
