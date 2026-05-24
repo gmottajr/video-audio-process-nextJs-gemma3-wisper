@@ -113,48 +113,15 @@ body {
   animation: gradient 8s ease infinite;
 }
 
-/* === DYNAMIC COLOR MOVEMENT ANIMATIONS === */
-
-/* Aurora orb 1 — slow drift, wide arc */
-@keyframes aurora-float-1 {
-  0%   { transform: translate(0%,   0%)   scale(1);    }
-  20%  { transform: translate(2%,  -4%)   scale(1.05); }
-  45%  { transform: translate(-3%,  2%)   scale(0.97); }
-  70%  { transform: translate(4%,   3%)   scale(1.03); }
-  100% { transform: translate(0%,   0%)   scale(1);    }
+/* === STATIC GRADIENT MESH ===
+ * Replaces the animated aurora orb stack.
+ * Two low-opacity radial gradients, no animation, no blur layers.
+ * NeuralNetBackground carries the on-brand motion + color life. */
+.mesh-minimal {
+  background:
+    radial-gradient(55% 45% at 50% 0%,   oklch(60% 0.20 290 / 0.10), transparent 65%),
+    radial-gradient(40% 35% at 92% 100%, oklch(60% 0.20 290 / 0.05), transparent 60%);
 }
-
-/* Aurora orb 2 — medium drift, counter motion */
-@keyframes aurora-float-2 {
-  0%   { transform: translate(0%,   0%)   scale(1);    }
-  30%  { transform: translate(-4%,  3%)   scale(1.07); }
-  65%  { transform: translate(3%,  -2%)   scale(0.95); }
-  100% { transform: translate(0%,   0%)   scale(1);    }
-}
-
-/* Aurora orb 3 — slow, large blob */
-@keyframes aurora-float-3 {
-  0%   { transform: translate(0%,   0%)   scale(1);    }
-  40%  { transform: translate(3%,   4%)   scale(1.04); }
-  75%  { transform: translate(-2%,  -3%)  scale(0.98); }
-  100% { transform: translate(0%,   0%)   scale(1);    }
-}
-
-/* Radial glow breathing — inhale / exhale */
-@keyframes glow-breathe {
-  0%, 100% { opacity: 1;   }
-  50%       { opacity: 0.5; }
-}
-
-/* Orb vibrancy breathing — each at a different rate for async feel */
-@keyframes orb-breathe {
-  0%, 100% { opacity: 0.45; }
-  50%       { opacity: 1.00; }
-}
-.animate-orb-breathe-a { animation: orb-breathe 11s ease-in-out infinite; }
-.animate-orb-breathe-b { animation: orb-breathe  8s ease-in-out infinite -2.5s; }
-.animate-orb-breathe-c { animation: orb-breathe 15s ease-in-out infinite -5s; }
-.animate-orb-breathe-d { animation: orb-breathe  9s ease-in-out infinite -7.5s; }
 
 /* Gradient text color shift */
 @keyframes text-gradient-flow {
@@ -190,55 +157,6 @@ body {
 }
 
 /* === UTILITY CLASSES === */
-
-.animate-aurora-1 { animation: aurora-float-1 20s ease-in-out infinite; }
-.animate-aurora-2 { animation: aurora-float-2 26s ease-in-out infinite; }
-.animate-aurora-3 { animation: aurora-float-3 22s ease-in-out infinite; }
-
-/* Comet sweep — slow rotate for the arc orb */
-@keyframes aurora-sweep {
-  0%, 100% { transform: rotate(0deg)   scale(1);    opacity: 0.85; }
-  50%       { transform: rotate(-25deg) scale(1.06); opacity: 1;    }
-}
-.animate-aurora-sweep { animation: aurora-sweep 14s ease-in-out infinite; }
-
-/* ── ORB COLOR-MORPHING LAYERS ──
-   Stack multiple colored divs at the same position;
-   fade them in / out on different schedules → color shifts. */
-@keyframes orb-layer-a {
-  0%,  20%, 100% { opacity: 1;    }
-  50%,  70%      { opacity: 0.05; }
-}
-@keyframes orb-layer-b {
-  0%,  100%      { opacity: 0.05; }
-  35%,  60%      { opacity: 1;    }
-}
-@keyframes orb-layer-c {
-  0%,  40%, 100% { opacity: 0.05; }
-  65%,  85%      { opacity: 0.90; }
-}
-
-.orb-layer-a { animation: orb-layer-a 9s  ease-in-out infinite; }
-.orb-layer-b { animation: orb-layer-b 9s  ease-in-out infinite; }
-.orb-layer-c { animation: orb-layer-c 9s  ease-in-out infinite; }
-
-/* Stagger variants */
-.orb-layer-a-s2 { animation: orb-layer-a 9s ease-in-out infinite -3s; }
-.orb-layer-b-s2 { animation: orb-layer-b 9s ease-in-out infinite -3s; }
-.orb-layer-c-s2 { animation: orb-layer-c 9s ease-in-out infinite -3s; }
-
-.orb-layer-a-s4 { animation: orb-layer-a 9s ease-in-out infinite -6s; }
-.orb-layer-b-s4 { animation: orb-layer-b 9s ease-in-out infinite -6s; }
-.orb-layer-c-s4 { animation: orb-layer-c 9s ease-in-out infinite -6s; }
-
-/* Bright inner core — pulses brightness in sync */
-@keyframes core-pulse {
-  0%, 100% { opacity: 0.9; transform: scale(1);    }
-  50%       { opacity: 0.5; transform: scale(0.92); }
-}
-.animate-core-pulse { animation: core-pulse 4s ease-in-out infinite; }
-
-.animate-glow-breathe { animation: glow-breathe 7s ease-in-out infinite; }
 
 .animate-card-glow {
   animation: card-glow-shift 9s ease-in-out infinite;

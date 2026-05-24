@@ -546,45 +546,9 @@ export default function Home() {
 
   return (
     <main className="relative isolate min-h-screen overflow-x-hidden bg-aura-canvas text-zinc-100">
-      {/* Breathing base radial */}
-      <div
-        className="pointer-events-none fixed inset-0 bg-aura-radial animate-glow-breathe"
-        aria-hidden
-      />
-      {/* ── AURORA DYNAMIC ORBS — galaxy nebula palette ── */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
-        {/* Main hero orb — violet + blue, 11s breathe */}
-        <div className="animate-orb-breathe-a animate-aurora-sweep absolute" style={{ top: '-8%', right: '-10%', width: '500px', height: '500px' }}>
-          <div className="orb-layer-a absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle at 40% 40%, rgba(98,28,255,0.80) 0%, rgba(38,0,180,0.36) 40%, transparent 72%)', filter: 'blur(34px)' }} />
-          <div className="orb-layer-b absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle at 40% 40%, rgba(38,128,255,0.70) 0%, rgba(20,80,220,0.32) 40%, transparent 72%)', filter: 'blur(34px)' }} />
-          <div className="orb-layer-c absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle at 40% 40%, rgba(228,48,198,0.18) 0%, transparent 55%)', filter: 'blur(34px)' }} />
-        </div>
-        {/* Bright core star — fire + blue, 8s breathe */}
-        <div className="animate-orb-breathe-b animate-aurora-2 animate-core-pulse absolute" style={{ top: '5%', right: '9%', width: '160px', height: '160px' }}>
-          <div className="orb-layer-a absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, rgba(38,128,255,0.95) 0%, rgba(38,128,255,0.44) 50%, transparent 70%)', filter: 'blur(12px)' }} />
-          <div className="orb-layer-b absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,140,30,0.85) 0%, rgba(255,80,10,0.38) 50%, transparent 70%)', filter: 'blur(12px)' }} />
-          <div className="orb-layer-c absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, rgba(148,68,255,0.60) 0%, rgba(98,28,255,0.24) 50%, transparent 70%)', filter: 'blur(12px)' }} />
-        </div>
-        {/* Conic nebula arc — blue dominant, 15s breathe */}
-        <div className="animate-orb-breathe-c animate-aurora-sweep absolute" style={{ top: '-22%', right: '-18%', width: '600px', height: '600px' }}>
-          <div className="orb-layer-a-s2 absolute inset-0 rounded-full" style={{ background: 'conic-gradient(from 155deg at 50% 50%, transparent 0deg, rgba(38,128,255,0.42) 35deg, rgba(38,128,255,0.78) 65deg, rgba(38,128,255,0.42) 95deg, transparent 130deg)', filter: 'blur(18px)' }} />
-          <div className="orb-layer-b-s2 absolute inset-0 rounded-full" style={{ background: 'conic-gradient(from 155deg at 50% 50%, transparent 0deg, rgba(98,28,255,0.36) 35deg, rgba(98,28,255,0.68) 65deg, rgba(98,28,255,0.36) 95deg, transparent 130deg)', filter: 'blur(18px)' }} />
-          <div className="orb-layer-c-s2 absolute inset-0 rounded-full" style={{ background: 'conic-gradient(from 155deg at 50% 50%, transparent 0deg, rgba(255,140,30,0.22) 35deg, rgba(255,140,30,0.45) 65deg, rgba(255,140,30,0.22) 95deg, transparent 130deg)', filter: 'blur(18px)' }} />
-        </div>
-        {/* Left nebula cloud — blue + violet, 9s breathe */}
-        <div className="animate-orb-breathe-d animate-aurora-1 absolute" style={{ top: '-15%', left: '-10%', width: '430px', height: '380px' }}>
-          <div className="orb-layer-a-s4 absolute inset-0 rounded-full" style={{ background: 'radial-gradient(ellipse, rgba(38,128,255,0.65) 0%, rgba(20,60,200,0.28) 50%, transparent 72%)', filter: 'blur(44px)' }} />
-          <div className="orb-layer-b-s4 absolute inset-0 rounded-full" style={{ background: 'radial-gradient(ellipse, rgba(98,28,255,0.55) 0%, rgba(60,10,180,0.22) 50%, transparent 72%)', filter: 'blur(44px)' }} />
-          <div className="orb-layer-c-s4 absolute inset-0 rounded-full" style={{ background: 'radial-gradient(ellipse, rgba(228,48,198,0.12) 0%, transparent 50%)', filter: 'blur(44px)' }} />
-        </div>
-        {/* Bottom nebula — fire + teal, 11s breathe */}
-        <div className="animate-orb-breathe-a animate-aurora-3 absolute" style={{ bottom: '-10%', left: '18%', width: '500px', height: '250px', animationDelay: '-4s' }}>
-          <div className="orb-layer-a absolute inset-0 rounded-full" style={{ background: 'radial-gradient(ellipse, rgba(255,140,30,0.55) 0%, rgba(255,80,10,0.22) 50%, transparent 72%)', filter: 'blur(48px)' }} />
-          <div className="orb-layer-b absolute inset-0 rounded-full" style={{ background: 'radial-gradient(ellipse, rgba(0,180,220,0.50) 0%, rgba(0,120,180,0.20) 50%, transparent 72%)', filter: 'blur(48px)' }} />
-          <div className="orb-layer-c absolute inset-0 rounded-full" style={{ background: 'radial-gradient(ellipse, rgba(98,28,255,0.35) 0%, transparent 55%)', filter: 'blur(48px)' }} />
-        </div>
-      </div>
-      {/* Neural network canvas — sits above aurora orbs */}
+      {/* Static monochrome-violet gradient mesh */}
+      <div className="pointer-events-none fixed inset-0 mesh-minimal" aria-hidden />
+      {/* Neural network canvas */}
       <NeuralNetBackground />
       <div
         className="pointer-events-none fixed inset-0 bg-[url('/aura-noise.svg')] opacity-[0.22] mix-blend-overlay [background-size:220px_220px]"

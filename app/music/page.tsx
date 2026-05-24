@@ -113,30 +113,8 @@ export default function MusicPage() {
 
   return (
     <main className="relative isolate bg-aura-canvas text-aura-text font-sans">
-      {/* Background layers */}
-      <div className="pointer-events-none fixed inset-0 bg-aura-radial animate-glow-breathe" aria-hidden />
-      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
-        <div className="animate-aurora-sweep absolute" style={{ top: "-8%", right: "-10%", width: "1000px", height: "1000px" }}>
-          <div className="orb-layer-a absolute inset-0 rounded-full" style={{ background: "radial-gradient(circle at 40% 40%, rgba(148,68,255,0.95) 0%, rgba(98,28,255,0.48) 40%, transparent 72%)", filter: "blur(34px)" }} />
-          <div className="orb-layer-b absolute inset-0 rounded-full" style={{ background: "radial-gradient(circle at 40% 40%, rgba(228,48,198,0.92) 0%, rgba(180,20,160,0.44) 40%, transparent 72%)", filter: "blur(34px)" }} />
-          <div className="orb-layer-c absolute inset-0 rounded-full" style={{ background: "radial-gradient(circle at 40% 40%, rgba(0,220,235,0.88) 0%, rgba(0,160,180,0.40) 40%, transparent 72%)", filter: "blur(34px)" }} />
-        </div>
-        <div className="animate-aurora-2 animate-core-pulse absolute" style={{ top: "5%", right: "9%", width: "320px", height: "320px" }}>
-          <div className="orb-layer-a absolute inset-0 rounded-full" style={{ background: "radial-gradient(circle, rgba(148,68,255,1.0) 0%, rgba(148,68,255,0.50) 50%, transparent 70%)", filter: "blur(12px)" }} />
-          <div className="orb-layer-b absolute inset-0 rounded-full" style={{ background: "radial-gradient(circle, rgba(228,48,198,0.98) 0%, rgba(228,48,198,0.46) 50%, transparent 70%)", filter: "blur(12px)" }} />
-          <div className="orb-layer-c absolute inset-0 rounded-full" style={{ background: "radial-gradient(circle, rgba(38,128,255,0.95) 0%, rgba(38,128,255,0.42) 50%, transparent 70%)", filter: "blur(12px)" }} />
-        </div>
-        <div className="animate-aurora-1 absolute" style={{ top: "-15%", left: "-10%", width: "860px", height: "760px" }}>
-          <div className="orb-layer-a-s4 absolute inset-0 rounded-full" style={{ background: "radial-gradient(ellipse, rgba(148,68,255,0.80) 0%, rgba(98,28,255,0.36) 50%, transparent 72%)", filter: "blur(44px)" }} />
-          <div className="orb-layer-b-s4 absolute inset-0 rounded-full" style={{ background: "radial-gradient(ellipse, rgba(228,48,198,0.65) 0%, rgba(180,20,160,0.26) 50%, transparent 72%)", filter: "blur(44px)" }} />
-          <div className="orb-layer-c-s4 absolute inset-0 rounded-full" style={{ background: "radial-gradient(ellipse, rgba(38,128,255,0.56) 0%, rgba(20,80,200,0.22) 50%, transparent 72%)", filter: "blur(44px)" }} />
-        </div>
-        <div className="animate-aurora-3 absolute" style={{ bottom: "-10%", left: "18%", width: "1000px", height: "500px" }}>
-          <div className="orb-layer-a absolute inset-0 rounded-full" style={{ background: "radial-gradient(ellipse, rgba(0,220,235,0.70) 0%, rgba(0,160,180,0.30) 50%, transparent 72%)", filter: "blur(48px)" }} />
-          <div className="orb-layer-b absolute inset-0 rounded-full" style={{ background: "radial-gradient(ellipse, rgba(228,48,198,0.65) 0%, rgba(180,20,160,0.26) 50%, transparent 72%)", filter: "blur(48px)" }} />
-          <div className="orb-layer-c absolute inset-0 rounded-full" style={{ background: "radial-gradient(ellipse, rgba(148,68,255,0.60) 0%, rgba(98,28,255,0.22) 50%, transparent 72%)", filter: "blur(48px)" }} />
-        </div>
-      </div>
+      {/* Background layers — static monochrome-violet gradient mesh + neural net canvas */}
+      <div className="pointer-events-none fixed inset-0 mesh-minimal" aria-hidden />
       <NeuralNetBackground />
       <div className="pointer-events-none fixed inset-0 bg-[url('/aura-noise.svg')] opacity-[0.22] mix-blend-overlay [background-size:220px_220px]" aria-hidden />
 
