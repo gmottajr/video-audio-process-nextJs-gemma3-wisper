@@ -16,7 +16,6 @@ import {
   Cpu,
   Lightbulb,
 } from "lucide-react";
-import NeuralFont from "@/components/NeuralFont";
 import { NeuralNetBackground } from "@/components/NeuralNetBackground";
 import { WaveformVisualizer } from "@/components/WaveformVisualizer";
 import { ScrollScene } from "@/components/ScrollScene";
@@ -133,20 +132,25 @@ function HeroSection() {
         </span>
       </div>
 
-      {/* Headline */}
+      {/* Headline — plain typography (no broken display fonts) */}
       <div data-scroll-item className="relative mb-4">
         <div className="font-mono text-[12px] tracking-[0.22em] uppercase text-aura-muted mb-3.5">
           Browser-Native Media Forge
         </div>
         <h1
-          className="font-chaotic tracking-tight leading-none text-aura-text"
-          style={{ fontSize: "clamp(52px, 8vw, 92px)" }}
+          className="font-display tracking-tight leading-none text-aura-text"
+          style={{ fontSize: "clamp(52px, 8vw, 92px)", fontWeight: 700 }}
         >
           Neural Groove
         </h1>
         <div
-          className="font-jazz mt-1.5"
-          style={{ fontSize: "clamp(22px, 3.5vw, 40px)", color: "var(--violet)" }}
+          className="font-display mt-2"
+          style={{
+            fontSize: "clamp(20px, 3vw, 34px)",
+            color: "var(--violet)",
+            fontWeight: 500,
+            letterSpacing: "0.02em",
+          }}
         >
           Spectrum Divergent
         </div>
@@ -438,10 +442,25 @@ function MusicSection() {
           </span>
         </div>
 
-        {/* Neural font heading */}
+        {/* Neural Groove / Spectrum Divergent — clean plain typography */}
         <div data-scroll-item className="w-full mb-5 select-none" aria-label="Neural Groove Spectrum Divergent">
-          <NeuralFont text="Neural Groove" fontSize={80} className="w-full" />
-          <NeuralFont text="Spectrum Divergent" fontSize={54} className="w-full" />
+          <h2
+            className="font-display tracking-tight leading-none text-aura-text"
+            style={{ fontSize: "clamp(44px, 7vw, 80px)", fontWeight: 700 }}
+          >
+            Neural Groove
+          </h2>
+          <div
+            className="font-display mt-2"
+            style={{
+              fontSize: "clamp(26px, 4vw, 54px)",
+              color: "var(--violet)",
+              fontWeight: 500,
+              letterSpacing: "0.02em",
+            }}
+          >
+            Spectrum Divergent
+          </div>
         </div>
 
         {/* Body copy */}
