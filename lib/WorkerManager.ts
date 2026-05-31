@@ -45,6 +45,7 @@ export class WorkerManager {
   private requestIdCounter = 0;
   private messageHandler: ((event: MessageEvent) => void) | null = null;
   private errorHandler: ((error: ErrorEvent) => void) | null = null;
+  private crashed = false;
 
   constructor(workerPath: string) {
     this.initialize(workerPath);
@@ -137,8 +138,20 @@ export class WorkerManager {
    * Handle worker errors
    */
   private handleError = (error: ErrorEvent): void => {
-    console.error('[WorkerManager] ❌ Worker error:', error);
-    this.rejectAllPending(new Error(`Worker crashed: ${error.message}`));
+    // Browsers report module-worker script-load failures as an ErrorEvent with
+    // empty message/filename — that pattern means the worker script itself
+    // failed to parse or fetch (COEP violation, 404, syntax error), not a
+    // runtime exception inside the script.
+    const detail = [
+      error.message   ? `message="${error.message}"`   : 'message=(empty — likely script load failure)',
+      error.filename  ? `file="${error.filename}"`     : null,
+      error.lineno    ? `line=${error.lineno}`         : null,
+      error.colno     ? `col=${error.colno}`           : null,
+    ].filter(Boolean).join(', ');
+    console.error(`[WorkerManager] ❌ Worker error: ${detail}`);
+    console.error('[WorkerManager] ❌ If message is empty: check COEP headers, 404s, or syntax errors in the worker script and its imports.');
+    this.crashed = true;
+    this.rejectAllPending(new Error(`Worker crashed: ${error.message || '(script load failure — see console)'}`));
   };
 
   /**
@@ -168,6 +181,13 @@ export class WorkerManager {
   ): Promise<T> {
     if (!this.worker) {
       throw new Error('Worker not initialized');
+    }
+
+    if (this.crashed) {
+      throw new Error(
+        `[WorkerManager] Worker has crashed (script load failure or runtime error). ` +
+        `Reload the page to recover. Request type: ${type}`
+      );
     }
 
     const { timeoutMs = 300000, onProgress } = options;
@@ -240,6 +260,14 @@ export class WorkerManager {
   }
 
   /**
+   * True if the worker script failed to load or threw an uncaught error.
+   * Any sendRequest call will throw immediately rather than hanging.
+   */
+  isCrashed(): boolean {
+    return this.crashed;
+  }
+
+  /**
    * Check if worker is healthy
    */
   isHealthy(): boolean {
@@ -288,6 +316,7 @@ export class WorkerManager {
     this.worker = null;
     this.messageHandler = null;
     this.errorHandler = null;
+    this.crashed = false;
 
     console.log('[WorkerManager] ✅ Worker disposed');
   }

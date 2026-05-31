@@ -117,6 +117,17 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
       return;
     }
 
+    // Surface a crashed worker immediately instead of hanging for 5 minutes.
+    // The WorkerManager.sendRequest below would throw the same error, but only
+    // after the timeout fires. This catches it up-front and sets the UI error state.
+    if (workerManagerRef.current.isCrashed()) {
+      const msg = 'Transcription worker crashed on startup (possible COEP/CSP or missing script). Reload the page.';
+      console.error('[TranscriberContext] ❌', msg);
+      setError(msg);
+      setIsModelLoading(false);
+      return;
+    }
+
     console.log('\n🔵 ====== TRANSCRIBER CONTEXT: LOAD MODEL ======');
     console.log('[TranscriberContext] 📥 Model requested:', modelName);
     console.log('[TranscriberContext] Current model:', currentModel || 'none');
