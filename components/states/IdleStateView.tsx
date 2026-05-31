@@ -146,10 +146,10 @@ export function IdleStateView({
         </div>
 
         {/* RIGHT — what forge does */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 justify-between">
           {/* what forge does */}
           <div
-            className="rounded-2xl p-5"
+            className="flex-1 rounded-2xl p-5"
             style={{
               background: "oklch(22% 0.025 280 / 0.55)",
               border: "1px solid oklch(38% 0.02 280 / 0.35)",
