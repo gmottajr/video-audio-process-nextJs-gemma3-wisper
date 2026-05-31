@@ -175,7 +175,11 @@ export function ScrollScene({ sections, nav, transitionType }: ScrollSceneProps)
               key={i}
               ref={el => { sectionEls.current[i] = el; }}
               className="absolute inset-0"
-              style={{ willChange: "transform, opacity" }}
+              style={{
+                willChange: "transform, opacity",
+                opacity: i === 0 ? 1 : 0,
+                visibility: i === 0 ? "visible" : "hidden",
+              }}
             >
               <div
                 ref={el => { innerEls.current[i] = el; }}
