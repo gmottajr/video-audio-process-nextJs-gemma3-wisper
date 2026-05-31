@@ -23,7 +23,7 @@ import type { EnhancementQualityMetrics } from "@/types/quality-metrics";
 
 // ---------- types (unchanged) ----------
 export type TabType = 'original' | 'enhanced' | 'sidebyside' | 'diff';
-export type ExportFormat = 'txt' | 'json' | 'srt';
+export type ExportFormat = 'txt' | 'json' | 'srt' | 'timestamped';
 
 export interface TranscriptionChunk {
   text: string;
@@ -159,6 +159,28 @@ export function TabbedTranscriptionView({
     return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")},${ms.toString().padStart(3, "0")}`;
   }, []);
 
+  const formatReadableTime = useCallback((seconds: number | null): string => {
+    if (seconds === null) return "??:??:??";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return h > 0
+      ? `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+      : `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }, []);
+
+  const generateTimestampedTXT = useCallback((): string => {
+    if (!chunks || chunks.length === 0) return '';
+    return chunks
+      .filter(c => c.timestamp[0] !== null)
+      .map(c => {
+        const start = formatReadableTime(c.timestamp[0]);
+        const end   = formatReadableTime(c.timestamp[1]);
+        return `[${start} → ${end}] ${c.text.trim()}`;
+      })
+      .join("\n");
+  }, [chunks, formatReadableTime]);
+
   const generateSRT = useCallback((): string => {
     if (!chunks || chunks.length === 0) return '';
     let srt = '';
@@ -204,6 +226,15 @@ export function TabbedTranscriptionView({
         blob = new Blob([srtContent], { type: 'text/plain' });
         extension = 'srt';
         break;
+      case 'timestamped':
+        const tsContent = generateTimestampedTXT();
+        if (!tsContent) {
+          console.warn('[TabbedTranscriptionView] No chunks available for timestamped export');
+          return;
+        }
+        blob = new Blob([tsContent], { type: 'text/plain' });
+        extension = 'txt';
+        break;
       default:
         blob = new Blob([textToExport], { type: 'text/plain' });
         extension = 'txt';
@@ -212,11 +243,11 @@ export function TabbedTranscriptionView({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${filename}${suffix}.${extension}`;
+    link.download = `${filename}${suffix}${format === 'timestamped' ? '-timestamped' : ''}.${extension}`;
     link.click();
     URL.revokeObjectURL(url);
     onExport?.(format, activeTab);
-  }, [activeTab, originalText, currentEnhancedText, hasEdits, metadata, qualityMetrics, onExport, generateSRT]);
+  }, [activeTab, originalText, currentEnhancedText, hasEdits, metadata, qualityMetrics, onExport, generateSRT, generateTimestampedTXT]);
 
   const handleTextEdit = useCallback((newText: string) => {
     setEditedText(newText);
@@ -441,18 +472,32 @@ export function TabbedTranscriptionView({
                       </button>
                     ))}
                     {chunks && chunks.length > 0 && (
-                      <button
-                        onClick={() => handleExport('srt')}
-                        className="w-full text-left flex items-center gap-2 transition-colors hover:bg-white/5"
-                        style={{
-                          padding: "10px 14px",
-                          fontSize: 13,
-                          color: "#f3f3f8",
-                          borderTop: "1px solid rgba(255,255,255,0.06)",
-                        }}
-                      >
-                        <span>🎬</span> Subtitles (.srt)
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleExport('timestamped')}
+                          className="w-full text-left flex items-center gap-2 transition-colors hover:bg-white/5"
+                          style={{
+                            padding: "10px 14px",
+                            fontSize: 13,
+                            color: "#f3f3f8",
+                            borderTop: "1px solid rgba(255,255,255,0.06)",
+                          }}
+                        >
+                          <span>🕐</span> Timestamped Text (.txt)
+                        </button>
+                        <button
+                          onClick={() => handleExport('srt')}
+                          className="w-full text-left flex items-center gap-2 transition-colors hover:bg-white/5"
+                          style={{
+                            padding: "10px 14px",
+                            fontSize: 13,
+                            color: "#f3f3f8",
+                            borderTop: "1px solid rgba(255,255,255,0.06)",
+                          }}
+                        >
+                          <span>🎬</span> Subtitles (.srt)
+                        </button>
+                      </>
                     )}
                   </div>
                 </>

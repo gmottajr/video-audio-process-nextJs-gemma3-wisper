@@ -72,6 +72,31 @@ export function TranscriptionViewer({
   };
 
   /**
+   * Download as timestamped plain text: [MM:SS → MM:SS] segment
+   */
+  const handleDownloadTimestamped = () => {
+    if (!result.chunks || result.chunks.length === 0) {
+      alert("No timestamp data available");
+      return;
+    }
+    const lines = result.chunks
+      .filter(c => c.timestamp[0] !== null)
+      .map(c => {
+        const start = formatTimestamp(c.timestamp[0]);
+        const end   = formatTimestamp(c.timestamp[1]);
+        return `[${start} → ${end}] ${c.text.trim()}`;
+      })
+      .join("\n");
+    const blob = new Blob([lines], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${filename}-timestamped.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  /**
    * Download as SRT (subtitle format)
    */
   const handleDownloadSRT = () => {
@@ -168,14 +193,24 @@ export function TranscriptionViewer({
           </button>
 
           {result.chunks && result.chunks.length > 0 && (
-            <button
-              onClick={handleDownloadSRT}
-              className="px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-              title="Download as SRT (subtitles)"
-            >
-              <Download className="w-4 h-4" />
-              <span>SRT</span>
-            </button>
+            <>
+              <button
+                onClick={handleDownloadTimestamped}
+                className="px-3 py-2 bg-teal-600 hover:bg-teal-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                title="Download as timestamped text"
+              >
+                <Download className="w-4 h-4" />
+                <span>Timestamped</span>
+              </button>
+              <button
+                onClick={handleDownloadSRT}
+                className="px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                title="Download as SRT (subtitles)"
+              >
+                <Download className="w-4 h-4" />
+                <span>SRT</span>
+              </button>
+            </>
           )}
         </div>
       </div>
