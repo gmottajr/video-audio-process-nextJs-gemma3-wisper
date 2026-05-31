@@ -177,66 +177,75 @@ export function useFFmpeg() {
     }
   }, []); // ✅ No dependencies - parseLog callback is already attached via FFmpeg.on("log")
 
-  // Load FFmpeg.wasm from local files
+  // Load FFmpeg.wasm from local files — 3-minute watchdog covers toBlobURL + ffmpeg.load,
+  // auto-retries up to 3 times on timeout before giving up.
   const load = useCallback(async () => {
-    // Check both state AND ref to prevent race conditions
-    // Ref is checked synchronously, state updates asynchronously
     if (ffmpegRef.current || isLoadingRef.current) {
       console.log("[useFFmpeg] Already loaded or loading, skipping...");
       return;
     }
 
-    // Set both immediately to prevent concurrent loads
     isLoadingRef.current = true;
     setIsLoading(true);
 
-    try {
-      console.log("[useFFmpeg] Starting FFmpeg load...");
+    const TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+    const MAX_ATTEMPTS = 3;
+    const baseURL = `${window.location.origin}/ffmpeg`;
+
+    let lastError: unknown = null;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      console.log(`[useFFmpeg] Load attempt ${attempt}/${MAX_ATTEMPTS}…`);
       const ffmpeg = new FFmpeg();
-      
-      // Attach log listener for metadata parsing
-      ffmpeg.on("log", ({ type, message }) => {
-        parseLog(type, message);
-      });
 
-      // Progress listener
-      ffmpeg.on("progress", ({ progress: prog }) => {
-        setProgress(Math.round(prog * 100));
-      });
+      ffmpeg.on("log", ({ type, message }) => parseLog(type, message));
+      ffmpeg.on("progress", ({ progress: prog }) => setProgress(Math.round(prog * 100)));
 
-      // Load FFmpeg core from local assets (not CDN) for reliability
-      // Files are in /public/ffmpeg/ directory
-      const baseURL = `${window.location.origin}/ffmpeg`;
-      
-      console.log("[useFFmpeg] Loading core files from:", baseURL);
+      try {
+        // Race the ENTIRE fetch+load sequence (including toBlobURL) against the watchdog.
+        // The old code only timed out ffmpeg.load() — toBlobURL hangs were invisible to it.
+        await Promise.race([
+          (async () => {
+            console.log("[useFFmpeg] Fetching core files from:", baseURL);
+            const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript");
+            const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm");
+            await ffmpeg.load({ coreURL, wasmURL });
+          })(),
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () => reject(new Error(`FFmpeg load timed out after ${TIMEOUT_MS / 1000}s`)),
+              TIMEOUT_MS
+            )
+          ),
+        ]);
 
-      // Add timeout for loading to prevent indefinite hangs
-      const loadPromise = ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-      });
+        ffmpegRef.current = ffmpeg;
+        isLoadingRef.current = false;
+        setIsLoaded(true);
+        setIsLoading(false);
+        console.log("[useFFmpeg] FFmpeg loaded successfully");
+        return; // success — exit retry loop
+      } catch (error) {
+        lastError = error;
+        console.error(`[useFFmpeg] Attempt ${attempt}/${MAX_ATTEMPTS} failed:`, error);
 
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          reject(new Error("FFmpeg load timeout after 60 seconds. Check network and CORS headers."));
-        }, 60000);
-      });
+        // Terminate the stalled instance before retrying
+        try { ffmpeg.terminate(); } catch { /* ignore */ }
 
-      await Promise.race([loadPromise, timeoutPromise]);
-
-      // Set ref AFTER successful load
-      ffmpegRef.current = ffmpeg;
-      setIsLoaded(true);
-      console.log("[useFFmpeg] FFmpeg loaded successfully");
-    } catch (error) {
-      console.error("[useFFmpeg] Failed to load FFmpeg:", error);
-      isLoadingRef.current = false; // Reset on error
-      ffmpegRef.current = null;
-      throw error;
-    } finally {
-      setIsLoading(false);
+        if (attempt < MAX_ATTEMPTS) {
+          console.log("[useFFmpeg] Restarting load from scratch in 2 s…");
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+      }
     }
-  }, [parseLog]); // Removed isLoaded/isLoading from deps (use refs instead)
+
+    // All attempts exhausted
+    console.error("[useFFmpeg] All load attempts failed:", lastError);
+    isLoadingRef.current = false;
+    ffmpegRef.current = null;
+    setIsLoading(false);
+    throw lastError;
+  }, [parseLog]);
 
   // Transcode/process a file with timeout protection
   const transcode = useCallback(

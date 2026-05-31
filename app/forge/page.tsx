@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import gsap from "gsap";
 import { pickPageTransition } from "@/lib/pageTransition";
 import Image from "next/image";
@@ -78,15 +78,18 @@ export default function Home() {
   const [dismissedLargeFileBanner, setDismissedLargeFileBanner] = useState(false);
   const LARGE_FILE_BYTES = 500 * 1024 * 1024; // 500 MB
   
-  // Handle worker configuration changes from SystemCapabilitiesCard
-  const handleWorkerConfigChange = (config: { workers: number; useGPU: boolean; memoryBudgetMB: number; devicePreference: import('@/types/fast-mode').DevicePreference }) => {
-    console.log('[App] Worker configuration updated:', config);
-    fastTranscriber.updateConfig({
+  // `fastTranscriber` returns a new object every render, so it cannot be a useCallback dep
+  // without recreating the callback every render and causing an infinite loop in
+  // InspectStateView's worker-config effect. Destructure the stable method reference instead.
+  const updateFastConfig = fastTranscriber.updateConfig;
+  const handleWorkerConfigChange = useCallback((config: { workers: number; useGPU: boolean; memoryBudgetMB: number; devicePreference: import('@/types/fast-mode').DevicePreference }) => {
+    updateFastConfig({
       maxWorkers: config.workers,
       memoryBudgetMB: config.memoryBudgetMB,
       devicePreference: config.devicePreference,
     });
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [updateFastConfig]);
   
   // Auto-load model when entering INSPECT state
   // - Standard Mode: Load selected model for standard transcriber
