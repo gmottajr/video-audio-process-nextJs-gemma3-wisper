@@ -1,14 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { Mic, AlertCircle, RefreshCw } from "lucide-react";
 import { useTranscriberContext } from "@/contexts/TranscriberContext";
 
-/**
- * Model Loading Screen
- * 
- * Shows a beautiful loading screen while the AI model loads.
- * Supports both standard mode (auto-loading from context) and Fast Mode (manual progress).
- */
 interface ModelLoadingScreenProps {
   onComplete?: () => void;
   progress?: number;
@@ -16,126 +11,171 @@ interface ModelLoadingScreenProps {
   onCancel?: () => void;
 }
 
-export default function ModelLoadingScreen({ 
-  onComplete, 
-  progress: externalProgress, 
-  modelName, 
-  onCancel 
+const STEPS = [
+  { label: "Initializing AI worker",     threshold: 0  },
+  { label: "Loading model files",        threshold: 10 },
+  { label: "Initializing inference engine", threshold: 90 },
+  { label: "Ready for transcription",    threshold: 100 },
+];
+
+function stepColor(progress: number, threshold: number, nextThreshold: number) {
+  if (progress >= nextThreshold) return "oklch(70% 0.18 155)";   // done — teal
+  if (progress >= threshold)     return "oklch(78% 0.15 75)";    // active — amber
+  return "oklch(38% 0.02 280)";                                   // pending — muted
+}
+
+export default function ModelLoadingScreen({
+  onComplete,
+  progress: externalProgress,
+  modelName,
+  onCancel,
 }: ModelLoadingScreenProps) {
   const context = useTranscriberContext();
-  
-  // Use external progress if provided (Fast Mode), otherwise use context (Standard Mode)
-  const isModelLoading = externalProgress !== undefined ? externalProgress < 100 : context.isModelLoading;
-  const isModelLoaded = externalProgress !== undefined ? externalProgress === 100 : context.isModelLoaded;
-  const progress = externalProgress !== undefined ? externalProgress : context.progress;
-  const loadingMessage = modelName ? `Loading ${modelName}...` : context.loadingMessage;
-  const error = context.error;
 
-  // When model is loaded, notify parent (if callback provided)
+  const isModelLoading  = externalProgress !== undefined ? externalProgress < 100 : context.isModelLoading;
+  const isModelLoaded   = externalProgress !== undefined ? externalProgress === 100 : context.isModelLoaded;
+  const progress        = externalProgress !== undefined ? externalProgress : context.progress;
+  const loadingMessage  = modelName ? `Loading ${modelName}…` : (context.loadingMessage || "Initializing…");
+  const error           = context.error;
+
   useEffect(() => {
     if (isModelLoaded && !isModelLoading && onComplete) {
-      console.log('[ModelLoadingScreen] ✅ Model loaded! Showing main app...');
-      setTimeout(() => {
-        onComplete();
-      }, 500); // Small delay for smooth transition
+      const t = setTimeout(onComplete, 500);
+      return () => clearTimeout(t);
     }
   }, [isModelLoaded, isModelLoading, onComplete]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-      <div className="max-w-md w-full mx-4">
-        {/* Logo/Icon */}
-        <div className="text-center mb-8">
-          <div className="inline-block p-6 bg-white/10 rounded-full backdrop-blur-sm mb-4">
-            <svg className="w-16 h-16 text-white animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-            </svg>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: "oklch(14% 0.018 280 / 0.88)", backdropFilter: "blur(12px)" }}
+    >
+      <div className="w-full max-w-md mx-4">
+        {/* Icon + title */}
+        <div className="text-center mb-7">
+          <div
+            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
+            style={{
+              background: "oklch(60% 0.20 290 / 0.14)",
+              border: "1px solid oklch(60% 0.20 290 / 0.28)",
+            }}
+          >
+            <Mic className="w-7 h-7" style={{ color: "oklch(74% 0.16 290)" }} />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">
+          <h2
+            className="font-display font-semibold tracking-tight"
+            style={{ fontSize: "clamp(20px, 3vw, 26px)", color: "var(--text)" }}
+          >
             AI Transcription
-          </h1>
-          <p className="text-blue-200">
+          </h2>
+          <p className="font-mono text-[11px] tracking-[0.14em] uppercase mt-1" style={{ color: "var(--text-muted)" }}>
             Initializing Whisper AI Model
           </p>
         </div>
 
-        {/* Loading Card */}
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 shadow-2xl border border-white/20">
+        {/* Card */}
+        <div
+          className="rounded-2xl p-7"
+          style={{
+            background: "oklch(22% 0.025 280 / 0.80)",
+            border: "1px solid oklch(38% 0.02 280 / 0.40)",
+            backdropFilter: "blur(10px)",
+          }}
+        >
           {error ? (
-            // Error State
+            /* ── Error state ── */
             <div className="text-center">
-              <div className="w-12 h-12 mx-auto mb-4 text-red-400">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold text-white mb-2">Loading Failed</h2>
-              <p className="text-red-200 mb-4">{error}</p>
+              <AlertCircle className="w-10 h-10 mx-auto mb-3" style={{ color: "oklch(68% 0.22 25)" }} />
+              <h3 className="font-jazz text-[17px] mb-2" style={{ color: "var(--text)" }}>
+                Loading Failed
+              </h3>
+              <p className="text-sm text-aura-muted mb-5 leading-relaxed">{error}</p>
               <button
                 onClick={() => window.location.reload()}
-                className="px-6 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.02]"
+                style={{
+                  background: "oklch(60% 0.20 290 / 0.12)",
+                  border: "1px solid oklch(60% 0.20 290 / 0.30)",
+                  color: "oklch(74% 0.16 290)",
+                }}
               >
+                <RefreshCw className="w-4 h-4" />
                 Retry
               </button>
             </div>
           ) : (
-            // Loading State
+            /* ── Loading state ── */
             <>
+              {/* Progress bar */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-blue-100">
-                    {loadingMessage || 'Initializing...'}
-                  </span>
-                  <span className="text-sm font-bold text-white">
+                  <span className="text-[12px] text-aura-muted truncate pr-2">{loadingMessage}</span>
+                  <span
+                    className="font-mono text-[12px] font-semibold shrink-0"
+                    style={{ color: "oklch(74% 0.16 290)" }}
+                  >
                     {progress}%
                   </span>
                 </div>
-                
-                {/* Progress Bar */}
-                <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-1.5 rounded-full overflow-hidden"
+                  style={{ background: "oklch(28% 0.025 280 / 0.6)" }}
+                >
                   <div
-                    className="h-full bg-gradient-to-r from-blue-400 to-purple-400 transition-all duration-300 ease-out"
-                    style={{ width: `${progress}%` }}
-                  >
-                    {/* Shimmer effect */}
-                    <div className="w-full h-full animate-shimmer bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-                  </div>
+                    className="h-full rounded-full transition-all duration-500 ease-out"
+                    style={{
+                      width: `${progress}%`,
+                      background: "linear-gradient(90deg, oklch(60% 0.20 290), oklch(70% 0.18 155))",
+                    }}
+                  />
                 </div>
               </div>
 
-              {/* Status Messages */}
-              <div className="space-y-2 text-sm text-blue-100">
-                <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${progress > 0 ? 'bg-green-400' : 'bg-gray-400'}`} />
-                  <span>Initializing AI worker</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${progress > 10 ? 'bg-green-400' : progress > 0 ? 'bg-yellow-400 animate-pulse' : 'bg-gray-400'}`} />
-                  <span>Loading model files</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${progress > 90 ? 'bg-green-400' : progress > 10 ? 'bg-yellow-400 animate-pulse' : 'bg-gray-400'}`} />
-                  <span>Initializing inference engine</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${progress === 100 ? 'bg-green-400' : 'bg-gray-400'}`} />
-                  <span>Ready for transcription</span>
-                </div>
+              {/* Step list */}
+              <div className="space-y-2.5 mb-6">
+                {STEPS.map(({ label, threshold }, i) => {
+                  const next = STEPS[i + 1]?.threshold ?? 101;
+                  const color = stepColor(progress, threshold, next);
+                  const isActive = progress >= threshold && progress < next;
+                  return (
+                    <div key={label} className="flex items-center gap-2.5">
+                      <div
+                        className="w-2 h-2 rounded-full shrink-0 transition-colors duration-300"
+                        style={{
+                          background: color,
+                          boxShadow: isActive ? `0 0 6px ${color}` : "none",
+                        }}
+                      />
+                      <span
+                        className="text-[12.5px] transition-colors duration-300"
+                        style={{ color: progress >= threshold ? "var(--text)" : "var(--text-muted)" }}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
 
-              {/* Info */}
-              <div className="mt-6 pt-6 border-t border-white/20">
-                <p className="text-xs text-blue-200 text-center">
-                  This may take 30-60 seconds on first load.<br />
-                  Model files are cached for instant loading next time.
+              {/* Footer */}
+              <div
+                className="pt-5 border-t"
+                style={{ borderColor: "oklch(38% 0.02 280 / 0.30)" }}
+              >
+                <p className="font-mono text-[10px] tracking-[0.10em] text-aura-muted text-center leading-relaxed">
+                  First load: 30–60 s · Model cached for instant reload
                 </p>
-                
-                {/* Cancel Button (Fast Mode only) */}
+
                 {onCancel && (
-                  <div className="mt-4 text-center">
+                  <div className="mt-4 flex justify-center">
                     <button
                       onClick={onCancel}
-                      className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-200 rounded-lg transition-colors text-sm"
+                      className="px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.02]"
+                      style={{
+                        background: "oklch(60% 0.22 25 / 0.10)",
+                        border: "1px solid oklch(60% 0.22 25 / 0.25)",
+                        color: "oklch(72% 0.18 25)",
+                      }}
                     >
                       Cancel
                     </button>
@@ -146,14 +186,11 @@ export default function ModelLoadingScreen({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-sm text-blue-300">
-            Powered by Whisper AI • Running locally in your browser
-          </p>
-        </div>
+        {/* Footer note */}
+        <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-center mt-5" style={{ color: "var(--text-muted)", opacity: 0.5 }}>
+          Whisper AI · Running locally in your browser
+        </p>
       </div>
     </div>
   );
 }
-
