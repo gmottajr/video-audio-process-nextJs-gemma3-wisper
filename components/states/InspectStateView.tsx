@@ -181,7 +181,7 @@ export function InspectStateView({
   const ctaDisabled =
     !isFFmpegLoaded ||
     isTranscribing ||
-    (isTranscribeTile && (!isModelLoaded || isModelLoading));
+    (isTranscribeTile && transcriptionMode !== "fast" && (!isModelLoaded || isModelLoading));
 
   return (
     <div className="animate-in fade-in duration-500 max-w-[1480px] mx-auto px-4 pb-24">

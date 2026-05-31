@@ -557,13 +557,17 @@ export default function Home() {
         className="pointer-events-none fixed inset-0 bg-[url('/aura-noise.svg')] opacity-[0.22] mix-blend-overlay [background-size:220px_220px]"
         aria-hidden
       />
-      <div className="relative z-10" ref={contentRef} style={{ transformStyle: "preserve-3d" }}>
-      {/* Font Selector - Fixed Position */}
+
+      {/* ── FIXED OVERLAYS ────────────────────────────────────────────────────
+          Must live here, outside contentRef (div.z-10 below).
+          GSAP's fromTo animations leave transform:matrix3d(identity) on
+          contentRef after each transition. Per CSS spec, any element with a
+          non-none transform becomes the containing block for position:fixed
+          descendants, clamping inset-0 overlays to contentRef's ~100px height
+          in PROCESSING state instead of filling the full viewport. */}
+
+      {/* Font Selector */}
       <FontSelector />
-      
-      {/* NOTE: Initial model loading screen removed - models now load on-demand */}
-      {/* Standard Mode: Model loads when entering INSPECT state */}
-      {/* Fast Mode: Workers load their own models when transcription starts */}
 
       {/* AI Model Loading Indicator (Standard Mode only) */}
       {!(fastModeEnabled && transcriptionMode === 'fast') && (
@@ -595,7 +599,7 @@ export default function Home() {
           />
         )}
 
-      {/* Fast Mode Progress (v2.2) — full-screen overlay with chunk-map + workers + phased pipeline */}
+      {/* Fast Mode Progress — full-screen overlay with chunk-map + workers + phased pipeline */}
       {fastModeEnabled &&
         transcriptionMode === 'fast' &&
         fastTranscriber.mode === 'processing' && (
@@ -608,160 +612,172 @@ export default function Home() {
           />
         )}
 
-      {/* Processing Overlay (FFmpeg operations - Standard Mode only for transcription) */}
-      {stateMachine.state === "PROCESSING" && 
-        !processor.isTranscribing && 
-        !(fastModeEnabled && transcriptionMode === 'fast' && stateMachine.currentAction === 'transcribe') && (
-        <ProcessingVisualizer
-          progress={processor.status.progress}
-          speed={typeof processor.status.speed === 'number' ? processor.status.speed : null}
-          phase={processor.status.phase}
-          formatName={
-            stateMachine.currentAction === "transcribe"
-              ? "AI"
-              : stateMachine.currentAction === "convert_video"
-              ? getVideoFormatById(stateMachine.selectedFormatId || "")?.name
-              : getFormatById(stateMachine.selectedFormatId || "")?.name
-          }
-          onCancel={async () => {
-            await processor.cancel();
-            stateMachine.cancelProcessing();
-          }}
-          onNavigate={handleReset}
-        />
+      {/* Processing Overlay (FFmpeg operations).
+          Also covers the Fast Mode audio-prep gap: ffmpeg.prepareAudioForAI runs before
+          fastTranscriber starts, so fastTranscriber.mode is still 'idle' during that phase. */}
+      {(() => {
+        const isFastModeTranscribe = fastModeEnabled && transcriptionMode === 'fast' && stateMachine.currentAction === 'transcribe';
+        const isFastModePrep = isFastModeTranscribe && fastTranscriber.mode === 'idle';
+        const show = stateMachine.state === "PROCESSING" &&
+          !processor.isTranscribing &&
+          (!isFastModeTranscribe || isFastModePrep);
+        if (!show) return null;
+        return (
+          <ProcessingVisualizer
+            progress={isFastModePrep ? processor.ffmpeg.progress : processor.status.progress}
+            speed={isFastModePrep ? null : (typeof processor.status.speed === 'number' ? processor.status.speed : null)}
+            phase={isFastModePrep ? "processing" : processor.status.phase}
+            formatName={
+              stateMachine.currentAction === "transcribe"
+                ? "AI"
+                : stateMachine.currentAction === "convert_video"
+                ? getVideoFormatById(stateMachine.selectedFormatId || "")?.name
+                : getFormatById(stateMachine.selectedFormatId || "")?.name
+            }
+            onCancel={async () => {
+              await processor.cancel();
+              stateMachine.cancelProcessing();
+            }}
+            onNavigate={handleReset}
+          />
+        );
+      })()}
+
+      {/* High Memory Warning — Standard Mode only (Fast Mode handles any file size) */}
+      {isHighLoad && stateMachine.state === "PROCESSING" && transcriptionMode !== 'fast' && (
+        <div className="fixed bottom-4 right-4 bg-yellow-950/90 border-2 border-yellow-500/50 rounded-lg p-4 max-w-sm backdrop-blur-sm z-50">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-yellow-400 text-sm mb-1">
+                File Too Large for Standard Mode
+              </h3>
+              <p className="text-xs text-yellow-300 mb-3">
+                Memory is running high. <strong>Fast Mode</strong> is built for large files — it processes audio in small chunks so file size doesn&apos;t matter.
+              </p>
+              {fastModeEnabled && (
+                <button
+                  onClick={() => setTranscriptionMode('fast')}
+                  className="w-full text-xs bg-yellow-500 hover:bg-yellow-400 text-black font-semibold py-1.5 px-3 rounded transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  Switch to Fast Mode
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
-      <div className="container mx-auto px-4 py-4 max-w-7xl">
-        {/* Forge top bar — brand, step pills, system status badges */}
-        <div className="mb-6">
-          <ForgeTopBar
-            currentState={stateMachine.state}
-            onNavigate={handleReset}
-            hardware={hardwareCapability}
-          />
-        </div>
-
-        {/* STATE VIEWS */}
-        {stateMachine.state === "IDLE" && (
-          <IdleStateView
-            onFileSelect={stateMachine.selectFile}
-            isLoading={processor.isFFmpegLoading}
-          />
-        )}
-
-        {stateMachine.state === "INSPECT" && stateMachine.selectedFile && (
-          <>
-            {/* Large-file banner — shown in Standard Mode when file exceeds 500 MB */}
-            {fastModeEnabled &&
-              transcriptionMode !== 'fast' &&
-              !dismissedLargeFileBanner &&
-              stateMachine.selectedFile.size > LARGE_FILE_BYTES && (
-                <div className="mb-4 bg-amber-950/60 border border-amber-500/40 rounded-xl p-4 flex items-start gap-3">
-                  <Zap className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-amber-300 mb-0.5">Large file detected</p>
-                    <p className="text-xs text-amber-200/80">
-                      This file ({(stateMachine.selectedFile.size / 1024 / 1024 / 1024).toFixed(1)} GB) may run out of memory in Standard Mode.{' '}
-                      <strong>Fast Mode</strong> processes audio in small chunks — no size limit.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => { setTranscriptionMode('fast'); setDismissedLargeFileBanner(true); }}
-                      className="text-xs bg-amber-500 hover:bg-amber-400 text-black font-semibold py-1.5 px-3 rounded transition-colors whitespace-nowrap flex items-center gap-1"
-                    >
-                      <Zap className="w-3 h-3" />
-                      Use Fast Mode
-                    </button>
-                    <button
-                      onClick={() => setDismissedLargeFileBanner(true)}
-                      className="text-xs text-amber-400/60 hover:text-amber-300 transition-colors whitespace-nowrap"
-                    >
-                      Continue anyway
-                    </button>
-                  </div>
-                </div>
-              )}
-
-            <InspectStateView
-              file={stateMachine.selectedFile}
-              metrics={processor.ffmpegMetrics}
-              selectedModelKey={selectedModelKey}
-              currentModel={processor.currentModel}
-              isModelLoading={processor.isModelLoading}
-              isTranscribing={processor.isTranscribing}
-              onModelSelect={handleModelSelect}
-              transcriptionMode={transcriptionMode}
-              onModeChange={setTranscriptionMode}
-              onWorkerConfigChange={handleWorkerConfigChange}
-              onAction={handleAction}
-              onBack={() => stateMachine.selectFile(null)}
-              isFFmpegLoaded={processor.isFFmpegLoaded}
-              isFFmpegLoading={processor.isFFmpegLoading}
-              isModelLoaded={processor.isModelLoaded}
-              modelLoadingProgress={processor.transcriptionProgress}
+      {/* ── ANIMATED CONTENT ─────────────────────────────────────────────────
+          GSAP page-transition animations target this div. Fixed overlays must
+          NOT be inside here (see comment above). */}
+      <div className="relative z-10" ref={contentRef} style={{ transformStyle: "preserve-3d" }}>
+        <div className="container mx-auto px-4 py-4 max-w-7xl">
+          {/* Forge top bar — brand, step pills, system status badges */}
+          <div className="mb-6">
+            <ForgeTopBar
+              currentState={stateMachine.state}
+              onNavigate={handleReset}
+              hardware={hardwareCapability}
             />
-          </>
-        )}
+          </div>
 
-        {stateMachine.state === "DONE" &&
-          stateMachine.result &&
-          stateMachine.selectedFile && (
-            <DoneStateView
-              result={stateMachine.result}
-              file={stateMachine.selectedFile}
-              formatId={stateMachine.selectedFormatId}
-              selectedModelKey={selectedModelKey}
-              currentModel={processor.currentModel}
-              metrics={processor.ffmpegMetrics}
-              memoryUsageMB={memoryUsageMB}
-              onDownload={handleDownload}
-              onReset={handleReset}
-              isModelLoaded={processor.isModelLoaded}
-              isModelLoading={processor.isModelLoading}
-              modelLoadingProgress={processor.transcriptionProgress}
-              onModelSelect={handleModelSelect}
-              onTranscribe={handleTranscribeFromDone}
-              processingStartTime={stateMachine.processingStartTime}
-              processingEndTime={stateMachine.processingEndTime}
+          {/* STATE VIEWS */}
+          {stateMachine.state === "IDLE" && (
+            <IdleStateView
+              onFileSelect={stateMachine.selectFile}
+              isLoading={processor.isFFmpegLoading}
             />
           )}
 
-        {stateMachine.state === "ERROR" && stateMachine.error && (
-          <ErrorStateView
-            error={stateMachine.error}
-            onRetry={stateMachine.retry}
-            onReset={handleReset}
-            canRetry={!!stateMachine.selectedFile}
-          />
-        )}
-
-        {/* High Memory Warning — Standard Mode only (Fast Mode handles any file size) */}
-        {isHighLoad && stateMachine.state === "PROCESSING" && transcriptionMode !== 'fast' && (
-          <div className="fixed bottom-4 right-4 bg-yellow-950/90 border-2 border-yellow-500/50 rounded-lg p-4 max-w-sm backdrop-blur-sm z-50">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-yellow-400 text-sm mb-1">
-                  File Too Large for Standard Mode
-                </h3>
-                <p className="text-xs text-yellow-300 mb-3">
-                  Memory is running high. <strong>Fast Mode</strong> is built for large files — it processes audio in small chunks so file size doesn&apos;t matter.
-                </p>
-                {fastModeEnabled && (
-                  <button
-                    onClick={() => setTranscriptionMode('fast')}
-                    className="w-full text-xs bg-yellow-500 hover:bg-yellow-400 text-black font-semibold py-1.5 px-3 rounded transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <Zap className="w-3.5 h-3.5" />
-                    Switch to Fast Mode
-                  </button>
+          {stateMachine.state === "INSPECT" && stateMachine.selectedFile && (
+            <>
+              {/* Large-file banner — shown in Standard Mode when file exceeds 500 MB */}
+              {fastModeEnabled &&
+                transcriptionMode !== 'fast' &&
+                !dismissedLargeFileBanner &&
+                stateMachine.selectedFile.size > LARGE_FILE_BYTES && (
+                  <div className="mb-4 bg-amber-950/60 border border-amber-500/40 rounded-xl p-4 flex items-start gap-3">
+                    <Zap className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-amber-300 mb-0.5">Large file detected</p>
+                      <p className="text-xs text-amber-200/80">
+                        This file ({(stateMachine.selectedFile.size / 1024 / 1024 / 1024).toFixed(1)} GB) may run out of memory in Standard Mode.{' '}
+                        <strong>Fast Mode</strong> processes audio in small chunks — no size limit.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => { setTranscriptionMode('fast'); setDismissedLargeFileBanner(true); }}
+                        className="text-xs bg-amber-500 hover:bg-amber-400 text-black font-semibold py-1.5 px-3 rounded transition-colors whitespace-nowrap flex items-center gap-1"
+                      >
+                        <Zap className="w-3 h-3" />
+                        Use Fast Mode
+                      </button>
+                      <button
+                        onClick={() => setDismissedLargeFileBanner(true)}
+                        className="text-xs text-amber-400/60 hover:text-amber-300 transition-colors whitespace-nowrap"
+                      >
+                        Continue anyway
+                      </button>
+                    </div>
+                  </div>
                 )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+
+              <InspectStateView
+                file={stateMachine.selectedFile}
+                metrics={processor.ffmpegMetrics}
+                selectedModelKey={selectedModelKey}
+                currentModel={processor.currentModel}
+                isModelLoading={processor.isModelLoading}
+                isTranscribing={processor.isTranscribing}
+                onModelSelect={handleModelSelect}
+                transcriptionMode={transcriptionMode}
+                onModeChange={setTranscriptionMode}
+                onWorkerConfigChange={handleWorkerConfigChange}
+                onAction={handleAction}
+                onBack={() => stateMachine.selectFile(null)}
+                isFFmpegLoaded={processor.isFFmpegLoaded}
+                isFFmpegLoading={processor.isFFmpegLoading}
+                isModelLoaded={processor.isModelLoaded}
+                modelLoadingProgress={processor.transcriptionProgress}
+              />
+            </>
+          )}
+
+          {stateMachine.state === "DONE" &&
+            stateMachine.result &&
+            stateMachine.selectedFile && (
+              <DoneStateView
+                result={stateMachine.result}
+                file={stateMachine.selectedFile}
+                formatId={stateMachine.selectedFormatId}
+                selectedModelKey={selectedModelKey}
+                currentModel={processor.currentModel}
+                metrics={processor.ffmpegMetrics}
+                memoryUsageMB={memoryUsageMB}
+                onDownload={handleDownload}
+                onReset={handleReset}
+                isModelLoaded={processor.isModelLoaded}
+                isModelLoading={processor.isModelLoading}
+                modelLoadingProgress={processor.transcriptionProgress}
+                onModelSelect={handleModelSelect}
+                onTranscribe={handleTranscribeFromDone}
+                processingStartTime={stateMachine.processingStartTime}
+                processingEndTime={stateMachine.processingEndTime}
+              />
+            )}
+
+          {stateMachine.state === "ERROR" && stateMachine.error && (
+            <ErrorStateView
+              error={stateMachine.error}
+              onRetry={stateMachine.retry}
+              onReset={handleReset}
+              canRetry={!!stateMachine.selectedFile}
+            />
+          )}
+        </div>
       </div>
     </main>
   );
