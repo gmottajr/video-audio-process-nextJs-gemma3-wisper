@@ -1,80 +1,41 @@
 "use client";
 
-/**
- * AI Enhancement Context
- * 
- * Provides state management for the AI transcript enhancement feature.
- * Similar pattern to TranscriberContext but for LLM-based enhancement.
- */
-
 import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from "react";
-import { WorkerManager } from "@/lib/WorkerManager";
-import { useHardwareCapabilities } from "@/hooks/useHardwareCapabilities";
-import type { 
-  EnhancementProgress, 
-  EnhancementResult, 
-  EnhancementStage,
-  HardwareCapabilities 
-} from "@/types/enhancement";
 import { DEFAULT_MODEL, ENHANCEMENT_MODELS } from "@/types/enhancement";
-import { logEnhancementMetrics, type EnhancementTelemetry } from "@/utils/enhancementTelemetry";
-import type { TranscriptionResult } from "@/contexts/TranscriberContext";
+import type { EnhancementProgress, EnhancementResult, EnhancementStage } from "@/types/enhancement";
 import type { WhisperMetadata, EnhancementStrategy } from "@/types/whisper-metadata";
-import { extractWhisperMetadata } from "@/utils/whisperMetadataExtractor";
-import { generateEnhancementStrategy, getStrategySummary } from "@/utils/enhancementStrategyGenerator";
-import { buildContextAwarePrompt, buildSimplePrompt } from "@/utils/contextAwarePromptBuilder";
-import { chunkTranscript, mergeChunks, getChunkingInfo } from "@/utils/transcriptChunker";
+import type { TranscriptionResult } from "@/contexts/TranscriberContext";
+import type { HardwareCapabilities } from "@/types/enhancement";
+import type { DownloadState } from "@/services/enhancer/downloadStatePersistence";
+import { createDefaultEnhancerEngine } from "@/services/enhancer/enhancerEngine";
+import type { EnhancerEngine } from "@/services/enhancer/types";
+import { buildAndLogTelemetry } from "@/services/enhancer/enhancerTelemetry";
+import { useEnhancerHardware } from "@/hooks/enhancer/useEnhancerHardware";
+import { useDownloadResumePrompt } from "@/hooks/enhancer/useDownloadResumePrompt";
 
 // ============================================================================
-// Download State Persistence
-// ============================================================================
-
-const DOWNLOAD_STATE_KEY = 'mediaforge_model_download_state';
-
-interface DownloadState {
-  modelId: string;
-  startedAt: number;
-  progress: number;
-  totalMB: number;
-  completed: boolean;
-}
-
-// ============================================================================
-// Context Type Definition
+// Context Type
 // ============================================================================
 
 interface EnhancerContextType {
-  // Hardware capabilities
   capabilities: HardwareCapabilities | null;
   isCheckingHardware: boolean;
   hardwareError: string | null;
-  
-  // Model state
   isModelLoaded: boolean;
   isModelLoading: boolean;
   modelLoadProgress: number;
   currentModelId: string | null;
-  
-  // Enhancement state
   isEnhancing: boolean;
   progress: EnhancementProgress | null;
   error: string | null;
-  
-  // Results
   lastResult: EnhancementResult | null;
-  
-  // Phase 2: Metadata and Strategy
   lastMetadata: WhisperMetadata | null;
   lastStrategy: EnhancementStrategy | null;
-  useContextAwarePrompts: boolean;  // DISABLED: Phase 2 prompts are too large for 1B model
-  
-  // Download state
+  useContextAwarePrompts: boolean;
   totalDownloadMB: number;
   showResumePrompt: boolean;
   savedDownloadState: DownloadState | null;
   dismissResumePrompt: () => void;
-  
-  // Actions
   loadModel: (modelId?: string) => Promise<void>;
   enhance: (transcript: string, whisperResult?: TranscriptionResult, audioDuration?: number) => Promise<EnhancementResult>;
   cancelEnhancement: () => void;
@@ -85,639 +46,191 @@ interface EnhancerContextType {
 }
 
 // ============================================================================
-// Context Creation
+// Context + public hooks
 // ============================================================================
 
 const EnhancerContext = createContext<EnhancerContextType | null>(null);
 
-/**
- * Hook to access the Enhancer context
- * @throws Error if used outside of EnhancerProvider
- */
 export function useEnhancerContext() {
-  const context = useContext(EnhancerContext);
-  if (!context) {
-    throw new Error("useEnhancerContext must be used within EnhancerProvider");
-  }
-  return context;
+  const ctx = useContext(EnhancerContext);
+  if (!ctx) throw new Error("useEnhancerContext must be used within EnhancerProvider");
+  return ctx;
 }
 
-/**
- * Optional hook that returns null if outside provider
- * Useful for conditional rendering
- */
 export function useEnhancerContextOptional() {
   return useContext(EnhancerContext);
 }
 
 // ============================================================================
-// Provider Component
+// Provider
 // ============================================================================
 
-interface EnhancerProviderProps {
-  children: React.ReactNode;
-}
+export function EnhancerProvider({ children }: { children: React.ReactNode }) {
+  const { capabilities, isCheckingHardware, hardwareError } = useEnhancerHardware();
 
-export function EnhancerProvider({ children }: EnhancerProviderProps) {
-  // Hardware detection
-  const { 
-    isChecking: isCheckingHardware, 
-    capabilities, 
-    error: hardwareError 
-  } = useHardwareCapabilities();
-  
-  // Worker reference
-  const workerRef = useRef<WorkerManager | null>(null);
-  
+  const engineRef = useRef<EnhancerEngine | null>(null);
+
+  const getEngine = useCallback((): EnhancerEngine => {
+    if (!engineRef.current) engineRef.current = createDefaultEnhancerEngine();
+    return engineRef.current;
+  }, []);
+
+  useEffect(() => () => { engineRef.current?.dispose(); engineRef.current = null; }, []);
+
   // Model state
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(false);
   const [modelLoadProgress, setModelLoadProgress] = useState(0);
   const [currentModelId, setCurrentModelId] = useState<string | null>(null);
-  
+
   // Enhancement state
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [progress, setProgress] = useState<EnhancementProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Results
   const [lastResult, setLastResult] = useState<EnhancementResult | null>(null);
-  
-  // Phase 2: Metadata and Strategy
   const [lastMetadata, setLastMetadata] = useState<WhisperMetadata | null>(null);
   const [lastStrategy, setLastStrategy] = useState<EnhancementStrategy | null>(null);
-  // TEMP FIX: Disable Phase 2 context-aware prompts - they're too large for 1B model (20K+ tokens)
-  // Phase 2 prompts include metadata, strategy, examples which exceed the 4096 token context window
-  // TODO: Either use 3B model OR create shorter Phase 2 prompts
-  const [useContextAwarePrompts, setUseContextAwarePrompts] = useState(false);
-  
-  // Download state persistence
+
+  // Phase 2 context-aware prompts disabled (prompts exceed 1B model context window)
+  const useContextAwarePrompts = false;
+
   const [totalDownloadMB, setTotalDownloadMB] = useState(0);
-  const [showResumePrompt, setShowResumePrompt] = useState(false);
-  const [savedDownloadState, setSavedDownloadState] = useState<DownloadState | null>(null);
-  
-  // Request tracking for cancellation
-  const currentRequestIdRef = useRef<string | null>(null);
+
+  const { showResumePrompt, savedDownloadState, dismiss: dismissResumePrompt } =
+    useDownloadResumePrompt({ isModelLoading, modelLoadProgress, currentModelId, totalDownloadMB, isModelLoaded });
 
   // ============================================================================
-  // Worker Management
+  // loadModel
   // ============================================================================
 
-  /**
-   * Initialize the worker if not already created
-   */
-  const initWorker = useCallback(() => {
-    if (!workerRef.current) {
-      console.log('[EnhancerContext] Initializing worker...');
-      try {
-        workerRef.current = new WorkerManager('/enhancer.worker.js');
-        console.log('[EnhancerContext] Worker initialized');
-      } catch (err) {
-        console.error('[EnhancerContext] Failed to initialize worker:', err);
-        setError('Failed to initialize AI worker');
-        throw err;
-      }
-    }
-    return workerRef.current;
-  }, []);
-
-  /**
-   * Cleanup worker on unmount
-   */
-  useEffect(() => {
-    return () => {
-      if (workerRef.current) {
-        console.log('[EnhancerContext] Disposing worker on unmount');
-        workerRef.current.dispose();
-        workerRef.current = null;
-      }
-    };
-  }, []);
-
-  /**
-   * Check for interrupted downloads on mount
-   */
-  useEffect(() => {
-    try {
-      const savedState = localStorage.getItem(DOWNLOAD_STATE_KEY);
-      if (savedState) {
-        const state: DownloadState = JSON.parse(savedState);
-        // Only show resume prompt if download wasn't completed and was recent (< 24 hours)
-        const isRecent = Date.now() - state.startedAt < 24 * 60 * 60 * 1000;
-        if (!state.completed && isRecent && state.progress > 0 && state.progress < 100) {
-          console.log('[EnhancerContext] Found interrupted download:', state);
-          setShowResumePrompt(true);
-          setSavedDownloadState(state);
-        } else if (state.completed) {
-          // Clear completed download state
-          localStorage.removeItem(DOWNLOAD_STATE_KEY);
-        }
-      }
-    } catch (err) {
-      console.warn('[EnhancerContext] Failed to read download state:', err);
-    }
-  }, []);
-
-  /**
-   * Save download progress to localStorage
-   */
-  useEffect(() => {
-    if (isModelLoading && modelLoadProgress > 0 && currentModelId) {
-      try {
-        const state: DownloadState = {
-          modelId: currentModelId,
-          startedAt: Date.now(),
-          progress: modelLoadProgress,
-          totalMB: totalDownloadMB,
-          completed: false,
-        };
-        localStorage.setItem(DOWNLOAD_STATE_KEY, JSON.stringify(state));
-      } catch (err) {
-        console.warn('[EnhancerContext] Failed to save download state:', err);
-      }
-    }
-  }, [isModelLoading, modelLoadProgress, currentModelId, totalDownloadMB]);
-
-  /**
-   * Mark download as completed
-   */
-  useEffect(() => {
-    if (isModelLoaded && currentModelId) {
-      try {
-        const state: DownloadState = {
-          modelId: currentModelId,
-          startedAt: Date.now(),
-          progress: 100,
-          totalMB: totalDownloadMB,
-          completed: true,
-        };
-        localStorage.setItem(DOWNLOAD_STATE_KEY, JSON.stringify(state));
-        setShowResumePrompt(false);
-        setSavedDownloadState(null);
-      } catch (err) {
-        console.warn('[EnhancerContext] Failed to save completed state:', err);
-      }
-    }
-  }, [isModelLoaded, currentModelId, totalDownloadMB]);
-
-  /**
-   * Dismiss resume prompt
-   */
-  const dismissResumePrompt = useCallback(() => {
-    setShowResumePrompt(false);
-    setSavedDownloadState(null);
-    try {
-      localStorage.removeItem(DOWNLOAD_STATE_KEY);
-    } catch (err) {
-      console.warn('[EnhancerContext] Failed to clear download state:', err);
-    }
-  }, []);
-
-  // ============================================================================
-  // Model Loading
-  // ============================================================================
-
-  /**
-   * Load the AI model
-   * Downloads and caches the model on first use (~1.7GB for Llama 3.2 3B)
-   */
   const loadModel = useCallback(async (modelId?: string) => {
-    // Check hardware capability
     if (!capabilities?.isCapable) {
-      const errorMsg = capabilities?.recommendation.warnings.join(' ') || 'Hardware not capable';
-      setError(errorMsg);
-      throw new Error(errorMsg);
+      const msg = capabilities?.recommendation.warnings.join(' ') || 'Hardware not capable';
+      setError(msg);
+      throw new Error(msg);
     }
 
-    // Convert short key to full model ID if needed
     let targetModelId = modelId || capabilities.recommendation.suggestedModel || DEFAULT_MODEL.id;
-    
-    // If modelId is a short key (e.g., 'llama-3.2-1b'), convert to full ID
     if (modelId && ENHANCEMENT_MODELS[modelId]) {
       targetModelId = ENHANCEMENT_MODELS[modelId].id;
-      console.log('[EnhancerContext] Converting model key to full ID:', modelId, '->', targetModelId);
     }
 
-    // Skip if already loaded with same model
-    if (isModelLoaded && currentModelId === targetModelId) {
-      console.log('[EnhancerContext] Model already loaded:', targetModelId);
-      return;
-    }
-
-    // Skip if already loading
-    if (isModelLoading) {
-      console.log('[EnhancerContext] Model loading already in progress');
-      return;
-    }
-
-    console.log('[EnhancerContext] Loading model:', targetModelId);
+    if (isModelLoaded && currentModelId === targetModelId) return;
+    if (isModelLoading) return;
 
     setIsModelLoading(true);
     setIsModelLoaded(false);
     setModelLoadProgress(0);
     setError(null);
-    setProgress({
-      stage: 'downloading',
-      progress: 0,
-      message: 'Initializing AI model...',
-    });
+    setProgress({ stage: 'downloading', progress: 0, message: 'Initializing AI model...' });
 
     try {
-      const worker = initWorker();
-
-      await worker.sendRequest('init', { modelId: targetModelId }, {
-        timeoutMs: 600000, // 10 minutes for download
+      await getEngine().loadModel(targetModelId, {
         onProgress: (prog, msg, extra) => {
           setModelLoadProgress(prog);
-          
-          // Track total download size if available
-          if (extra?.totalMB) {
-            setTotalDownloadMB(extra.totalMB);
-          }
-          
-          // Determine stage based on message
-          let stage: EnhancementStage = 'downloading';
-          if (msg?.toLowerCase().includes('loading')) {
-            stage = 'loading';
-          }
-          
-          setProgress({
-            stage,
-            progress: prog,
-            message: msg || `Downloading: ${prog}%`,
-            downloadedMB: extra?.downloadedMB,
-            totalMB: extra?.totalMB,
-          });
+          if (extra?.totalMB) setTotalDownloadMB(extra.totalMB);
+          const stage: EnhancementStage = msg?.toLowerCase().includes('loading') ? 'loading' : 'downloading';
+          setProgress({ stage, progress: prog, message: msg || `Downloading: ${prog}%`, ...extra });
         },
       });
 
       setIsModelLoaded(true);
       setCurrentModelId(targetModelId);
       setModelLoadProgress(100);
-      setProgress({
-        stage: 'idle',
-        progress: 100,
-        message: 'Model ready',
-      });
-
-      console.log('[EnhancerContext] Model loaded successfully:', targetModelId);
-
+      setProgress({ stage: 'idle', progress: 100, message: 'Model ready' });
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to load model';
-      console.error('[EnhancerContext] Model loading failed:', errorMsg);
-      
-      setError(errorMsg);
-      setProgress({
-        stage: 'error',
-        progress: 0,
-        message: errorMsg,
-      });
-      
+      const msg = err instanceof Error ? err.message : 'Failed to load model';
+      setError(msg);
+      setProgress({ stage: 'error', progress: 0, message: msg });
       throw err;
     } finally {
       setIsModelLoading(false);
     }
-  }, [capabilities, isModelLoaded, isModelLoading, currentModelId, initWorker]);
+  }, [capabilities, isModelLoaded, isModelLoading, currentModelId, getEngine]);
 
   // ============================================================================
-  // Enhancement
+  // enhance
   // ============================================================================
 
-  /**
-   * Enhance a transcript using the loaded model
-   * Phase 2: Now accepts optional Whisper result for context-aware prompting
-   */
   const enhance = useCallback(async (
     transcript: string,
     whisperResult?: TranscriptionResult,
     audioDuration?: number
   ): Promise<EnhancementResult> => {
-    // Validate model is loaded - check worker directly to avoid React state race condition
-    if (!workerRef.current) {
-      const errorMsg = 'Worker not initialized. Please wait for initialization.';
-      setError(errorMsg);
-      throw new Error(errorMsg);
+    if (!isModelLoaded) {
+      const msg = 'Model not loaded';
+      setError(msg);
+      throw new Error(msg);
     }
-    
-    // Note: We don't check isModelLoaded here because it's a React state that might not have
-    // updated yet even after loadModel() completes. The worker will handle the check internally.
-
-    // Validate input
-    if (!transcript || transcript.trim().length === 0) {
-      const errorMsg = 'No transcript provided';
-      setError(errorMsg);
-      throw new Error(errorMsg);
+    if (!transcript?.trim()) {
+      const msg = 'No transcript provided';
+      setError(msg);
+      throw new Error(msg);
     }
-
-    // Prevent concurrent enhancements
     if (isEnhancing) {
-      const errorMsg = 'Enhancement already in progress';
-      setError(errorMsg);
-      throw new Error(errorMsg);
+      const msg = 'Enhancement already in progress';
+      setError(msg);
+      throw new Error(msg);
     }
-
-    console.log('[EnhancerContext] Starting enhancement...');
-    console.log('[EnhancerContext] Transcript length:', transcript.length, 'chars');
 
     setIsEnhancing(true);
     setError(null);
-    setProgress({
-      stage: 'processing',
-      progress: 0,
-      message: 'Analyzing transcript...',
-    });
-
-    // Phase 2: Extract metadata and generate strategy
-    let metadata: WhisperMetadata | null = null;
-    let strategy: EnhancementStrategy | null = null;
-    let promptText: string | null;
-    
-    if (useContextAwarePrompts && whisperResult) {
-      try {
-        console.log('[EnhancerContext] Phase 2: Extracting metadata from Whisper result...');
-        metadata = extractWhisperMetadata(whisperResult, audioDuration);
-        setLastMetadata(metadata);
-        
-        console.log('[EnhancerContext] Metadata extracted:', {
-          contentType: metadata.contentType,
-          contentTypeConfidence: metadata.contentTypeConfidence,
-          fillerDensity: metadata.fillerDensity,
-          fillerWordPercentage: `${metadata.fillerWordPercentage.toFixed(1)}%`,
-          wordsPerMinute: Math.round(metadata.wordsPerMinute),
-          speakingRate: metadata.speakingRateCategory,
-          speakerCount: metadata.speakerCount,
-          topKeywords: metadata.keywords.topKeywords.slice(0, 5).map(k => k.word),
-        });
-        
-        strategy = generateEnhancementStrategy(metadata);
-        setLastStrategy(strategy);
-        
-        const strategySummary = getStrategySummary(strategy, metadata);
-        console.log('[EnhancerContext] Strategy generated:', strategySummary);
-        
-        // Build context-aware prompt
-        promptText = buildContextAwarePrompt({
-          metadata,
-          strategy,
-        });
-        
-        console.log('[EnhancerContext] Using context-aware prompt for', metadata.contentType, 'content');
-        
-        setProgress({
-          stage: 'processing',
-          progress: 5,
-          message: `Detected ${metadata.contentType} content. Preparing tailored enhancement...`,
-        });
-        
-      } catch (metadataErr) {
-        console.warn('[EnhancerContext] Failed to extract metadata, falling back to Phase 1 (system prompt):', metadataErr);
-        // Fall back to Phase 1 (no custom prompt)
-        promptText = null;
-        setLastMetadata(null);
-        setLastStrategy(null);
-      }
-    } else {
-      // Use simple prompt when no Whisper result provided or context-aware disabled
-      console.log('[EnhancerContext] Using simple prompt (Phase 1 mode)');
-      promptText = null; // Don't pass custom prompt - let worker use built-in system prompt
-      setLastMetadata(null);
-      setLastStrategy(null);
-    }
+    setLastMetadata(null);
+    setLastStrategy(null);
+    setProgress({ stage: 'processing', progress: 0, message: 'Analyzing transcript...' });
 
     try {
-      // Check if we need to chunk the transcript
-      // SAFE CHUNK SIZE: 2000 tokens max (leaves room for system prompt ~300 + output ~1800 = 4100 total)
-      const MAX_CHUNK_TOKENS = 2000;
-      const chunkingInfo = getChunkingInfo(transcript.trim(), MAX_CHUNK_TOKENS);
-      console.log('[EnhancerContext] Chunking info:', chunkingInfo);
-      
-      let result: EnhancementResult;
-      
-      if (chunkingInfo.needsChunking) {
-        // Handle long transcripts with chunking
-        console.log('[EnhancerContext] Transcript is too long, chunking into', chunkingInfo.estimatedChunks, 'parts');
-        
-        const chunks = chunkTranscript(transcript.trim(), MAX_CHUNK_TOKENS);
-        const enhancedChunks: string[] = [];
-        let totalTokens = 0;
-        let totalFillerWords = 0;
-        
-        for (let i = 0; i < chunks.length; i++) {
-          const chunk = chunks[i];
-          console.log(`[EnhancerContext] Processing chunk ${i + 1}/${chunks.length} (${chunk.text.length} chars)`);
-          
-          setProgress({
-            stage: 'streaming',
-            progress: Math.round((i / chunks.length) * 90), // Reserve last 10% for merging
-            message: `Processing chunk ${i + 1}/${chunks.length}...`,
-          });
-          
-          const chunkResult = await workerRef.current.sendRequest<EnhancementResult>('enhance', {
-            transcript: chunk.text,
-            prompt: promptText || undefined, // Pass custom prompt only if generated (Phase 2), otherwise undefined (Phase 1)
-            metadata: metadata ? {
-              contentType: metadata.contentType,
-              fillerDensity: metadata.fillerDensity,
-              speakingRate: metadata.speakingRateCategory,
-            } : undefined,
-          }, {
-            timeoutMs: 300000, // 5 minutes for processing
-            onProgress: (prog, msg) => {
-              const overallProgress = Math.round(((i + prog / 100) / chunks.length) * 90);
-              setProgress({
-                stage: 'streaming',
-                progress: overallProgress,
-                message: `Chunk ${i + 1}/${chunks.length}: ${msg || 'Processing...'}`,
-              });
-            },
-          });
-          
-          enhancedChunks.push(chunkResult.enhancedText);
-          totalTokens += chunkResult.tokensGenerated || 0;
-          totalFillerWords += chunkResult.improvements?.fillerCount || 0;
+      const result = await getEngine().enhance(
+        { transcript: transcript.trim(), whisperResult, audioDuration },
+        {
+          onProgress: (prog, msg) => setProgress({
+            stage: prog < 100 ? 'streaming' : 'complete',
+            progress: prog,
+            message: msg || 'Processing...',
+          }),
+          onMetadataExtracted: (meta, strat) => {
+            setLastMetadata(meta);
+            setLastStrategy(strat);
+          },
         }
-        
-        // Merge chunks
-        console.log('[EnhancerContext] Merging', chunks.length, 'enhanced chunks');
-        setProgress({
-          stage: 'streaming',
-          progress: 95,
-          message: 'Combining enhanced chunks...',
-        });
-        
-        const mergedText = mergeChunks(enhancedChunks);
-        
-        // Calculate combined improvements
-        const originalWords = transcript.trim().split(/\s+/).length;
-        const enhancedWords = mergedText.split(/\s+/).length;
-        const originalChars = transcript.trim().length;
-        const enhancedChars = mergedText.length;
-        const compressionRatio = enhancedChars / originalChars;
-        const reductionPercentage = ((originalChars - enhancedChars) / originalChars) * 100;
-        
-        result = {
-          originalText: transcript.trim(),
-          enhancedText: mergedText,
-          improvements: {
-            fillerWordsRemoved: [],
-            fillerCount: totalFillerWords,
-            grammarFixes: Math.max(0, Math.floor(Math.abs(originalWords - enhancedWords) * 0.3)),
-            originalWordCount: originalWords,
-            enhancedWordCount: enhancedWords,
-            originalCharCount: originalChars,
-            enhancedCharCount: enhancedChars,
-            compressionRatio,
-            reductionPercentage: Math.max(0, reductionPercentage),
-          },
-          processingTime: 0, // Will be calculated below
-          tokensGenerated: totalTokens,
-          modelUsed: currentModelId || 'unknown',
-          timestamp: new Date(),
-        };
-      } else {
-        // Single request for short transcripts
-        result = await workerRef.current.sendRequest<EnhancementResult>('enhance', {
-          transcript: transcript.trim(),
-          prompt: promptText || undefined, // Pass custom prompt only if generated (Phase 2), otherwise undefined (Phase 1)
-          metadata: metadata ? {
-            contentType: metadata.contentType,
-            fillerDensity: metadata.fillerDensity,
-            speakingRate: metadata.speakingRateCategory,
-          } : undefined,
-        }, {
-          timeoutMs: 300000, // 5 minutes for processing
-          onProgress: (prog, msg) => {
-            setProgress({
-              stage: prog < 100 ? 'streaming' : 'complete',
-              progress: prog,
-              message: msg || 'Processing...',
-            });
-          },
-        });
+      );
+
+      setLastResult(result);
+      setProgress({ stage: 'complete', progress: 100, message: 'Enhancement complete' });
+
+      if (capabilities && currentModelId) {
+        buildAndLogTelemetry({ modelId: currentModelId, capabilities, result, transcriptLength: transcript.length });
       }
 
-      // Convert timestamp string to Date if needed
-      const enhancementResult: EnhancementResult = {
-        ...result,
-        timestamp: typeof result.timestamp === 'string' 
-          ? new Date(result.timestamp) 
-          : result.timestamp,
-      };
-
-      setLastResult(enhancementResult);
-      setProgress({
-        stage: 'complete',
-        progress: 100,
-        message: 'Enhancement complete',
-      });
-
-      console.log('[EnhancerContext] Enhancement complete');
-      console.log('[EnhancerContext] Improvements:', enhancementResult.improvements);
-      
-      if (metadata) {
-        console.log('[EnhancerContext] Phase 2 enhancement used:', {
-          contentType: metadata.contentType,
-          strategy: strategy ? {
-            fillerRemoval: strategy.fillerRemoval,
-            grammarCorrection: strategy.grammarCorrection,
-            targetFormality: strategy.targetFormality,
-          } : null,
-        });
-      }
-
-      // Log telemetry with Phase 2 data
-      if (capabilities) {
-        const telemetry: EnhancementTelemetry = {
-          modelId: currentModelId || 'unknown',
-          gpuTier: capabilities.gpuTier,
-          gpuInfo: capabilities.gpuInfo?.description,
-          downloadTime: 0, // Model was already loaded
-          processingTime: enhancementResult.processingTime,
-          transcriptLength: transcript.length,
-          enhancedLength: enhancementResult.enhancedText.length,
-          fillerWordsRemoved: enhancementResult.improvements.fillerCount,
-          tokensGenerated: enhancementResult.tokensGenerated || 0,
-          wasCached: true, // Model was loaded, so this is a cached run
-          timestamp: new Date().toISOString(),
-        };
-        logEnhancementMetrics(telemetry);
-      }
-
-      return enhancementResult;
-
+      return result;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Enhancement failed';
-      console.error('[EnhancerContext] Enhancement failed:', errorMsg);
-      
-      setError(errorMsg);
-      setProgress({
-        stage: 'error',
-        progress: 0,
-        message: errorMsg,
-      });
-      
+      const msg = err instanceof Error ? err.message : 'Enhancement failed';
+      setError(msg);
+      setProgress({ stage: 'error', progress: 0, message: msg });
       throw err;
     } finally {
       setIsEnhancing(false);
-      currentRequestIdRef.current = null;
     }
-  }, [isModelLoaded, isEnhancing, useContextAwarePrompts, capabilities, currentModelId]);
+  }, [isModelLoaded, isEnhancing, capabilities, currentModelId, getEngine]);
 
   // ============================================================================
-  // Cancellation
+  // cancel / reset
   // ============================================================================
 
-  /**
-   * Cancel ongoing enhancement
-   */
   const cancelEnhancement = useCallback(() => {
-    if (!isEnhancing || !workerRef.current) {
-      return;
-    }
-
-    console.log('[EnhancerContext] Cancelling enhancement...');
-
-    workerRef.current.sendRequest('cancel', {}, { timeoutMs: 5000 })
-      .catch(err => console.warn('[EnhancerContext] Cancel request failed:', err));
-
+    if (!isEnhancing) return;
+    engineRef.current?.cancel();
     setIsEnhancing(false);
-    setProgress({
-      stage: 'cancelled',
-      progress: 0,
-      message: 'Enhancement cancelled',
-    });
+    setProgress({ stage: 'cancelled', progress: 0, message: 'Enhancement cancelled' });
   }, [isEnhancing]);
 
-  // ============================================================================
-  // Reset & Cleanup
-  // ============================================================================
-
-  /**
-   * Full reset - unload model and clear all state
-   */
-  /**
-   * Reset engine and clear cache
-   * Use this when the engine is corrupted/hung
-   */
   const resetEngine = useCallback(async () => {
-    console.log('[EnhancerContext] Resetting engine and clearing cache...');
-
-    // Cancel any ongoing operation
-    if (isEnhancing) {
-      cancelEnhancement();
+    if (isEnhancing) cancelEnhancement();
+    if (engineRef.current) {
+      await engineRef.current.reset();
     }
-
-    // Reset worker with cache clearing
-    if (workerRef.current) {
-      try {
-        await workerRef.current.sendRequest('reset', {}, { timeoutMs: 30000 });
-        console.log('[EnhancerContext] Engine reset complete');
-      } catch (err) {
-        console.error('[EnhancerContext] Reset request failed:', err);
-      }
-    }
-
-    // Reset all state
     setIsModelLoaded(false);
     setIsModelLoading(false);
     setModelLoadProgress(0);
@@ -731,20 +244,8 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
   }, [isEnhancing, cancelEnhancement]);
 
   const reset = useCallback(() => {
-    console.log('[EnhancerContext] Resetting...');
-
-    // Cancel any ongoing operation
-    if (isEnhancing) {
-      cancelEnhancement();
-    }
-
-    // Reset worker
-    if (workerRef.current) {
-      workerRef.current.sendRequest('reset', {}, { timeoutMs: 5000 })
-        .catch(err => console.warn('[EnhancerContext] Reset request failed:', err));
-    }
-
-    // Reset all state
+    if (isEnhancing) cancelEnhancement();
+    engineRef.current?.reset().catch(() => {});
     setIsModelLoaded(false);
     setIsModelLoading(false);
     setModelLoadProgress(0);
@@ -755,56 +256,32 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
     setLastResult(null);
   }, [isEnhancing, cancelEnhancement]);
 
-  /**
-   * Clear error state
-   */
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
-  /**
-   * Clear last result
-   */
-  const clearResult = useCallback(() => {
-    setLastResult(null);
-  }, []);
+  const clearError = useCallback(() => setError(null), []);
+  const clearResult = useCallback(() => setLastResult(null), []);
 
   // ============================================================================
-  // Context Value
+  // Context value
   // ============================================================================
 
   const value: EnhancerContextType = {
-    // Hardware
     capabilities,
     isCheckingHardware,
     hardwareError,
-    
-    // Model state
     isModelLoaded,
     isModelLoading,
     modelLoadProgress,
     currentModelId,
-    
-    // Enhancement state
     isEnhancing,
     progress,
     error,
-    
-    // Results
     lastResult,
-    
-    // Phase 2: Metadata and Strategy
     lastMetadata,
     lastStrategy,
     useContextAwarePrompts,
-    
-    // Download state
     totalDownloadMB,
     showResumePrompt,
     savedDownloadState,
     dismissResumePrompt,
-    
-    // Actions
     loadModel,
     enhance,
     cancelEnhancement,
@@ -820,4 +297,3 @@ export function EnhancerProvider({ children }: EnhancerProviderProps) {
     </EnhancerContext.Provider>
   );
 }
-
