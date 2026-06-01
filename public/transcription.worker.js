@@ -7,14 +7,26 @@
  * NOTE: This is an ES Module worker (type="module")
  */
 
-// Import Transformers.js using ES module syntax
-import { pipeline, env } from '/transformers.min.js';
+// Disable ONNX multi-thread proxy BEFORE transformers.min.js evaluates it.
+// Firefox COEP (require-corp) blocks blob: URL workers; numThreads=1 tells
+// ONNX not to create the threading sub-worker at module-init time.
+self.ort = self.ort ?? {};
+self.ort.env = self.ort.env ?? {};
+self.ort.env.wasm = { numThreads: 1 };
+
+// Dynamic import so the synchronous pre-config above executes first.
+// The ?v=2 suffix creates a new module-cache key, bypassing any corrupted
+// cache entry left behind by an earlier Strict-Mode-race termination.
+// Bump this version whenever transformers.min.js is replaced.
+const { pipeline, env } = await import('/transformers.min.js?v=2');
 
 // CONFIGURATION: On-demand model downloading
-env.allowLocalModels = true;  // Check local cache first
-env.allowRemoteModels = true; // Download from Hugging Face if not cached
-env.localModelPath = '/models/'; // Path to models folder (relative to public/)
-env.useBrowserCache = true;   // Cache downloaded models in browser
+env.allowLocalModels = true;
+env.allowRemoteModels = true;
+env.localModelPath = '/models/';
+env.useBrowserCache = true;
+// Belt-and-suspenders: enforce single-thread via the transformers.js API as well.
+if (env.backends?.onnx?.wasm) env.backends.onnx.wasm.numThreads = 1;
 
 console.log('[Worker] Configured for on-demand model downloading');
 console.log('[Worker] Local path:', env.localModelPath);

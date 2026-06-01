@@ -20,6 +20,7 @@ const inspect: StateViewStrategy = {
     transcriptionProgress,
     transcriptionMode,
     fastModeEnabled,
+    transcriptionError,
     largeFileBanner,
     onModelSelect,
     onModeChange,
@@ -85,6 +86,7 @@ const inspect: StateViewStrategy = {
           isFFmpegLoading={isFFmpegLoading}
           isModelLoaded={isModelLoaded}
           modelLoadingProgress={transcriptionProgress}
+          transcriptionError={transcriptionError}
         />
       </>
     );

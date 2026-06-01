@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useMemo, useCallback } from "react";
+import { AlertTriangle } from "lucide-react";
 import {
   ActionSelector,
   type ActionSelectorHandle,
@@ -46,6 +47,7 @@ export function InspectStateView({
   isFFmpegLoading = false,
   isModelLoaded,
   modelLoadingProgress,
+  transcriptionError = null,
 }: InspectStateViewProps) {
   const fastModeEnabled = isFeatureEnabled("ENABLE_FAST_MODE");
   const kindStrategy = getFileKindStrategy(file);
@@ -76,6 +78,24 @@ export function InspectStateView({
   return (
     <div className="animate-in fade-in duration-500 max-w-[1480px] mx-auto px-4 pb-24">
       <FileStrip file={file} kindStrategy={kindStrategy} onBack={onBack} />
+
+      {transcriptionError && (
+        <div className="mb-4 rounded-xl border border-red-500/40 bg-[oklch(28%_0.12_15_/_0.7)] p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-red-300 mb-0.5">Transcription worker failed to start</p>
+            <p className="text-xs text-red-200/80">{transcriptionError}</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-xs bg-red-700 hover:bg-red-600 text-white font-semibold py-1.5 px-3 rounded transition-colors whitespace-nowrap shrink-0"
+            title="Or press Ctrl+Shift+R for a hard refresh"
+          >
+            Hard refresh
+          </button>
+        </div>
+      )}
+
       <FFmpegBanner isFFmpegLoaded={isFFmpegLoaded} isFFmpegLoading={isFFmpegLoading} />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-6">

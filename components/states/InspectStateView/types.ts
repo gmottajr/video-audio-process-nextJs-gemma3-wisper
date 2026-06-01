@@ -24,6 +24,7 @@ export interface InspectStateViewProps {
   isFFmpegLoading?: boolean;
   isModelLoaded: boolean;
   modelLoadingProgress: number;
+  transcriptionError?: string | null;
 }
 
 export type FileKind = "video" | "audio" | "unknown";

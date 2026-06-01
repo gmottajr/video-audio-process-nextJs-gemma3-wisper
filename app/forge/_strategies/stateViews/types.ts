@@ -60,6 +60,9 @@ export interface ForgePageBag {
   onModeChange: (mode: TranscriptionMode) => void;
   onRetry: () => void;
 
+  // Transcription worker error (null when healthy)
+  transcriptionError: string | null;
+
   // Hardware / large-file banner
   hardware: unknown;
   largeFileBanner: LargeFileBannerBag;

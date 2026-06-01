@@ -71,26 +71,30 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
   const [currentModel, setCurrentModel] = useState<string | null>(null);
   
   /**
-   * Initialize WorkerManager ONCE on mount
+   * Initialize WorkerManager ONCE on mount.
+   * Deferred by one macrotask so React Strict Mode's first-mount teardown
+   * fully completes before the second Worker starts, preventing a corrupted
+   * browser module-cache entry for transformers.min.js under COEP.
    */
   useEffect(() => {
-    console.log('[TranscriberContext] 🚀 Initializing WorkerManager...');
-    
-    try {
-      workerManagerRef.current = new WorkerManager('/transcription.worker.js');
-      console.log('[TranscriberContext] ✅ WorkerManager initialized');
-      
-      // NOTE: Auto-load disabled to prevent unnecessary model downloads
-      // Models are now loaded on-demand when user selects them in INSPECT state
-      // This is especially important for Fast Mode, which uses its own workers
-      console.log('[TranscriberContext] ℹ️ Model will be loaded on-demand (no auto-load)');
-    } catch (error) {
-      console.error('[TranscriberContext] ❌ Failed to initialize WorkerManager:', error);
-      setError('Failed to initialize transcription worker');
-    }
+    let cancelled = false;
 
-    // Cleanup on unmount
+    const timerId = setTimeout(() => {
+      if (cancelled) return;
+      console.log('[TranscriberContext] 🚀 Initializing WorkerManager...');
+      try {
+        workerManagerRef.current = new WorkerManager('/transcription.worker.js');
+        console.log('[TranscriberContext] ✅ WorkerManager initialized');
+        console.log('[TranscriberContext] ℹ️ Model will be loaded on-demand (no auto-load)');
+      } catch (err) {
+        console.error('[TranscriberContext] ❌ Failed to initialize WorkerManager:', err);
+        if (!cancelled) setError('Failed to initialize transcription worker');
+      }
+    }, 0);
+
     return () => {
+      cancelled = true;
+      clearTimeout(timerId);
       console.log('[TranscriberContext] 🧹 Cleaning up WorkerManager');
       workerManagerRef.current?.dispose();
       workerManagerRef.current = null;
@@ -121,7 +125,7 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
     // The WorkerManager.sendRequest below would throw the same error, but only
     // after the timeout fires. This catches it up-front and sets the UI error state.
     if (workerManagerRef.current.isCrashed()) {
-      const msg = 'Transcription worker crashed on startup (possible COEP/CSP or missing script). Reload the page.';
+      const msg = 'Transcription worker failed to start. This is usually a Firefox + COEP compatibility issue. Try a hard refresh (Ctrl+Shift+R) or switch to Chrome / Brave.';
       console.error('[TranscriberContext] ❌', msg);
       setError(msg);
       setIsModelLoading(false);

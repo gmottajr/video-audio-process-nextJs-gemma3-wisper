@@ -231,8 +231,9 @@ export const MODEL_LOAD_RETRY: RetryOptions = {
   initialDelay: 2000,
   maxDelay: 10000,
   backoffFactor: 2,
-  shouldRetry: (error, attempt) => {
-    // Retry transient errors
+  shouldRetry: (error) => {
+    // A crashed worker cannot recover through retrying — bail immediately.
+    if (error.message.toLowerCase().includes('crashed')) return false;
     return isTransientError(error);
   },
   onRetry: (attempt, error, nextDelay) => {
