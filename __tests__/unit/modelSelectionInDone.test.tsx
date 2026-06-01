@@ -12,6 +12,11 @@ import '@testing-library/jest-dom';
 import { DoneStateView } from '@/components/states/DoneStateView';
 import type { ProcessingResult } from '@/hooks/useMediaProcessor';
 
+// Mock ESM-only @ffmpeg dependency pulled in by audioExtraction
+jest.mock('@/utils/audioExtraction', () => ({
+  extractAudioSegmentFromUrl: jest.fn().mockResolvedValue(new Blob(['audio'], { type: 'audio/wav' })),
+}));
+
 // Mock dependencies
 jest.mock('@/components/WaveformViewer', () => ({
   WaveformViewer: () => <div data-testid="mock-waveform">Mock WaveformViewer</div>,
