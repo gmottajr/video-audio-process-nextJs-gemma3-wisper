@@ -1,785 +1,144 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import gsap from "gsap";
-import { pickPageTransition } from "@/lib/pageTransition";
-import Image from "next/image";
-import { Zap, AlertCircle } from "lucide-react";
-import { AILoadingIndicator } from "@/components/AILoadingIndicator";
-import ModelLoadingScreen from "@/components/ModelLoadingScreen";
-import TranscriptionProgressScreen from "@/components/TranscriptionProgressScreen";
-import { ProcessingVisualizer } from "@/components/ProcessingVisualizer";
-import { IdleStateView } from "@/components/states/IdleStateView";
-import { InspectStateView } from "@/components/states/InspectStateView";
-import { DoneStateView } from "@/components/states/DoneStateView";
-import { ErrorStateView } from "@/components/states/ErrorStateView";
+import { useState, useCallback } from "react";
 import { FontSelector } from "@/components/FontSelector";
 import { ForgeTopBar } from "@/components/ForgeTopBar";
-import { PageHeader } from "@/components/PageHeader";
-import { useAppStateMachine } from "@/hooks/useAppStateMachine";
-import { useMediaProcessor, type ProcessingResult } from "@/hooks/useMediaProcessor";
-import { useResourceMonitor, useHardwareCapability } from "@/hooks/useResourceMonitor";
-import { WHISPER_MODELS, type ModelKey } from "@/components/ModelSelector";
-import { getFormatById } from "@/utils/audioFormats";
-import { getVideoFormatById } from "@/utils/videoFormats";
-import type { ActionType, CompressionType, ActionOptions } from "@/components/ActionSelector";
-import { TranscriptionService } from "@/services/TranscriptionService";
-import { errorHandler } from "@/services/ErrorHandlingService";
-import { extractAudioSegment } from "@/utils/audioExtraction";
-import { useTranscriberFast } from "@/hooks/useTranscriberFast";
-import type { TranscriptionMode } from "@/types/fast-mode";
-import { isFeatureEnabled } from "@/lib/featureFlags";
-import { FastModeProgressIndicator } from "@/components/fast-mode";
-import FastModeProcessingScreen from "@/components/FastModeProcessingScreen";
 import { NeuralNetBackground } from "@/components/NeuralNetBackground";
+import { useAppStateMachine } from "@/hooks/useAppStateMachine";
+import { useMediaProcessor } from "@/hooks/useMediaProcessor";
+import { useResourceMonitor, useHardwareCapability } from "@/hooks/useResourceMonitor";
+import type { ModelKey } from "@/components/ModelSelector";
+import { useTranscriberFast } from "@/hooks/useTranscriberFast";
+import type { TranscriptionMode, DevicePreference } from "@/types/fast-mode";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 
-// 🧪 TEST MODE: Set to true to only process first 30 seconds of audio
-const TEST_MODE = false;
+import { useModelAutoLoad } from "./_hooks/useModelAutoLoad";
+import { useProcessorResultSync } from "./_hooks/useProcessorResultSync";
+import { useLargeFileBanner } from "./_hooks/useLargeFileBanner";
+import { useFFmpegAutoLoad } from "./_hooks/useFFmpegAutoLoad";
+import { useForgeStateAnimations } from "./_hooks/useForgeStateAnimations";
+import { useForgeHandlers } from "./_hooks/useForgeHandlers";
+import { getStateView } from "./_strategies/stateViews/registry";
+import { ForgeProcessingOverlays } from "./_components/ForgeProcessingOverlays";
+import type { ForgePageBag } from "./_strategies/stateViews/types";
 
-/**
- * Main Application Component (Refactored)
- * 
- * Clean architecture using:
- * - useAppStateMachine: Manages state transitions
- * - useMediaProcessor: Orchestrates processing operations
- * - State-specific view components: Clean UI separation
- * 
- * Reduced from 597 lines to ~250 lines! 🎉
- */
 export default function Home() {
-  const contentRef = useRef<HTMLDivElement>(null);
-  const prevStateRef = useRef<string | null>(null);
-
-  // Participates in the global transition-type rotation — same rule as landing
-  // and music pages: picked once per mount, always differs from previous page.
-  const [transitionType] = useState(() => pickPageTransition());
-
-  // State machine
   const stateMachine = useAppStateMachine();
-  
-  // Media processor
   const processor = useMediaProcessor();
-  
-  // Service layer (Phase 2 refactoring)
-  const transcriptionService = useMemo(
-    () => new TranscriptionService(processor),
-    [processor]
-  );
-  
-  // Model selection
+
   const [selectedModelKey, setSelectedModelKey] = useState<ModelKey>("base");
-  
-  // Transcription mode (Fast Mode)
   const [transcriptionMode, setTranscriptionMode] = useState<TranscriptionMode>("standard");
-  const fastModeEnabled = isFeatureEnabled('ENABLE_FAST_MODE');
+  const fastModeEnabled = isFeatureEnabled("ENABLE_FAST_MODE");
   const fastTranscriber = useTranscriberFast();
-
-  // Large-file banner dismiss (resets when a new file is selected)
-  const [dismissedLargeFileBanner, setDismissedLargeFileBanner] = useState(false);
-  const LARGE_FILE_BYTES = 500 * 1024 * 1024; // 500 MB
-  
-  // `fastTranscriber` returns a new object every render, so it cannot be a useCallback dep
-  // without recreating the callback every render and causing an infinite loop in
-  // InspectStateView's worker-config effect. Destructure the stable method reference instead.
   const updateFastConfig = fastTranscriber.updateConfig;
-  const handleWorkerConfigChange = useCallback((config: { workers: number; useGPU: boolean; memoryBudgetMB: number; devicePreference: import('@/types/fast-mode').DevicePreference }) => {
-    updateFastConfig({
-      maxWorkers: config.workers,
-      memoryBudgetMB: config.memoryBudgetMB,
-      devicePreference: config.devicePreference,
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [updateFastConfig]);
-  
-  // Auto-load model when entering INSPECT state
-  // - Standard Mode: Load selected model for standard transcriber
-  // - Fast Mode: Skip (parallel workers load their own models dynamically)
-  useEffect(() => {
-    if (stateMachine.state === 'INSPECT' && stateMachine.selectedFile) {
-      if (transcriptionMode === 'fast' && fastModeEnabled) {
-        // Fast Mode: Don't preload - workers will load the selected model when transcription starts
-        console.log(`[App] Fast Mode - workers will load model: ${WHISPER_MODELS[selectedModelKey].id}`);
-      } else {
-        // Standard Mode: Load the selected model
-        const modelToLoad = WHISPER_MODELS[selectedModelKey].id;
-        console.log('[App] Standard Mode - loading model:', modelToLoad);
-        processor.transcriber.loadModel(modelToLoad);
-      }
-    }
-  }, [stateMachine.state, stateMachine.selectedFile, transcriptionMode, fastModeEnabled, selectedModelKey, processor.transcriber]);
 
-  // Debug: Log Fast Mode state changes
-  useEffect(() => {
-    console.log(`[App] 🎬 Fast Mode UI State: mode="${fastTranscriber.mode}", enabled=${fastModeEnabled}, transcriptionMode="${transcriptionMode}"`);
-    console.log(`[App] 🎬 Should show ModelLoadingScreen: ${fastModeEnabled && transcriptionMode === 'fast' && fastTranscriber.mode === 'initializing'}`);
-    console.log(`[App] 🎬 Should show Processing Overlay: ${fastModeEnabled && transcriptionMode === 'fast' && fastTranscriber.mode === 'processing'}`);
-  }, [fastTranscriber.mode, fastModeEnabled, transcriptionMode]);
-  
-  // Hardware capability
+  const handleWorkerConfigChange = useCallback(
+    (config: { workers: number; useGPU: boolean; memoryBudgetMB: number; devicePreference: DevicePreference }) => {
+      updateFastConfig({ maxWorkers: config.workers, memoryBudgetMB: config.memoryBudgetMB, devicePreference: config.devicePreference });
+    },
+    [updateFastConfig]
+  );
+
   const hardwareCapability = useHardwareCapability();
-  
-  // Resource monitoring
   const { memoryUsageMB, isHighLoad } = useResourceMonitor({
     isActive: stateMachine.state === "PROCESSING" || processor.isFFmpegLoading,
   });
 
-  // Reset large-file banner when a new file is selected
-  useEffect(() => {
-    setDismissedLargeFileBanner(false);
-  }, [stateMachine.selectedFile?.name]);
+  const largeFileBanner = useLargeFileBanner(stateMachine.selectedFile);
+  const { contentRef } = useForgeStateAnimations(stateMachine.state);
 
-  // Track which file has been probed to prevent re-probing
-  const [probedFileName, setProbedFileName] = useState<string | null>(null);
+  useModelAutoLoad({
+    state: stateMachine.state, selectedFile: stateMachine.selectedFile,
+    transcriptionMode, fastModeEnabled, selectedModelKey,
+    loadModel: processor.transcriber.loadModel,
+  });
 
-  // Entrance animation — style matches the global transition type for this visit
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    const from: gsap.TweenVars =
-      transitionType === "dive"     ? { z: -280, scale: 0.86, opacity: 0 } :
-      transitionType === "orbital"  ? { rotationY: -28, x: -80, opacity: 0 } :
-      /* parallax */                  { y: 80, opacity: 0 };
-    gsap.fromTo(el, from,
-      { z: 0, scale: 1, rotationY: 0, x: 0, y: 0, opacity: 1, duration: 1.05, ease: "power3.out", force3D: true },
-    );
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useFFmpegAutoLoad({
+    state: stateMachine.state, selectedFile: stateMachine.selectedFile,
+    isFFmpegLoaded: processor.isFFmpegLoaded, isFFmpegLoading: processor.isFFmpegLoading,
+    ffmpeg: processor.ffmpeg, failProcessing: stateMachine.failProcessing,
+  });
 
-  // State-transition animation — direction/style follows transition type
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el || prevStateRef.current === stateMachine.state) return;
-    const prev = prevStateRef.current;
-    prevStateRef.current = stateMachine.state;
-    if (prev === null) return; // skip initial render
+  useProcessorResultSync({
+    processorResult: processor.result, processorError: processor.error,
+    state: stateMachine.state, currentAction: stateMachine.currentAction,
+    completeProcessing: stateMachine.completeProcessing, failProcessing: stateMachine.failProcessing,
+  });
 
-    // For orbital, alternate direction based on whether we're going "forward" or "back"
-    const forward = ["IDLE","INSPECT","PROCESSING","DONE"].indexOf(stateMachine.state) >
-                    ["IDLE","INSPECT","PROCESSING","DONE"].indexOf(prev ?? "");
-
-    const from: gsap.TweenVars =
-      transitionType === "dive"
-        ? { z: -160, scale: 0.91, opacity: 0 }
-        : transitionType === "orbital"
-        ? { rotationY: forward ? -20 : 20, x: forward ? -60 : 60, opacity: 0 }
-        : { y: 60, opacity: 0 };
-
-    gsap.fromTo(el, from,
-      { z: 0, scale: 1, rotationY: 0, x: 0, y: 0, opacity: 1, duration: 0.55, ease: "power2.out", force3D: true },
-    );
-  }, [stateMachine.state, transitionType]);
-
-  // Auto-load FFmpeg on mount (only once)
-  useEffect(() => {
-    const initFFmpeg = async () => {
-      try {
-        await processor.ffmpeg.load();
-        console.log("[App] FFmpeg initialized");
-      } catch (error) {
-        console.error("[App] FFmpeg initialization error:", error);
-        stateMachine.failProcessing(`Failed to initialize FFmpeg: ${error}`);
-      }
-    };
-
-    initFFmpeg();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - only run once on mount
-
-  // Ensure FFmpeg is loaded when entering INSPECT state
-  // This handles cases where FFmpeg was reset/terminated and needs reloading
-  useEffect(() => {
-    const ensureFFmpegLoaded = async () => {
-      if (
-        stateMachine.state === "INSPECT" &&
-        !processor.isFFmpegLoaded &&
-        !processor.isFFmpegLoading
-      ) {
-        console.log("[App] FFmpeg not loaded in INSPECT state, reloading...");
-        try {
-          await processor.ffmpeg.load();
-          console.log("[App] FFmpeg reloaded successfully");
-        } catch (error) {
-          console.error("[App] FFmpeg reload failed:", error);
-        }
-      }
-    };
-
-    ensureFFmpegLoaded();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stateMachine.state, processor.isFFmpegLoaded, processor.isFFmpegLoading]);
-
-  // Probe file metadata when entering INSPECT state (only once per file)
-  useEffect(() => {
-    const probeFile = async () => {
-      if (
-        stateMachine.state === "INSPECT" &&
-        stateMachine.selectedFile &&
-        processor.isFFmpegLoaded &&
-        probedFileName !== stateMachine.selectedFile.name // ✅ Only probe if not already probed
-      ) {
-        try {
-          console.log("[App] Probing file for metadata:", stateMachine.selectedFile.name);
-          await processor.ffmpeg.probeFile(stateMachine.selectedFile);
-          setProbedFileName(stateMachine.selectedFile.name); // ✅ Mark as probed
-          console.log("[App] File metadata extracted");
-        } catch (error) {
-          console.error("[App] Failed to probe file:", error);
-          // Don't fail the whole process - metadata extraction is optional
-        }
-      }
-    };
-
-    probeFile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stateMachine.state, stateMachine.selectedFile, processor.isFFmpegLoaded, probedFileName]);
-
-  // Reset probed file name when returning to IDLE
-  useEffect(() => {
-    if (stateMachine.state === "IDLE") {
-      setProbedFileName(null);
-    }
-  }, [stateMachine.state]);
-
-  // Sync transcription result to state machine
-  useEffect(() => {
-    if (
-      processor.result?.type === "transcription" &&
-      stateMachine.state === "PROCESSING" &&
-      stateMachine.currentAction === "transcribe"
-    ) {
-      console.log("[App] Transcription complete, transitioning to DONE");
-      stateMachine.completeProcessing(processor.result);
-    }
-  }, [processor.result, stateMachine]);
-
-  // Handle transcription errors
-  useEffect(() => {
-    if (processor.error && stateMachine.state === "PROCESSING") {
-      stateMachine.failProcessing(processor.error);
-    }
-  }, [processor.error, stateMachine]);
-
-  // Cleanup on unmount only (not on processor state changes)
-  useEffect(() => {
-    return () => {
-      processor.cleanup();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - only cleanup when component unmounts
-
-  /**
-   * Handle action start
-   */
-  const handleAction = async (
-    action: ActionType,
-    formatId: string,
-    options?: ActionOptions
-  ) => {
-    if (!stateMachine.selectedFile || !processor.isFFmpegLoaded) {
-      return;
-    }
-
-    // Start processing in state machine
-    stateMachine.startProcessing(action, formatId, { 
-      normalizeAudio: options?.normalizeAudio,
-      compressionType: options?.compressionType 
+  const { handleAction, handleDownload, handleReset, handleModelSelect, handleTranscribeFromDone } =
+    useForgeHandlers({
+      stateMachine, processor, transcriptionMode, selectedModelKey,
+      fastModeEnabled, fastTranscriber, setSelectedModelKey,
     });
 
-    try {
-      let fileToProcess: File = stateMachine.selectedFile;
-      
-      // Handle segment extraction for audio files
-      if (options?.segment && stateMachine.selectedFile.type.startsWith("audio/")) {
-        console.log("[App] Extracting audio segment:", options.segment);
-        
-        // Create blob from the original audio file
-        const originalBlob = new Blob([await stateMachine.selectedFile.arrayBuffer()], {
-          type: stateMachine.selectedFile.type
-        });
-        
-        // Extract the segment
-        const segmentBlob = await extractAudioSegment(
-          originalBlob,
-          options.segment.startTime,
-          options.segment.endTime
-        );
-        
-        // Create a new File from the segment blob
-        const segmentFileName = `segment_${options.segment.startTime.toFixed(1)}-${options.segment.endTime.toFixed(1)}_${stateMachine.selectedFile.name}`;
-        fileToProcess = new File([segmentBlob], segmentFileName, {
-          type: "audio/wav"
-        });
-        
-        console.log("[App] Segment extracted:", fileToProcess.name, fileToProcess.size, "bytes");
-      }
-      
-      // Check if this is a transcription action with Fast Mode parallel processing enabled
-      const shouldUseFastMode = 
-        action === 'transcribe' && 
-        transcriptionMode === 'fast' && 
-        fastModeEnabled && 
-        isFeatureEnabled('ENABLE_PARALLEL_WORKERS');
-      
-      if (shouldUseFastMode) {
-        console.log("[App] 🚀 Using Fast Mode with parallel processing");
-        await handleFastModeTranscription(fileToProcess, options);
-        return;
-      }
-      
-      // Run standard processing
-      // For Fast Mode UI (without parallel), ensure Distil-Whisper is used and enhancements are disabled
-      const effectiveModelKey = transcriptionMode === 'fast' ? 'distil-small' : selectedModelKey;
-      const effectiveNormalizeAudio = transcriptionMode === 'fast' ? false : (options?.normalizeAudio ?? false);
-      const effectiveCompressionType = transcriptionMode === 'fast' ? 'none' : (options?.compressionType ?? 'none');
-      
-      const result = await processor.processFile(
-        fileToProcess,
-        action,
-        formatId,
-        {
-          resolutionId: options?.resolutionId,
-          modelKey: effectiveModelKey,
-          testMode: TEST_MODE,
-          normalizeAudio: effectiveNormalizeAudio,
-          compressionType: effectiveCompressionType,
-        }
-      );
-
-      // Complete (unless it's transcription - handled by useEffect)
-      if (result.type !== "transcription") {
-        stateMachine.completeProcessing(result);
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error("[App] Processing failed:", errorMessage);
-      stateMachine.failProcessing(`Processing failed: ${errorMessage}`);
-    }
-  };
-  
-  /**
-   * Handle Fast Mode transcription with parallel processing
-   */
-  const handleFastModeTranscription = async (
-    file: File,
-    options?: ActionOptions
-  ) => {
-    try {
-      // Get the selected model ID for Fast Mode
-      const modelId = WHISPER_MODELS[selectedModelKey].id;
-      console.log(`[App] Starting Fast Mode transcription with model: ${modelId}`);
-      
-      // Update Fast Mode config with selected model
-      fastTranscriber.updateConfig({ modelId });
-      
-      // Prepare audio for AI (16kHz mono WAV — pcm_s16le)
-      const audioBlob = await processor.ffmpeg.prepareAudioForAI(
-        file,
-        undefined,
-        options?.testMode ? 30 : undefined
-      );
-
-      // Read duration from WAV header only (no full decode — avoids loading entire file)
-      const { getWavDurationFromHeader } = await import('@/utils/audioDataExtraction');
-      const duration = await getWavDurationFromHeader(audioBlob);
-
-      console.log(`[App] Audio prepared: ${(audioBlob.size / 1024 / 1024).toFixed(1)}MB WAV, ${duration.toFixed(2)}s`);
-
-      // Start fast transcription using streaming — decodes chunk-by-chunk from the WAV blob
-      const transcriptionResult = await fastTranscriber.transcribeFromWav(audioBlob, duration);
-      
-      // Check for errors
-      if (fastTranscriber.error) {
-        throw new Error(fastTranscriber.error);
-      }
-      
-      // Get result - use the returned value directly instead of state
-      if (transcriptionResult) {
-        const result: ProcessingResult = {
-          type: "transcription",
-          transcription: {
-            text: transcriptionResult.text,
-            chunks: transcriptionResult.segments.map(seg => ({
-              text: seg.text,
-              timestamp: [seg.start, seg.end] as [number, number | null],
-            })),
-            // Include processingTime for StatisticsModal
-            processingTime: transcriptionResult.processingTime,
-          },
-          metadata: {
-            compressionType: 'none',
-            normalized: false,
-            fastMode: true,
-            workersUsed: transcriptionResult.workersUsed,
-            processingTime: transcriptionResult.processingTime,
-            modelId: WHISPER_MODELS[selectedModelKey].id,
-          },
-        };
-        
-        stateMachine.completeProcessing(result);
-        console.log("[App] ✅ Fast Mode transcription complete");
-      } else {
-        // No result returned - transcription was cancelled or failed silently
-        console.warn("[App] Fast Mode transcription returned no result");
-        stateMachine.failProcessing("Transcription failed or was cancelled. Try again or switch to Standard mode.");
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.error("[App] Fast Mode transcription failed:", errorMessage);
-      stateMachine.failProcessing(`Fast Mode transcription failed: ${errorMessage}`);
-    }
-  };
-
-  /**
-   * Handle download
-   */
-  const handleDownload = () => {
-    const { result, selectedFile, selectedFormatId } = stateMachine;
-    
-    if (!result?.blobUrl || !selectedFile || !selectedFormatId) return;
-
-    const format =
-      result.type === "audio"
-        ? getFormatById(selectedFormatId)
-        : getVideoFormatById(selectedFormatId);
-
-    if (!format) return;
-
-    const link = document.createElement("a");
-    link.href = result.blobUrl;
-    link.download = `${selectedFile.name.split(".")[0]}-converted${format.extension}`;
-    link.click();
-  };
-
-  /**
-   * Handle reset
-   */
-  const handleReset = async () => {
-    await processor.reset();
-    stateMachine.reset();
-  };
-
-  /**
-   * Handle model selection
-   */
-  const handleModelSelect = (modelKey: ModelKey) => {
-    setSelectedModelKey(modelKey);
-    processor.transcriber.loadModel(WHISPER_MODELS[modelKey].id);
-  };
-
-  /**
-   * Handle transcribe from done state (REFACTORED - Phase 2)
-   * Transcribe an already processed audio file with optional enhancements
-   * 
-   * Simplified using TranscriptionService and ErrorHandlingService
-   */
-  const handleTranscribeFromDone = async (
-    compressionType: CompressionType, 
-    normalizeAudio: boolean,
-    modelKey: ModelKey,
-    segmentFile?: File
-  ) => {
-    console.log("[App] Transcribing from done state with enhancements:", { 
-      compressionType, 
-      normalizeAudio, 
-      modelKey,
-      isSegment: !!segmentFile 
-    });
-
-    // Transition to processing state
-    stateMachine.startProcessing("transcribe", "", { compressionType, normalizeAudio });
-
-    try {
-      // If segment file provided, create a temporary result for it
-      if (segmentFile) {
-        console.log("[App] Transcribing SEGMENT file:", segmentFile.name, segmentFile.size);
-        
-        // Create a blob URL for the segment
-        const segmentBlobUrl = URL.createObjectURL(segmentFile);
-        
-        // Create a temporary result object for the segment
-        const segmentResult: ProcessingResult = {
-          type: "audio",
-          blobUrl: segmentBlobUrl,
-          metadata: {
-            format: "wav",
-            size: segmentFile.size,
-            compressionType: "none",
-            normalized: false,
-          }
-        };
-        
-        // Transcribe the segment using the standard flow
-        await transcriptionService.transcribeFromResult(
-          segmentResult,
-          segmentFile.name,
-          {
-            modelKey,
-            compressionType,
-            normalizeAudio,
-            testMode: TEST_MODE,
-          }
-        );
-        
-        // Clean up the temporary blob URL after transcription
-        URL.revokeObjectURL(segmentBlobUrl);
-      } else {
-        console.log("[App] Transcribing FULL audio from result");
-        
-        // Delegate all business logic to TranscriptionService
-        await transcriptionService.transcribeFromResult(
-          stateMachine.result,
-          stateMachine.selectedFile?.name,
-          {
-            modelKey,
-            compressionType,
-            normalizeAudio,
-            testMode: TEST_MODE,
-          }
-        );
-      }
-
-      // Success - result will be handled by useEffect watching processor.result
-      console.log("[App] Transcription from done state completed successfully");
-    } catch (error) {
-      // Delegate error handling to ErrorHandlingService
-      const userMessage = errorHandler.handleError(error, "Transcription from done");
-      stateMachine.failProcessing(userMessage);
-    }
+  const pageBag: ForgePageBag = {
+    selectedFile: stateMachine.selectedFile,
+    selectedFormatId: stateMachine.selectedFormatId,
+    result: stateMachine.result,
+    error: stateMachine.error,
+    isFFmpegLoaded: processor.isFFmpegLoaded,
+    isFFmpegLoading: processor.isFFmpegLoading,
+    isModelLoading: processor.isModelLoading,
+    isModelLoaded: processor.isModelLoaded,
+    isTranscribing: processor.isTranscribing,
+    transcriptionProgress: processor.transcriptionProgress,
+    currentModel: processor.currentModel,
+    ffmpegMetrics: processor.ffmpegMetrics,
+    memoryUsageMB,
+    selectedModelKey,
+    transcriptionMode,
+    fastModeEnabled,
+    processingStartTime: stateMachine.processingStartTime,
+    processingEndTime: stateMachine.processingEndTime,
+    onFileSelect: stateMachine.selectFile,
+    onAction: handleAction,
+    onDownload: handleDownload,
+    onReset: handleReset,
+    onModelSelect: handleModelSelect,
+    onTranscribeFromDone: handleTranscribeFromDone,
+    onWorkerConfigChange: handleWorkerConfigChange,
+    onModeChange: setTranscriptionMode,
+    onRetry: stateMachine.retry,
+    hardware: hardwareCapability,
+    largeFileBanner,
   };
 
   return (
     <main className="relative isolate min-h-screen overflow-x-hidden bg-aura-canvas text-zinc-100">
-      {/* Static monochrome-violet gradient mesh */}
       <div className="pointer-events-none fixed inset-0 mesh-minimal" aria-hidden />
-      {/* Neural network canvas */}
       <NeuralNetBackground />
       <div
         className="pointer-events-none fixed inset-0 bg-[url('/aura-noise.svg')] opacity-[0.22] mix-blend-overlay [background-size:220px_220px]"
         aria-hidden
       />
 
-      {/* ── FIXED OVERLAYS ────────────────────────────────────────────────────
-          Must live here, outside contentRef (div.z-10 below).
-          GSAP's fromTo animations leave transform:matrix3d(identity) on
-          contentRef after each transition. Per CSS spec, any element with a
-          non-none transform becomes the containing block for position:fixed
-          descendants, clamping inset-0 overlays to contentRef's ~100px height
-          in PROCESSING state instead of filling the full viewport. */}
-
-      {/* Font Selector */}
+      {/* ── FIXED OVERLAYS (outside contentRef so GSAP transforms don't clip them) ── */}
       <FontSelector />
+      <ForgeProcessingOverlays
+        state={stateMachine.state}
+        currentAction={stateMachine.currentAction}
+        selectedFormatId={stateMachine.selectedFormatId}
+        transcriptionMode={transcriptionMode}
+        fastModeEnabled={fastModeEnabled}
+        fastTranscriber={fastTranscriber}
+        processor={processor}
+        onCancel={async () => { await processor.cancel(); stateMachine.cancelProcessing(); }}
+        onNavigate={handleReset}
+        cancelFastMode={fastTranscriber.cancel}
+        cancelProcessing={stateMachine.cancelProcessing}
+        isHighLoad={isHighLoad}
+        onSwitchToFastMode={() => setTranscriptionMode("fast")}
+      />
 
-      {/* AI Model Loading Indicator (Standard Mode only) */}
-      {!(fastModeEnabled && transcriptionMode === 'fast') && (
-        <AILoadingIndicator
-          isLoading={processor.isModelLoading}
-          isLoaded={processor.isModelLoaded}
-          progress={processor.transcriptionProgress}
-          message={processor.transcriptionMessage}
-        />
-      )}
-
-      {/* Transcription Progress Overlay (Standard Mode only) */}
-      {processor.isTranscribing &&
-        stateMachine.state !== "DONE" &&
-        stateMachine.state !== "ERROR" &&
-        !(fastModeEnabled && transcriptionMode === 'fast') && <TranscriptionProgressScreen />}
-
-      {/* Fast Mode Model Loading Screen */}
-      {fastModeEnabled &&
-        transcriptionMode === 'fast' &&
-        fastTranscriber.mode === 'initializing' && (
-          <ModelLoadingScreen
-            progress={fastTranscriber.progress.percent}
-            modelName="Distil-Whisper (Fast Mode)"
-            onCancel={() => {
-              fastTranscriber.cancel();
-              stateMachine.cancelProcessing();
-            }}
-          />
-        )}
-
-      {/* Fast Mode Progress — full-screen overlay with chunk-map + workers + phased pipeline */}
-      {fastModeEnabled &&
-        transcriptionMode === 'fast' &&
-        fastTranscriber.mode === 'processing' && (
-          <FastModeProcessingScreen
-            progress={fastTranscriber.progress}
-            onCancel={() => {
-              fastTranscriber.cancel();
-              stateMachine.cancelProcessing();
-            }}
-          />
-        )}
-
-      {/* Processing Overlay (FFmpeg operations).
-          Also covers the Fast Mode audio-prep gap: ffmpeg.prepareAudioForAI runs before
-          fastTranscriber starts, so fastTranscriber.mode is still 'idle' during that phase. */}
-      {(() => {
-        const isFastModeTranscribe = fastModeEnabled && transcriptionMode === 'fast' && stateMachine.currentAction === 'transcribe';
-        const isFastModePrep = isFastModeTranscribe && fastTranscriber.mode === 'idle';
-        const show = stateMachine.state === "PROCESSING" &&
-          !processor.isTranscribing &&
-          (!isFastModeTranscribe || isFastModePrep);
-        if (!show) return null;
-        return (
-          <ProcessingVisualizer
-            progress={isFastModePrep ? processor.ffmpeg.progress : processor.status.progress}
-            speed={isFastModePrep ? null : (typeof processor.status.speed === 'number' ? processor.status.speed : null)}
-            phase={isFastModePrep ? "processing" : processor.status.phase}
-            formatName={
-              stateMachine.currentAction === "transcribe"
-                ? "AI"
-                : stateMachine.currentAction === "convert_video"
-                ? getVideoFormatById(stateMachine.selectedFormatId || "")?.name
-                : getFormatById(stateMachine.selectedFormatId || "")?.name
-            }
-            onCancel={async () => {
-              await processor.cancel();
-              stateMachine.cancelProcessing();
-            }}
-            onNavigate={handleReset}
-          />
-        );
-      })()}
-
-      {/* High Memory Warning — Standard Mode only (Fast Mode handles any file size) */}
-      {isHighLoad && stateMachine.state === "PROCESSING" && transcriptionMode !== 'fast' && (
-        <div className="fixed bottom-4 right-4 bg-yellow-950/90 border-2 border-yellow-500/50 rounded-lg p-4 max-w-sm backdrop-blur-sm z-50">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-yellow-400 text-sm mb-1">
-                File Too Large for Standard Mode
-              </h3>
-              <p className="text-xs text-yellow-300 mb-3">
-                Memory is running high. <strong>Fast Mode</strong> is built for large files — it processes audio in small chunks so file size doesn&apos;t matter.
-              </p>
-              {fastModeEnabled && (
-                <button
-                  onClick={() => setTranscriptionMode('fast')}
-                  className="w-full text-xs bg-yellow-500 hover:bg-yellow-400 text-black font-semibold py-1.5 px-3 rounded transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <Zap className="w-3.5 h-3.5" />
-                  Switch to Fast Mode
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── ANIMATED CONTENT ─────────────────────────────────────────────────
-          GSAP page-transition animations target this div. Fixed overlays must
-          NOT be inside here (see comment above). */}
+      {/* ── ANIMATED CONTENT ── */}
       <div className="relative z-10" ref={contentRef} style={{ transformStyle: "preserve-3d" }}>
         <div className="container mx-auto px-4 py-4 max-w-7xl">
-          {/* Forge top bar — brand, step pills, system status badges */}
           <div className="mb-6">
-            <ForgeTopBar
-              currentState={stateMachine.state}
-              onNavigate={handleReset}
-              hardware={hardwareCapability}
-            />
+            <ForgeTopBar currentState={stateMachine.state} onNavigate={handleReset} hardware={hardwareCapability} />
           </div>
-
-          {/* STATE VIEWS */}
-          {stateMachine.state === "IDLE" && (
-            <IdleStateView
-              onFileSelect={stateMachine.selectFile}
-              isLoading={processor.isFFmpegLoading}
-            />
-          )}
-
-          {stateMachine.state === "INSPECT" && stateMachine.selectedFile && (
-            <>
-              {/* Large-file banner — shown in Standard Mode when file exceeds 500 MB */}
-              {fastModeEnabled &&
-                transcriptionMode !== 'fast' &&
-                !dismissedLargeFileBanner &&
-                stateMachine.selectedFile.size > LARGE_FILE_BYTES && (
-                  <div className="mb-4 bg-amber-950/60 border border-amber-500/40 rounded-xl p-4 flex items-start gap-3">
-                    <Zap className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-amber-300 mb-0.5">Large file detected</p>
-                      <p className="text-xs text-amber-200/80">
-                        This file ({(stateMachine.selectedFile.size / 1024 / 1024 / 1024).toFixed(1)} GB) may run out of memory in Standard Mode.{' '}
-                        <strong>Fast Mode</strong> processes audio in small chunks — no size limit.
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => { setTranscriptionMode('fast'); setDismissedLargeFileBanner(true); }}
-                        className="text-xs bg-amber-500 hover:bg-amber-400 text-black font-semibold py-1.5 px-3 rounded transition-colors whitespace-nowrap flex items-center gap-1"
-                      >
-                        <Zap className="w-3 h-3" />
-                        Use Fast Mode
-                      </button>
-                      <button
-                        onClick={() => setDismissedLargeFileBanner(true)}
-                        className="text-xs text-amber-400/60 hover:text-amber-300 transition-colors whitespace-nowrap"
-                      >
-                        Continue anyway
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-              <InspectStateView
-                file={stateMachine.selectedFile}
-                metrics={processor.ffmpegMetrics}
-                selectedModelKey={selectedModelKey}
-                currentModel={processor.currentModel}
-                isModelLoading={processor.isModelLoading}
-                isTranscribing={processor.isTranscribing}
-                onModelSelect={handleModelSelect}
-                transcriptionMode={transcriptionMode}
-                onModeChange={setTranscriptionMode}
-                onWorkerConfigChange={handleWorkerConfigChange}
-                onAction={handleAction}
-                onBack={() => stateMachine.selectFile(null)}
-                isFFmpegLoaded={processor.isFFmpegLoaded}
-                isFFmpegLoading={processor.isFFmpegLoading}
-                isModelLoaded={processor.isModelLoaded}
-                modelLoadingProgress={processor.transcriptionProgress}
-              />
-            </>
-          )}
-
-          {stateMachine.state === "DONE" &&
-            stateMachine.result &&
-            stateMachine.selectedFile && (
-              <DoneStateView
-                result={stateMachine.result}
-                file={stateMachine.selectedFile}
-                formatId={stateMachine.selectedFormatId}
-                selectedModelKey={selectedModelKey}
-                currentModel={processor.currentModel}
-                metrics={processor.ffmpegMetrics}
-                memoryUsageMB={memoryUsageMB}
-                onDownload={handleDownload}
-                onReset={handleReset}
-                isModelLoaded={processor.isModelLoaded}
-                isModelLoading={processor.isModelLoading}
-                modelLoadingProgress={processor.transcriptionProgress}
-                onModelSelect={handleModelSelect}
-                onTranscribe={handleTranscribeFromDone}
-                processingStartTime={stateMachine.processingStartTime}
-                processingEndTime={stateMachine.processingEndTime}
-              />
-            )}
-
-          {stateMachine.state === "ERROR" && stateMachine.error && (
-            <ErrorStateView
-              error={stateMachine.error}
-              onRetry={stateMachine.retry}
-              onReset={handleReset}
-              canRetry={!!stateMachine.selectedFile}
-            />
-          )}
+          {getStateView(stateMachine.state).render(pageBag)}
         </div>
       </div>
     </main>
   );
 }
-

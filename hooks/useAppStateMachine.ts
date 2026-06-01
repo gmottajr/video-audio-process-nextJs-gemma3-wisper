@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { detectFileType } from "@/utils/audioFormats";
 import type { ActionType, CompressionType } from "@/components/ActionSelector";
 import type { ProcessingResult } from "./useMediaProcessor";
@@ -35,6 +35,12 @@ export interface AppStateContext {
  */
 export function useAppStateMachine() {
   const [state, setState] = useState<AppState>("IDLE");
+  // Ref mirrors state for synchronous reads inside callbacks (avoids stale-closure guards).
+  const stateRef = useRef<AppState>("IDLE");
+  const setAppState = useCallback((next: AppState) => {
+    stateRef.current = next;
+    setState(next);
+  }, []);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFormatId, setSelectedFormatId] = useState<string | null>(null);
   const [currentAction, setCurrentAction] = useState<ActionType | null>(null);
@@ -54,7 +60,7 @@ export function useAppStateMachine() {
   const selectFile = useCallback((file: File | null) => {
     if (!file) {
       // Reset to IDLE
-      setState("IDLE");
+      setAppState("IDLE");
       setSelectedFile(null);
       setSelectedFormatId(null);
       setCurrentAction(null);
@@ -68,7 +74,7 @@ export function useAppStateMachine() {
     // Validate file type
     const fileType = detectFileType(file);
     if (fileType === "unknown") {
-      setState("ERROR");
+      setAppState("ERROR");
       setError("Unsupported file type. Please upload a video or audio file.");
       return;
     }
@@ -78,7 +84,7 @@ export function useAppStateMachine() {
     setNormalizeAudio(false); // Reset normalization flag on file change
     setCompressionType("none"); // Reset compression type on file change
     setError(null);
-    setState("INSPECT");
+    setAppState("INSPECT");
   }, []);
 
   /**
@@ -86,6 +92,10 @@ export function useAppStateMachine() {
    * User initiates processing action
    */
   const startProcessing = useCallback((action: ActionType, formatId: string, options?: { normalizeAudio?: boolean; compressionType?: CompressionType }) => {
+    if (stateRef.current === "IDLE") {
+      console.warn("[StateMachine] Cannot start processing from state:", stateRef.current);
+      return;
+    }
     console.log("[StateMachine] Starting processing, transitioning to PROCESSING");
     setCurrentAction(action);
     setSelectedFormatId(formatId);
@@ -95,8 +105,8 @@ export function useAppStateMachine() {
     setError(null);
     setProcessingStartTime(Date.now()); // Record start time
     setProcessingEndTime(null); // Reset end time
-    setState("PROCESSING");
-  }, []);
+    setAppState("PROCESSING");
+  }, [setAppState]);
 
   /**
    * Transition: PROCESSING → DONE
@@ -110,7 +120,7 @@ export function useAppStateMachine() {
     
     setResult(processingResult);
     setProcessingEndTime(Date.now()); // Record end time
-    setState("DONE");
+    setAppState("DONE");
   }, []);
 
   /**
@@ -119,7 +129,7 @@ export function useAppStateMachine() {
    */
   const failProcessing = useCallback((errorMessage: string) => {
     setError(errorMessage);
-    setState("ERROR");
+    setAppState("ERROR");
   }, []);
 
   /**
@@ -129,7 +139,7 @@ export function useAppStateMachine() {
   const cancelProcessing = useCallback(() => {
     // Note: State check removed due to async state updates
     console.log("[StateMachine] Cancelling processing, returning to INSPECT");
-    setState("INSPECT");
+    setAppState("INSPECT");
   }, []);
 
   /**
@@ -137,7 +147,7 @@ export function useAppStateMachine() {
    * Full reset
    */
   const reset = useCallback(() => {
-    setState("IDLE");
+    setAppState("IDLE");
     setSelectedFile(null);
     setSelectedFormatId(null);
     setCurrentAction(null);
@@ -154,7 +164,7 @@ export function useAppStateMachine() {
   const retry = useCallback(() => {
     console.log("[StateMachine] Retrying, returning to INSPECT");
     setError(null);
-    setState("INSPECT");
+    setAppState("INSPECT");
   }, []);
 
   /**
