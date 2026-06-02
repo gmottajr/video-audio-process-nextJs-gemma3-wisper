@@ -1,11 +1,23 @@
 /**
  * Transcription Web Worker - ES Module Version
- * 
+ *
  * Runs Whisper model inference in a separate thread to avoid blocking the UI.
  * Downloads models on-demand from Hugging Face when first selected.
- * 
- * NOTE: This is an ES Module worker (type="module")
+ *
+ * Sections
+ *   1. Initialization  — ORT pre-config + dev diagnostic setup
+ *   2. Config          — env wiring after transformers import
+ *   3. State           — worker-level model state
+ *   4. loadModel       — pipeline creation + progress reporting
+ *   5. transcribe      — inference + progress reporting
+ *   6. Handlers        — OCP registry (add a type = add one entry, no branch edits)
+ *   7. Message router  — dispatches to handlers
+ *   8. Startup         — worker-ready handshake
  */
+
+// =============================================================================
+// 1. INITIALIZATION
+// =============================================================================
 
 // Disable ONNX multi-thread proxy BEFORE transformers.min.js evaluates it.
 // Firefox COEP (require-corp) blocks blob: URL workers; numThreads=1 tells
@@ -45,10 +57,13 @@ try {
 } catch (err) {
   devLog('transformers import FAILED', { name: err.name, message: err.message, stack: err.stack });
   self.postMessage({ status: 'worker-init-error', message: `${err.name}: ${err.message}` });
-  throw err; // Re-throw — worker cannot continue without transformers
+  throw err; // Worker cannot continue without transformers
 }
 
-// CONFIGURATION: On-demand model downloading
+// =============================================================================
+// 2. CONFIG
+// =============================================================================
+
 env.allowLocalModels = true;
 env.allowRemoteModels = true;
 env.localModelPath = '/models/';
@@ -62,15 +77,18 @@ console.log('[Worker] Configured for on-demand model downloading');
 console.log('[Worker] Local path:', env.localModelPath);
 console.log('[Worker] Remote download enabled:', env.allowRemoteModels);
 
-// State
+// =============================================================================
+// 3. STATE
+// =============================================================================
+
 let transcriber = null;
 let isModelLoaded = false;
-let currentModelName = null; // Track which model is currently loaded
+let currentModelName = null;
 
-/**
- * Initialize the Whisper model
- * Downloads from Hugging Face if not already cached locally
- */
+// =============================================================================
+// 4. loadModel
+// =============================================================================
+
 async function loadModel(modelName = 'Xenova/whisper-base', requestId = null) {
   try {
     console.log('\n🔵 ====== MODEL LOADING START ======');
@@ -83,7 +101,7 @@ async function loadModel(modelName = 'Xenova/whisper-base', requestId = null) {
     console.log('  - localModelPath:', env.localModelPath);
     console.log('  - useBrowserCache:', env.useBrowserCache);
     console.log('=====================================\n');
-    
+
     self.postMessage({
       requestId,
       status: 'loading',
@@ -91,63 +109,46 @@ async function loadModel(modelName = 'Xenova/whisper-base', requestId = null) {
       progress: 0,
     });
 
-    // Track files being loaded
     const filesTracking = new Map();
 
-    // Create transcription pipeline
-    // The library will now look for files in: /models/Xenova/whisper-tiny/
     transcriber = await pipeline('automatic-speech-recognition', modelName, {
-      quantized: true, // Use quantized model
+      quantized: true,
       progress_callback: (progress) => {
-        // Enhanced logging with cache detection
         const { status, file, loaded, total } = progress;
-        
-        // Initialize tracking for this file
+
         if (file && !filesTracking.has(file)) {
-          filesTracking.set(file, { 
-            startTime: Date.now(),
-            status: status,
-            loaded: 0,
-            total: total || 0
-          });
+          filesTracking.set(file, { startTime: Date.now(), status, loaded: 0, total: total || 0 });
         }
-        
-        // Update tracking
         if (file && filesTracking.has(file)) {
-          const tracking = filesTracking.get(file);
-          tracking.status = status;
-          tracking.loaded = loaded || 0;
-          tracking.total = total || 0;
+          const t = filesTracking.get(file);
+          t.status = status;
+          t.loaded = loaded || 0;
+          t.total = total || 0;
         }
 
-        // Detailed status-specific logging
         if (status === 'initiate') {
           console.log(`\n📂 [INITIATE] ${file || 'unknown'}`);
           console.log(`   └─ Starting to load file...`);
-        } 
-        else if (status === 'download') {
+        } else if (status === 'download') {
           console.log(`\n⬇️  [DOWNLOAD] ${file || 'unknown'}`);
           console.log(`   └─ Fetching from server (not in cache)`);
           console.log(`   └─ URL: /models/${modelName}/${file}`);
-          
-          // Check if progress provides response info
           if (progress.response) {
             console.log(`   └─ Response Status: ${progress.response.status || 'unknown'}`);
             console.log(`   └─ Content-Type: ${progress.response.headers?.get('content-type') || 'unknown'}`);
             console.log(`   └─ Content-Length: ${progress.response.headers?.get('content-length') || 'unknown'}`);
           }
-        } 
-        else if (status === 'progress') {
+        } else if (status === 'progress') {
           const tracking = filesTracking.get(file);
           const elapsed = Date.now() - tracking.startTime;
           const percentage = total > 0 ? Math.round((loaded / total) * 100) : 0;
           const sizeMB = (loaded / (1024 * 1024)).toFixed(2);
           const totalMB = (total / (1024 * 1024)).toFixed(2);
           const speed = elapsed > 0 ? ((loaded / 1024) / (elapsed / 1000)).toFixed(2) : '0';
-          
+
           console.log(`📊 [PROGRESS] ${file || 'unknown'}: ${percentage}% (${sizeMB}/${totalMB} MB) @ ${speed} KB/s`);
-          
-          if (progress.status === 'progress' && total > 0) {
+
+          if (total > 0) {
             self.postMessage({
               requestId,
               status: 'loading',
@@ -155,18 +156,15 @@ async function loadModel(modelName = 'Xenova/whisper-base', requestId = null) {
               progress: percentage,
             });
           }
-        } 
-        else if (status === 'done') {
+        } else if (status === 'done') {
           const tracking = filesTracking.get(file);
           const elapsed = Date.now() - tracking.startTime;
           const sizeMB = (tracking.loaded / (1024 * 1024)).toFixed(2);
-          
           console.log(`\n✅ [DONE] ${file || 'unknown'}`);
           console.log(`   └─ Size: ${sizeMB} MB`);
           console.log(`   └─ Time: ${elapsed}ms`);
           console.log(`   └─ Source: ${elapsed < 100 ? '🚀 CACHE (fast load)' : '🌐 NETWORK (fresh download)'}`);
-        } 
-        else if (status === 'ready') {
+        } else if (status === 'ready') {
           console.log('\n🎉 [READY] Model initialization complete!');
           self.postMessage({
             requestId,
@@ -174,29 +172,26 @@ async function loadModel(modelName = 'Xenova/whisper-base', requestId = null) {
             message: 'Model files loaded, initializing...',
             progress: 90,
           });
-        }
-        else {
-          // Log any other status we haven't handled
+        } else {
           console.log(`[Worker] Progress [${status}]:`, progress);
         }
       },
     });
 
     isModelLoaded = true;
-    currentModelName = modelName; // Track the loaded model
-    
+    currentModelName = modelName;
+
     console.log('\n🎉 ====== MODEL LOADING SUCCESS ======');
     console.log('[Worker] Model:', modelName);
     console.log('[Worker] Status: READY');
     console.log('[Worker] All files loaded successfully');
     console.log('======================================\n');
-    
+
     self.postMessage({
       requestId,
       status: 'ready',
       message: `AI model loaded and ready - Model: ${modelName}`,
     });
-
   } catch (error) {
     console.error('\n❌ ====== MODEL LOADING FAILED ======');
     console.error('[Worker] Model:', modelName);
@@ -215,7 +210,7 @@ async function loadModel(modelName = 'Xenova/whisper-base', requestId = null) {
     console.error('   4. Run: npm run validate-models');
     console.error('   5. Run: npm run reset-models');
     console.error('======================================\n');
-    
+
     self.postMessage({
       requestId,
       status: 'error',
@@ -224,12 +219,12 @@ async function loadModel(modelName = 'Xenova/whisper-base', requestId = null) {
   }
 }
 
-/**
- * Transcribe audio (expects Float32Array of audio samples)
- */
+// =============================================================================
+// 5. transcribe
+// =============================================================================
+
 async function transcribe(audioData, requestId = null) {
   try {
-    // 🔥 CRITICAL: Check BOTH flags to ensure model is actually ready
     if (!isModelLoaded || !transcriber) {
       console.error('\n❌ MODEL NOT READY FOR TRANSCRIPTION');
       console.error('-'.repeat(80));
@@ -240,77 +235,51 @@ async function transcribe(audioData, requestId = null) {
     }
 
     const transcriptionStartTime = performance.now();
-    
-    // Detect Distil-Whisper models for configuration adjustments
     const isDistilModel = currentModelName?.includes('distil-whisper');
-    
+
     console.log('🎯 Transcription Configuration:');
     console.log('   • Model:', currentModelName || 'unknown');
     console.log('   • Model Type:', isDistilModel ? 'Distil-Whisper (optimized)' : 'Whisper (standard)');
     console.log('   • Request ID:', requestId || 'none');
     console.log('   • Chunk Length: 30 seconds');
     console.log('   • Stride (overlap): 5 seconds');
-    
-    // Verify we have Float32Array
+
     if (!(audioData instanceof Float32Array)) {
       throw new Error(`Expected Float32Array, got ${audioData.constructor.name}`);
     }
-    
     if (audioData.length === 0) {
       throw new Error('Audio data is empty!');
     }
-    
-    self.postMessage({
-      requestId,
-      status: 'transcribing',
-      message: 'Transcribing audio...',
-      progress: 0,
-    });
+
+    self.postMessage({ requestId, status: 'transcribing', message: 'Transcribing audio...', progress: 0 });
 
     console.log('\n⏳ Running AI Model...');
-    console.log('   This may take a minute for long audio files...\n');
-    
-    // Calculate estimated time
     const audioDurationSeconds = audioData.length / 16000;
-    const estimatedMinutes = Math.ceil(audioDurationSeconds / 30); // ~30 seconds audio per minute of processing
-    console.log('⏱️  Estimated Processing Time:', estimatedMinutes, 'minutes');
-    console.log('   (Based on ~1-2 seconds per audio second)\n');
-    
-    // Run inference with progress callback
+    const estimatedMinutes = Math.ceil(audioDurationSeconds / 30);
+    console.log('⏱️  Estimated Processing Time:', estimatedMinutes, 'minutes\n');
+
     const inferenceStartTime = performance.now();
-    
-    // Track progress with simple time-based updates (callback data is unreliable)
-    let lastProgressUpdate = performance.now(); // ✅ FIX: Use performance.now() consistently
+    let lastProgressUpdate = performance.now();
     let progressCount = 0;
-    
-    // Distil-Whisper models don't support word-level timestamps (different architecture)
-    // Disable timestamps entirely for distil models to avoid _extract_token_timestamps error
+
     const isDistilWhisper = currentModelName?.includes('distil-whisper');
-    const timestampOption = isDistilWhisper ? false : 'word'; // false = no timestamps, 'word' = word-level
-    
+    const timestampOption = isDistilWhisper ? false : 'word';
     console.log('   • Timestamp Mode:', isDistilWhisper ? 'DISABLED (distil-whisper compatibility)' : 'word-level');
-    
+
     const output = await transcriber(audioData, {
-      chunk_length_s: 30, // Process in 30-second chunks
-      stride_length_s: 5, // 5-second overlap between chunks
-      return_timestamps: timestampOption, // Sentence-level for distil, word-level for others
-      language: 'english', // Can be made dynamic
-      // ✅ SAFE CALLBACK: Just track elapsed time, don't access chunk properties
-      callback_function: (beams) => {
-        const now = performance.now(); // ✅ FIX: Use performance.now() instead of Date.now()
+      chunk_length_s: 30,
+      stride_length_s: 5,
+      return_timestamps: timestampOption,
+      language: 'english',
+      callback_function: (_beams) => {
+        const now = performance.now();
         const elapsed = Math.floor((now - inferenceStartTime) / 1000);
-        
-        // Update every 10 seconds
         if (now - lastProgressUpdate >= 10000) {
           progressCount++;
           lastProgressUpdate = now;
-          
-          // Estimate progress based on time (very rough)
-          const estimatedTotalTime = audioDurationSeconds * 2; // 2 seconds per audio second
+          const estimatedTotalTime = audioDurationSeconds * 2;
           const estimatedProgress = Math.min(95, Math.round((elapsed / estimatedTotalTime) * 100));
-          
           console.log(`   ⏳ Processing... ${elapsed}s elapsed (estimated ${estimatedProgress}%)`);
-          
           self.postMessage({
             requestId,
             status: 'transcribing',
@@ -318,28 +287,26 @@ async function transcribe(audioData, requestId = null) {
             progress: estimatedProgress,
           });
         }
-      }
+      },
     });
 
     const inferenceTime = performance.now() - inferenceStartTime;
     const totalTime = performance.now() - transcriptionStartTime;
-    
+
     console.log('✅ AI Processing Complete!');
     console.log('   • Inference Time:', (inferenceTime / 1000).toFixed(2), 'seconds');
     console.log('   • Total Time:', (totalTime / 1000).toFixed(2), 'seconds');
-    
     console.log('\n📊 Transcription Results:');
     console.log('   • Text Length:', (output.text?.length || 0).toLocaleString(), 'characters');
     console.log('   • Word Chunks:', (output.chunks?.length || 0).toLocaleString());
-    console.log('   • Words per Second:', ((output.chunks?.length || 0) / (inferenceTime / 1000)).toFixed(1));
-    
+
     if (output.text && output.text.length > 0) {
       console.log('\n📝 Preview (first 150 characters):');
       console.log('   "' + output.text.substring(0, 150) + (output.text.length > 150 ? '...' : '') + '"');
     } else {
       console.warn('\n⚠️  Warning: Transcription returned empty text!');
     }
-    
+
     self.postMessage({
       requestId,
       status: 'complete',
@@ -347,10 +314,9 @@ async function transcribe(audioData, requestId = null) {
       result: {
         text: output.text || '',
         chunks: output.chunks || [],
-        processingTime: Math.round(inferenceTime), // Actual AI inference time in milliseconds
+        processingTime: Math.round(inferenceTime),
       },
     });
-
   } catch (error) {
     console.error('\n❌ TRANSCRIPTION ERROR');
     console.error('-'.repeat(80));
@@ -358,121 +324,111 @@ async function transcribe(audioData, requestId = null) {
     console.error('Error Message:', error.message);
     console.error('Stack Trace:', error.stack);
     console.error('-'.repeat(80) + '\n');
-    
-    self.postMessage({
-      requestId,
-      status: 'error',
-      message: `Transcription failed: ${error.message}`,
-    });
+
+    self.postMessage({ requestId, status: 'error', message: `Transcription failed: ${error.message}` });
   }
 }
 
-/**
- * Message handler - Request/Response Pattern
- */
+// =============================================================================
+// 6. HANDLERS REGISTRY (OCP)
+//    Add a new message type = add one entry here. No switch edits needed.
+// =============================================================================
+
+const handlers = {
+  async load(data, requestId) {
+    await loadModel(data?.model || 'Xenova/whisper-base', requestId);
+  },
+
+  async transcribe(data, requestId) {
+    // Validate model readiness before touching audio data.
+    if (!isModelLoaded || !transcriber) {
+      console.error('\n❌ TRANSCRIPTION BLOCKED: Model Not Ready');
+      console.error('-'.repeat(80));
+      console.error('   • isModelLoaded:', isModelLoaded);
+      console.error('   • transcriber:', transcriber ? 'exists' : 'null');
+      console.error('   • Action: Rejecting transcription request');
+      console.error('-'.repeat(80) + '\n');
+      self.postMessage({
+        requestId,
+        status: 'error',
+        message: 'Model is not loaded yet. Please wait for model loading to complete before transcribing.',
+      });
+      return;
+    }
+
+    const audioSamples = data.audio;
+    console.log('📥 WORKER: Audio Data Received');
+    console.log('-'.repeat(80));
+    console.log('✓ Model Status: Ready');
+    console.log('\n📋 Data Validation:');
+    console.log('   • Type:', audioSamples?.constructor?.name || 'undefined');
+    console.log('   • Length:', audioSamples?.length?.toLocaleString() || 'N/A');
+
+    if (!(audioSamples instanceof Float32Array)) {
+      console.error('\n❌ VALIDATION FAILED');
+      console.error('   Expected: Float32Array');
+      console.error('   Received:', audioSamples?.constructor?.name || 'undefined');
+      self.postMessage({
+        status: 'error',
+        message: `Invalid audio data type: ${audioSamples?.constructor?.name}. Expected Float32Array.`,
+      });
+      return;
+    }
+
+    if (audioSamples.length === 0) {
+      console.error('\n❌ VALIDATION FAILED');
+      console.error('   Audio samples array is empty');
+      self.postMessage({ status: 'error', message: 'Audio samples array is empty' });
+      return;
+    }
+
+    const duration = (audioSamples.length / 16000).toFixed(2);
+    console.log('   • Duration:', duration, 'seconds');
+    console.log('   • Sample Range:', `[${audioSamples[0].toFixed(4)} ... ${audioSamples[audioSamples.length - 1].toFixed(4)}]`);
+    console.log('✓ Validation passed\n');
+    console.log('🤖 STEP 3: AI Transcription');
+    console.log('-'.repeat(80));
+
+    await transcribe(audioSamples, requestId);
+  },
+
+  terminate(_data, _requestId) {
+    console.log('[Worker] Terminating...');
+    self.close();
+  },
+};
+
+// =============================================================================
+// 7. MESSAGE ROUTER
+// =============================================================================
+
 self.addEventListener('message', async (event) => {
   const { requestId, type, data } = event.data;
 
-  // Validate requestId
   if (!requestId) {
     console.error('[Worker] ❌ Received message without requestId');
     return;
   }
 
+  const handler = handlers[type];
+  if (!handler) {
+    console.warn('[Worker] Unknown message type:', type);
+    self.postMessage({ requestId, status: 'error', message: `Unknown message type: ${type}` });
+    return;
+  }
+
   console.log(`[Worker] 📥 Processing request ${requestId}: ${type}`);
-
   try {
-    switch (type) {
-      case 'load':
-        await loadModel(data?.model || 'Xenova/whisper-base', requestId);
-        break;
-
-      case 'transcribe':
-        // 🔥 CRITICAL: Verify model is loaded BEFORE processing audio
-        if (!isModelLoaded || !transcriber) {
-          console.error('\n❌ TRANSCRIPTION BLOCKED: Model Not Ready');
-          console.error('-'.repeat(80));
-          console.error('   • isModelLoaded:', isModelLoaded);
-          console.error('   • transcriber:', transcriber ? 'exists' : 'null');
-          console.error('   • Action: Rejecting transcription request');
-          console.error('-'.repeat(80) + '\n');
-          
-          self.postMessage({
-            requestId,
-            status: 'error',
-            message: 'Model is not loaded yet. Please wait for model loading to complete before transcribing.',
-          });
-          return;
-        }
-        
-        console.log('📥 WORKER: Audio Data Received');
-        console.log('-'.repeat(80));
-        console.log('✓ Model Status: Ready');
-        console.log('');
-        
-        // Audio is already decoded to Float32Array in main thread
-        // (AudioContext not available in workers!)
-        const audioSamples = data.audio;
-        
-        console.log('📋 Data Validation:');
-        console.log('   • Type:', audioSamples?.constructor?.name || 'undefined');
-        console.log('   • Length:', audioSamples?.length?.toLocaleString() || 'N/A');
-        
-        // Validate audio data
-        if (!(audioSamples instanceof Float32Array)) {
-          console.error('\n❌ VALIDATION FAILED');
-          console.error('   Expected: Float32Array');
-          console.error('   Received:', audioSamples?.constructor?.name || 'undefined');
-          self.postMessage({
-            status: 'error',
-            message: `Invalid audio data type: ${audioSamples?.constructor?.name}. Expected Float32Array.`,
-          });
-          return;
-        }
-        
-        if (audioSamples.length === 0) {
-          console.error('\n❌ VALIDATION FAILED');
-          console.error('   Audio samples array is empty');
-          self.postMessage({
-            status: 'error',
-            message: 'Audio samples array is empty',
-          });
-          return;
-        }
-        
-        const duration = (audioSamples.length / 16000).toFixed(2);
-        console.log('   • Duration:', duration, 'seconds');
-        console.log('   • Sample Range:', `[${audioSamples[0].toFixed(4)} ... ${audioSamples[audioSamples.length-1].toFixed(4)}]`);
-        console.log('✓ Validation passed\n');
-        
-        // Transcribe the Float32Array
-        console.log('🤖 STEP 3: AI Transcription');
-        console.log('-'.repeat(80));
-        await transcribe(audioSamples, requestId);
-        break;
-
-      case 'terminate':
-        console.log('[Worker] Terminating...');
-        self.close();
-        break;
-
-      default:
-        console.warn('[Worker] Unknown message type:', type);
-        self.postMessage({
-          requestId,
-          status: 'error',
-          message: `Unknown message type: ${type}`,
-        });
-    }
+    await handler(data, requestId);
   } catch (error) {
     console.error(`[Worker] ❌ Request ${requestId} failed:`, error);
-    self.postMessage({
-      requestId,
-      status: 'error',
-      message: error.message,
-    });
+    self.postMessage({ requestId, status: 'error', message: error.message });
   }
 });
+
+// =============================================================================
+// 8. STARTUP HANDSHAKE
+// =============================================================================
 
 devLog('worker-ready: message listener attached, posting worker-ready handshake');
 self.postMessage({ status: 'worker-ready' });
