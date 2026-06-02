@@ -25,6 +25,7 @@ export interface InspectStateViewProps {
   isModelLoaded: boolean;
   modelLoadingProgress: number;
   transcriptionError?: string | null;
+  onRetryWorker?: () => void;
 }
 
 export type FileKind = "video" | "audio" | "unknown";

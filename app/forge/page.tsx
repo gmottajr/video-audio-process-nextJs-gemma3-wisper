@@ -99,6 +99,7 @@ export default function Home() {
     onWorkerConfigChange: handleWorkerConfigChange,
     onModeChange: setTranscriptionMode,
     onRetry: stateMachine.retry,
+    onRetryWorker: processor.transcriber.retryWorker,
     transcriptionError: processor.transcriber.error,
     hardware: hardwareCapability,
     largeFileBanner,

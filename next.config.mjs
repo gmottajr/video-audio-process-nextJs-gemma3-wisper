@@ -12,6 +12,22 @@ const nextConfig = {
           { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
         ],
       },
+      {
+        // CORP required on every static asset fetched by a page under COEP require-corp.
+        // Without this header Brave/Chrome silently blocks the resource (empty ErrorEvent).
+        // Covers: transcription worker, transformers bundle, ONNX WASM blobs.
+        source: '/transcription.worker.js',
+        headers: [{ key: 'Cross-Origin-Resource-Policy', value: 'same-origin' }],
+      },
+      {
+        source: '/transformers.min.js',
+        headers: [{ key: 'Cross-Origin-Resource-Policy', value: 'same-origin' }],
+      },
+      {
+        // ONNX WASM files loaded inside the worker (which inherits COEP from the page).
+        source: '/:file*.wasm',
+        headers: [{ key: 'Cross-Origin-Resource-Policy', value: 'same-origin' }],
+      },
     ];
   },
   webpack: (config, { isServer }) => {

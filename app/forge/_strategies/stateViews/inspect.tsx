@@ -27,6 +27,7 @@ const inspect: StateViewStrategy = {
     onWorkerConfigChange,
     onAction,
     onFileSelect,
+    onRetryWorker,
   }) {
     if (!selectedFile) return null;
 
@@ -87,6 +88,7 @@ const inspect: StateViewStrategy = {
           isModelLoaded={isModelLoaded}
           modelLoadingProgress={transcriptionProgress}
           transcriptionError={transcriptionError}
+          onRetryWorker={onRetryWorker}
         />
       </>
     );

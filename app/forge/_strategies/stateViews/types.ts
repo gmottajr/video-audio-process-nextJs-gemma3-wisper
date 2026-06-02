@@ -59,6 +59,7 @@ export interface ForgePageBag {
   }) => void;
   onModeChange: (mode: TranscriptionMode) => void;
   onRetry: () => void;
+  onRetryWorker: () => void;
 
   // Transcription worker error (null when healthy)
   transcriptionError: string | null;

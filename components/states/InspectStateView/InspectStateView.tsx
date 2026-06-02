@@ -48,6 +48,7 @@ export function InspectStateView({
   isModelLoaded,
   modelLoadingProgress,
   transcriptionError = null,
+  onRetryWorker,
 }: InspectStateViewProps) {
   const fastModeEnabled = isFeatureEnabled("ENABLE_FAST_MODE");
   const kindStrategy = getFileKindStrategy(file);
@@ -86,13 +87,23 @@ export function InspectStateView({
             <p className="text-sm font-semibold text-red-300 mb-0.5">Transcription worker failed to start</p>
             <p className="text-xs text-red-200/80">{transcriptionError}</p>
           </div>
-          <button
-            onClick={() => window.location.reload()}
-            className="text-xs bg-red-700 hover:bg-red-600 text-white font-semibold py-1.5 px-3 rounded transition-colors whitespace-nowrap shrink-0"
-            title="Or press Ctrl+Shift+R for a hard refresh"
-          >
-            Hard refresh
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {onRetryWorker && (
+              <button
+                onClick={onRetryWorker}
+                className="text-xs bg-red-600 hover:bg-red-500 text-white font-semibold py-1.5 px-3 rounded transition-colors whitespace-nowrap"
+              >
+                Retry
+              </button>
+            )}
+            <button
+              onClick={() => window.location.reload()}
+              className="text-xs text-red-400/70 hover:text-red-300 transition-colors whitespace-nowrap"
+              title="Ctrl+Shift+R for a hard refresh"
+            >
+              Hard refresh
+            </button>
+          </div>
         </div>
       )}
 

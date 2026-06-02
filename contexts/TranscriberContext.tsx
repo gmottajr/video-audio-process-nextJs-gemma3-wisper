@@ -33,6 +33,7 @@ interface TranscriberContextType {
   loadModel: (modelName?: string) => Promise<void>;
   transcribe: (audioBlob: Blob) => Promise<TranscriptionResult>;
   clearResult: () => void;
+  retryWorker: () => void;
 }
 
 /**
@@ -125,7 +126,7 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
     // The WorkerManager.sendRequest below would throw the same error, but only
     // after the timeout fires. This catches it up-front and sets the UI error state.
     if (workerManagerRef.current.isCrashed()) {
-      const msg = 'Transcription worker failed to start. This is usually a Firefox + COEP compatibility issue. Try a hard refresh (Ctrl+Shift+R) or switch to Chrome / Brave.';
+      const msg = 'Transcription worker failed to start. The worker script was blocked by a browser security policy (COEP/CORP). Click "Retry" below, or do a hard refresh (Ctrl+Shift+R).';
       console.error('[TranscriberContext] ❌', msg);
       setError(msg);
       setIsModelLoading(false);
@@ -314,6 +315,30 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
   }, [isModelLoaded, isTranscribing]);
 
   /**
+   * Dispose the crashed WorkerManager and create a fresh one.
+   * Resets all model/loading state so loadModel() can be retried without a page reload.
+   * Both worker instances can crash simultaneously (double-mount pattern); this resets
+   * the ref to a clean instance regardless of which instance crashed last.
+   */
+  const retryWorker = useCallback(() => {
+    console.log('[TranscriberContext] 🔄 Retrying worker...');
+    workerManagerRef.current?.dispose();
+    workerManagerRef.current = null;
+    setError(null);
+    setIsModelLoaded(false);
+    setIsModelLoading(false);
+    setProgress(0);
+    setLoadingMessage('');
+    try {
+      workerManagerRef.current = new WorkerManager('/transcription.worker.js');
+      console.log('[TranscriberContext] ✅ WorkerManager recreated');
+    } catch (err) {
+      console.error('[TranscriberContext] ❌ Retry failed:', err);
+      setError('Failed to initialize transcription worker');
+    }
+  }, []);
+
+  /**
    * Clear result and reset transcription state
    */
   const clearResult = useCallback(() => {
@@ -339,6 +364,7 @@ export function TranscriberProvider({ children }: { children: React.ReactNode })
     loadModel,
     transcribe,
     clearResult,
+    retryWorker,
   };
 
   return (
