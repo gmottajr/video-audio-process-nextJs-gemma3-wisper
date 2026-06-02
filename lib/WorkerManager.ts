@@ -1,12 +1,4 @@
-/**
- * WorkerManager - Request/Response Pattern for Web Workers
- * 
- * Eliminates race conditions by:
- * - Assigning unique IDs to each request
- * - Using a single message handler
- * - Properly tracking pending requests
- * - Cleaning up listeners on completion
- */
+import { workerManagerLog } from "./logger";
 
 export type WorkerMessageType = 'load' | 'transcribe' | 'cancel' | 'init' | 'enhance' | 'reset';
 
@@ -22,8 +14,12 @@ export interface WorkerRequest {
 }
 
 export interface WorkerResponse {
-  requestId: string;
-  status: 'ready' | 'complete' | 'error' | 'progress' | 'loading' | 'transcribing' | 'downloading' | 'processing' | 'streaming' | 'cancelled' | 'reset';
+  requestId?: string;
+  status:
+    | 'ready' | 'complete' | 'error' | 'progress' | 'loading' | 'transcribing'
+    | 'downloading' | 'processing' | 'streaming' | 'cancelled' | 'reset'
+    // Lifecycle handshake statuses (no requestId)
+    | 'worker-ready' | 'worker-init-error';
   message?: string;
   progress?: number;
   result?: any;
@@ -36,8 +32,11 @@ export interface WorkerResponse {
 
 /**
  * WorkerManager Class
- * 
- * Manages a single Web Worker with proper request/response handling
+ *
+ * Manages a single Web Worker with proper request/response handling.
+ * Supports an optional startup handshake: the worker may post
+ * {status:'worker-ready'} or {status:'worker-init-error', message} without a
+ * requestId. Call whenReady() to await the result.
  */
 export class WorkerManager {
   private worker: Worker | null = null;
@@ -46,9 +45,41 @@ export class WorkerManager {
   private messageHandler: ((event: MessageEvent) => void) | null = null;
   private errorHandler: ((error: ErrorEvent) => void) | null = null;
   private crashed = false;
+  private started = false;
+
+  // Ready-promise infrastructure for the optional worker-ready handshake.
+  private readyResolve!: () => void;
+  private readyReject!: (err: Error) => void;
+  private readonly readyPromise: Promise<void>;
 
   constructor(workerPath: string) {
+    this.readyPromise = new Promise<void>((resolve, reject) => {
+      this.readyResolve = resolve;
+      this.readyReject = reject;
+    });
+    // Suppress unhandled-rejection when no caller ever calls whenReady().
+    // whenReady() uses Promise.race(), which still receives the rejection.
+    this.readyPromise.catch(() => {});
     this.initialize(workerPath);
+  }
+
+  /**
+   * Resolves when the worker posts {status:'worker-ready'}, or rejects when
+   * it posts {status:'worker-init-error'} or fires an error event.
+   * Times out after timeoutMs if neither arrives.
+   * Workers that never post the handshake (enhancer, fast-worker) → this
+   * promise simply stays pending; never call whenReady() on them.
+   */
+  async whenReady(timeoutMs = 30000): Promise<void> {
+    return Promise.race([
+      this.readyPromise,
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`Worker did not start within ${timeoutMs}ms`)),
+          timeoutMs,
+        )
+      ),
+    ]);
   }
 
   /**
@@ -56,23 +87,24 @@ export class WorkerManager {
    */
   private initialize(workerPath: string): void {
     try {
-      // Cache-bust to ensure latest worker code is loaded
-      const cacheBustedPath = `${workerPath}?v=${Date.now()}`;
-      console.log('[WorkerManager] 🚀 Initializing worker from:', cacheBustedPath);
-      
+      // Evaluate dev flag inline so tests can control it via process.env.NODE_ENV.
+      const isDev = process.env.NODE_ENV !== 'production';
+      const cacheBustedPath = `${workerPath}?v=${Date.now()}${isDev ? '&debug=1' : ''}`;
+      workerManagerLog.info('Initializing worker', { url: cacheBustedPath });
+
       this.worker = new Worker(cacheBustedPath, { type: 'module' });
-      
+
       // Bind handlers
       this.messageHandler = this.handleMessage.bind(this);
       this.errorHandler = this.handleError.bind(this);
-      
+
       // Attach listeners (single handler pattern)
       this.worker.addEventListener('message', this.messageHandler);
       this.worker.addEventListener('error', this.errorHandler);
 
-      console.log('[WorkerManager] ✅ Worker initialized successfully');
+      workerManagerLog.info('Worker initialized');
     } catch (error) {
-      console.error('[WorkerManager] ❌ Failed to initialize worker:', error);
+      workerManagerLog.error('Failed to initialize worker', error);
       throw error;
     }
   }
@@ -82,24 +114,38 @@ export class WorkerManager {
    */
   private handleMessage = (event: MessageEvent): void => {
     const response: WorkerResponse = event.data;
-    
+
+    // Handle lifecycle messages (no requestId) — startup handshake.
     if (!response.requestId) {
-      console.warn('[WorkerManager] ⚠️ Received message without requestId:', response);
+      if (response.status === 'worker-ready') {
+        this.started = true;
+        workerManagerLog.info('Worker startup confirmed via worker-ready handshake');
+        this.readyResolve();
+      } else if (response.status === 'worker-init-error') {
+        this.crashed = true;
+        const msg = response.message || 'Worker failed to initialize';
+        workerManagerLog.error('Worker init error from handshake', { message: msg });
+        const err = new Error(msg);
+        this.readyReject(err);
+        this.rejectAllPending(new Error(`Worker init failed: ${msg}`));
+      } else {
+        workerManagerLog.warn('Received message without requestId', response);
+      }
       return;
     }
 
     const request = this.pendingRequests.get(response.requestId);
     if (!request) {
-      console.warn('[WorkerManager] ⚠️ Received response for unknown request:', response.requestId);
+      workerManagerLog.warn('Received response for unknown request', { requestId: response.requestId });
       return;
     }
 
-    console.log(`[WorkerManager] 📨 Response for ${response.requestId}: [${response.status}] ${response.message || '(no message)'}`);
+    workerManagerLog.debug(`Response for ${response.requestId}: [${response.status}] ${response.message ?? '(no message)'}`);
 
     // Handle progress updates (non-terminal)
     if (
-      response.status === 'progress' || 
-      response.status === 'loading' || 
+      response.status === 'progress' ||
+      response.status === 'loading' ||
       response.status === 'transcribing' ||
       response.status === 'downloading' ||
       response.status === 'processing' ||
@@ -112,59 +158,63 @@ export class WorkerManager {
           tokensGenerated: response.tokensGenerated,
         });
       }
-      return; // Don't complete the request
+      return;
     }
 
     // Handle terminal states (complete/ready/error/cancelled/reset)
     if (response.status === 'complete' || response.status === 'ready' || response.status === 'reset') {
       clearTimeout(request.timeout);
       this.pendingRequests.delete(response.requestId);
-      console.log(`[WorkerManager] ✅ Request ${response.requestId} completed successfully`);
+      workerManagerLog.info(`Request ${response.requestId} completed`);
       request.resolve(response.result || response);
     } else if (response.status === 'error') {
       clearTimeout(request.timeout);
       this.pendingRequests.delete(response.requestId);
-      console.error(`[WorkerManager] ❌ Request ${response.requestId} failed:`, response.error || response.message);
+      workerManagerLog.error(`Request ${response.requestId} failed`, { error: response.error || response.message });
       request.reject(new Error(response.error || response.message || 'Unknown error'));
     } else if (response.status === 'cancelled') {
       clearTimeout(request.timeout);
       this.pendingRequests.delete(response.requestId);
-      console.log(`[WorkerManager] ⚠️ Request ${response.requestId} was cancelled`);
+      workerManagerLog.warn(`Request ${response.requestId} cancelled`);
       request.reject(new Error('Operation cancelled'));
     }
   };
 
   /**
-   * Handle worker errors
+   * Handle worker errors (script load failures or uncaught exceptions).
+   * An empty ErrorEvent message typically means a script-load failure
+   * (COEP violation, 404, or parse error) rather than a runtime throw.
    */
   private handleError = (error: ErrorEvent): void => {
-    // Browsers report module-worker script-load failures as an ErrorEvent with
-    // empty message/filename — that pattern means the worker script itself
-    // failed to parse or fetch (COEP violation, 404, syntax error), not a
-    // runtime exception inside the script.
     const detail = [
       error.message   ? `message="${error.message}"`   : 'message=(empty — likely script load failure)',
       error.filename  ? `file="${error.filename}"`     : null,
       error.lineno    ? `line=${error.lineno}`         : null,
       error.colno     ? `col=${error.colno}`           : null,
+      `type="${error.type}"`,
+      `timeStamp=${error.timeStamp}`,
     ].filter(Boolean).join(', ');
-    console.error(`[WorkerManager] ❌ Worker error: ${detail}`);
-    console.error('[WorkerManager] ❌ If message is empty: check COEP headers, 404s, or syntax errors in the worker script and its imports.');
+
+    workerManagerLog.error(`Worker error: ${detail}`);
+    workerManagerLog.error('If message is empty: check COEP headers, 404s, or syntax errors in the worker script and its imports.');
+
     this.crashed = true;
-    this.rejectAllPending(new Error(`Worker crashed: ${error.message || '(script load failure — see console)'}`));
+    const err = new Error(`Worker crashed: ${error.message || '(script load failure — see console)'}`);
+    this.readyReject(err);
+    this.rejectAllPending(err);
   };
 
   /**
    * Reject all pending requests
    */
   private rejectAllPending(error: Error): void {
-    console.warn(`[WorkerManager] ⚠️ Rejecting ${this.pendingRequests.size} pending requests`);
-    
+    workerManagerLog.warn(`Rejecting ${this.pendingRequests.size} pending requests`);
+
     this.pendingRequests.forEach((request) => {
       clearTimeout(request.timeout);
       request.reject(error);
     });
-    
+
     this.pendingRequests.clear();
   }
 
@@ -193,16 +243,16 @@ export class WorkerManager {
     const { timeoutMs = 300000, onProgress } = options;
     const requestId = `req_${++this.requestIdCounter}_${Date.now()}`;
 
-    console.log(`[WorkerManager] 📤 Sending request ${requestId} (${type})`);
+    workerManagerLog.debug(`Sending request ${requestId} (${type})`);
 
     return new Promise<T>((resolve, reject) => {
       // Set up timeout
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(requestId);
         const elapsed = (timeoutMs / 1000).toFixed(0);
-        console.error(
-          `[WorkerManager] ⏱️ Request ${requestId} (${type}) timed out after ${elapsed}s. ` +
-          `Pending requests: ${this.pendingRequests.size}`
+        workerManagerLog.error(
+          `Request ${requestId} (${type}) timed out after ${elapsed}s`,
+          { pendingRequests: this.pendingRequests.size }
         );
         reject(new Error(
           `Request timed out after ${elapsed}s. ` +
@@ -224,8 +274,8 @@ export class WorkerManager {
 
       // Send message to worker
       this.worker!.postMessage({ requestId, type, data });
-      
-      console.log(`[WorkerManager] 📋 Request queued. Pending: ${this.pendingRequests.size}`);
+
+      workerManagerLog.debug(`Request queued`, { pending: this.pendingRequests.size });
     });
   }
 
@@ -234,7 +284,7 @@ export class WorkerManager {
    */
   getStats() {
     const oldestRequestAge = this.getOldestRequestAge();
-    
+
     return {
       pendingRequests: this.pendingRequests.size,
       isActive: !!this.worker,
@@ -247,15 +297,15 @@ export class WorkerManager {
    */
   private getOldestRequestAge(): number | null {
     if (this.pendingRequests.size === 0) return null;
-    
+
     const now = Date.now();
     let oldest = 0;
-    
+
     this.pendingRequests.forEach(req => {
       const age = now - req.timestamp;
       if (age > oldest) oldest = age;
     });
-    
+
     return oldest;
   }
 
@@ -268,22 +318,29 @@ export class WorkerManager {
   }
 
   /**
+   * True if the worker posted the worker-ready handshake.
+   */
+  isStarted(): boolean {
+    return this.started;
+  }
+
+  /**
    * Check if worker is healthy
    */
   isHealthy(): boolean {
     if (!this.worker) return false;
-    
+
     const stats = this.getStats();
-    
+
     // Worker is unhealthy if requests are stuck for > 5 minutes
     if (stats.oldestRequestAge) {
       const ageMs = this.getOldestRequestAge();
       if (ageMs && ageMs > 300000) {
-        console.warn('[WorkerManager] ⚠️ Worker may be stuck. Oldest request:', stats.oldestRequestAge);
+        workerManagerLog.warn('Worker may be stuck', { oldestRequest: stats.oldestRequestAge });
         return false;
       }
     }
-    
+
     return true;
   }
 
@@ -291,9 +348,8 @@ export class WorkerManager {
    * Dispose of the worker and clean up
    */
   dispose(): void {
-    console.log('[WorkerManager] 🧹 Disposing worker...');
-    console.log(`[WorkerManager] Rejecting ${this.pendingRequests.size} pending requests`);
-    
+    workerManagerLog.info('Disposing worker');
+
     // Reject all pending requests only if there are any
     if (this.pendingRequests.size > 0) {
       this.rejectAllPending(new Error('Worker disposed'));
@@ -307,7 +363,7 @@ export class WorkerManager {
       if (this.errorHandler) {
         this.worker.removeEventListener('error', this.errorHandler);
       }
-      
+
       // Terminate worker
       this.worker.terminate();
     }
@@ -318,8 +374,6 @@ export class WorkerManager {
     this.errorHandler = null;
     this.crashed = false;
 
-    console.log('[WorkerManager] ✅ Worker disposed');
+    workerManagerLog.info('Worker disposed');
   }
 }
-
-

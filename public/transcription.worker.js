@@ -14,11 +14,39 @@ self.ort = self.ort ?? {};
 self.ort.env = self.ort.env ?? {};
 self.ort.env.wasm = { numThreads: 1 };
 
+// Dev-only diagnostic logging: gated on ?debug=1 in the worker URL.
+// WorkerManager appends &debug=1 automatically in non-production builds.
+// Interpretation on reload:
+//   • No "module-top" log  → worker module itself failed to load/parse.
+//   • "module-top" logs, import fails with a real error → import is the culprit.
+//   • Import OK, later crash → re-open hypothesis space with the new logs.
+const DEBUG = new URLSearchParams(self.location.search).has('debug');
+const devLog = (msg, data) => {
+  if (!DEBUG) return;
+  console.log('[Worker]', msg, data ?? '');
+  fetch('/api/log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ level: 'info', tag: 'Worker', message: msg, data }),
+  }).catch(() => {});
+};
+
+devLog('module-top: worker module loaded, before transformers import');
+
 // Dynamic import so the synchronous pre-config above executes first.
 // The ?v=2 suffix creates a new module-cache key, bypassing any corrupted
 // cache entry left behind by an earlier Strict-Mode-race termination.
 // Bump this version whenever transformers.min.js is replaced.
-const { pipeline, env } = await import('/transformers.min.js?v=2');
+let pipeline, env;
+try {
+  devLog('before transformers import');
+  ({ pipeline, env } = await import('/transformers.min.js?v=2'));
+  devLog('after transformers import — success');
+} catch (err) {
+  devLog('transformers import FAILED', { name: err.name, message: err.message, stack: err.stack });
+  self.postMessage({ status: 'worker-init-error', message: `${err.name}: ${err.message}` });
+  throw err; // Re-throw — worker cannot continue without transformers
+}
 
 // CONFIGURATION: On-demand model downloading
 env.allowLocalModels = true;
@@ -27,6 +55,8 @@ env.localModelPath = '/models/';
 env.useBrowserCache = true;
 // Belt-and-suspenders: enforce single-thread via the transformers.js API as well.
 if (env.backends?.onnx?.wasm) env.backends.onnx.wasm.numThreads = 1;
+
+devLog('after env config');
 
 console.log('[Worker] Configured for on-demand model downloading');
 console.log('[Worker] Local path:', env.localModelPath);
@@ -444,4 +474,6 @@ self.addEventListener('message', async (event) => {
   }
 });
 
+devLog('worker-ready: message listener attached, posting worker-ready handshake');
+self.postMessage({ status: 'worker-ready' });
 console.log('[Worker] Self-hosted transcription worker initialized');

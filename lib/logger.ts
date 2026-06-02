@@ -2,23 +2,27 @@
 
 type LogLevel = "info" | "warn" | "error" | "debug";
 
-/**
- * Client-side logger that writes to both the browser console AND logs/debug.log
- * on the server (via /api/log). Only active in development.
- */
+// Evaluated inline (per call) so tests can control NODE_ENV without module resets.
+// isDev       = !production → info/debug visible in dev AND test; silent only in prod.
+// isDevServer = development → file writes only when the Next.js dev server is running.
 function createLogger(tag: string) {
   const send = (level: LogLevel, message: string, data?: unknown) => {
-    // Always log to console
-    const consoleFn =
-      level === "error"
-        ? console.error
-        : level === "warn"
-        ? console.warn
-        : console.log;
-    consoleFn(`[${tag}] ${message}`, data !== undefined ? data : "");
+    const isDev       = process.env.NODE_ENV !== "production";
+    const isDevServer = process.env.NODE_ENV === "development";
 
-    // Write to file in dev only (fire-and-forget, never throws)
-    if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+    // warn/error always reach the console; info/debug are dev-only
+    if (level === "warn" || level === "error" || isDev) {
+      const consoleFn =
+        level === "error"
+          ? console.error
+          : level === "warn"
+          ? console.warn
+          : console.log;
+      consoleFn(`[${tag}] ${message}`, data !== undefined ? data : "");
+    }
+
+    // Write to file only when the Next.js dev server is running (fire-and-forget, never throws)
+    if (isDevServer && typeof window !== "undefined") {
       fetch("/api/log", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -37,8 +41,9 @@ function createLogger(tag: string) {
   };
 }
 
-export const transciberLog  = createLogger("useTranscriber");
-export const ffmpegLog       = createLogger("useFFmpeg");
-export const appLog          = createLogger("App");
+export const transciberLog    = createLogger("useTranscriber");
+export const ffmpegLog         = createLogger("useFFmpeg");
+export const appLog            = createLogger("App");
+export const workerManagerLog  = createLogger("WorkerManager");
 
 export default createLogger;

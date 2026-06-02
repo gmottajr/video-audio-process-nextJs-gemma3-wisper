@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
+const isDev = process.env.NODE_ENV === "development";
+
 const LOG_FILE = path.join(process.cwd(), "logs", "debug.log");
 
-// Ensure logs directory exists
-if (!fs.existsSync(path.dirname(LOG_FILE))) {
+if (isDev && !fs.existsSync(path.dirname(LOG_FILE))) {
   fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
 }
 
 export async function POST(req: NextRequest) {
+  if (!isDev) return NextResponse.json({ ok: true });
   try {
     const { level, tag, message, data } = await req.json();
     const timestamp = new Date().toISOString();
@@ -23,6 +25,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE() {
+  if (!isDev) return NextResponse.json({ ok: true });
   try {
     fs.writeFileSync(LOG_FILE, "");
     return NextResponse.json({ ok: true });

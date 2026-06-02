@@ -62,20 +62,25 @@ class MockWorker {
 // Install mock
 (global as any).Worker = MockWorker;
 
+// Suppress logger fetch calls during tests
+(global as any).fetch = jest.fn().mockResolvedValue({ ok: true });
+
 describe('WorkerManager', () => {
   let workerManager: WorkerManager;
   let mockWorker: MockWorker;
   let consoleErrorSpy: jest.SpyInstance;
   let consoleWarnSpy: jest.SpyInstance;
+  let consoleLogSpy: jest.SpyInstance;
 
   beforeEach(() => {
     // Suppress console output during tests
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
     consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-    
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
     // Create worker manager
     workerManager = new WorkerManager('/test-worker.js');
-    
+
     // Get reference to mock worker
     mockWorker = (workerManager as any).worker as MockWorker;
   });
@@ -88,12 +93,14 @@ describe('WorkerManager', () => {
     // Restore console
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
+    consoleLogSpy.mockRestore();
   });
 
   describe('Initialization', () => {
     test('should create worker with correct path', () => {
       expect(mockWorker).toBeDefined();
-      expect(mockWorker.scriptURL).toBe('/test-worker.js');
+      // URL includes ?v=<timestamp> cache-buster (and &debug=1 in non-prod env)
+      expect(mockWorker.scriptURL).toContain('/test-worker.js');
       expect(mockWorker.options?.type).toBe('module');
     });
 
@@ -610,7 +617,7 @@ describe('WorkerManager', () => {
       }, 10);
 
       const results = await Promise.all([promise1, promise2, promise3]);
-      
+
       expect(results).toHaveLength(3);
       results.forEach(result => {
         expect(result.status).toBe('ready');
@@ -625,22 +632,81 @@ describe('WorkerManager', () => {
       const [requestId1, requestId2] = Array.from(pendingRequests.keys());
 
       setTimeout(() => {
-        mockWorker.simulateMessage({ 
-          requestId: requestId1, 
+        mockWorker.simulateMessage({
+          requestId: requestId1,
           status: 'ready',
           message: 'Loaded model1'
         });
-        mockWorker.simulateMessage({ 
-          requestId: requestId2, 
+        mockWorker.simulateMessage({
+          requestId: requestId2,
           status: 'ready',
           message: 'Loaded model2'
         });
       }, 10);
 
       const [result1, result2] = await Promise.all([promise1, promise2]);
-      
+
       expect(result1.message).toBe('Loaded model1');
       expect(result2.message).toBe('Loaded model2');
+    });
+  });
+
+  describe('Startup Handshake', () => {
+    test('worker-ready message resolves whenReady() and sets isStarted()', async () => {
+      const readyPromise = workerManager.whenReady(1000);
+      mockWorker.simulateMessage({ status: 'worker-ready' });
+      await readyPromise;
+      expect(workerManager.isCrashed()).toBe(false);
+      expect(workerManager.isStarted()).toBe(true);
+    });
+
+    test('worker-init-error message rejects whenReady() with the real message', async () => {
+      const readyPromise = workerManager.whenReady(1000);
+      mockWorker.simulateMessage({ status: 'worker-init-error', message: 'SyntaxError: Unexpected token' });
+      await expect(readyPromise).rejects.toThrow('SyntaxError: Unexpected token');
+      expect(workerManager.isCrashed()).toBe(true);
+      expect(workerManager.isStarted()).toBe(false);
+    });
+
+    test('worker-init-error rejects all pending requests', async () => {
+      const req1 = workerManager.sendRequest('load', {});
+      const req2 = workerManager.sendRequest('transcribe', {});
+      mockWorker.simulateMessage({ status: 'worker-init-error', message: 'import failed' });
+      await expect(req1).rejects.toThrow(/import failed/);
+      await expect(req2).rejects.toThrow(/import failed/);
+    });
+
+    test('error event before ready rejects whenReady()', async () => {
+      const readyPromise = workerManager.whenReady(1000);
+      mockWorker.simulateError('script load failure');
+      await expect(readyPromise).rejects.toThrow(/Worker crashed/);
+      expect(workerManager.isCrashed()).toBe(true);
+    });
+
+    test('whenReady() times out if no handshake arrives', async () => {
+      await expect(workerManager.whenReady(50)).rejects.toThrow(/did not start within/);
+    });
+  });
+
+  describe('Dev Debug Flag', () => {
+    test('URL contains &debug=1 when NODE_ENV is not production', () => {
+      const original = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+      const wm = new WorkerManager('/dev-worker.js');
+      const mw = (wm as any).worker as MockWorker;
+      expect(mw.scriptURL).toContain('&debug=1');
+      wm.dispose();
+      process.env.NODE_ENV = original;
+    });
+
+    test('URL does NOT contain &debug=1 when NODE_ENV is production', () => {
+      const original = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      const wm = new WorkerManager('/prod-worker.js');
+      const mw = (wm as any).worker as MockWorker;
+      expect(mw.scriptURL).not.toContain('&debug=1');
+      wm.dispose();
+      process.env.NODE_ENV = original;
     });
   });
 });
