@@ -54,7 +54,7 @@ export function IdleStateView({
   recommendedFileSize,
 }: IdleStateViewProps) {
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 animate-in fade-in duration-500">
+    <div className="w-full max-w-7xl mx-auto px-4 mt-[12vh] animate-in fade-in duration-500">
       <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-6">
         {/* LEFT — dropzone */}
         <div className="flex flex-col">

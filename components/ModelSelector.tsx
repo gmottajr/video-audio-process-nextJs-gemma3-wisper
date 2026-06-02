@@ -147,14 +147,20 @@ export default function ModelSelector({
               disabled={disabled || isLoading}
               className="relative p-3 rounded-xl text-left transition-all duration-200"
               style={{
-                background: isSelected
-                  ? "oklch(28% 0.04 290 / 0.70)"
+                background: isLoaded
+                  ? "oklch(28% 0.10 195 / 0.75)"
+                  : isSelected
+                  ? "oklch(28% 0.06 290 / 0.70)"
                   : "oklch(22% 0.025 280)",
-                border: isSelected
+                border: isLoaded
+                  ? "1px solid oklch(66% 0.17 195 / 0.80)"
+                  : isSelected
                   ? "1px solid oklch(60% 0.28 290 / 0.55)"
                   : "1px solid oklch(38% 0.02 280 / 0.35)",
                 backdropFilter: "blur(8px)",
-                boxShadow: isSelected
+                boxShadow: isLoaded
+                  ? "0 0 24px oklch(66% 0.17 195 / 0.25), inset 0 1px 0 oklch(100% 0 0 / 0.06)"
+                  : isSelected
                   ? "0 0 20px oklch(60% 0.28 290 / 0.15), inset 0 1px 0 oklch(100% 0 0 / 0.04)"
                   : "inset 0 1px 0 oklch(100% 0 0 / 0.03)",
                 opacity: disabled || isLoading ? 0.75 : 1,
@@ -184,7 +190,7 @@ export default function ModelSelector({
               <div className="mb-2">
                 <h4
                   className="font-jazz text-sm leading-tight"
-                  style={{ color: isSelected ? "oklch(80% 0.22 290)" : "var(--text)" }}
+                  style={{ color: isLoaded ? "oklch(80% 0.18 195)" : isSelected ? "oklch(80% 0.22 290)" : "var(--text)" }}
                 >
                   {model.name.replace("Whisper ", "")}
                 </h4>

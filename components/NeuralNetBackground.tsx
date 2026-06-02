@@ -99,7 +99,7 @@ interface Pulse {
 
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
 
-const NODE_COUNT   = 90;
+const NODE_COUNT   = 46;
 const MAX_DIST     = 210;
 const MAX_DIST_SQ  = MAX_DIST * MAX_DIST;
 const MOUSE_RADIUS = 160;
